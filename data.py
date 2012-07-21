@@ -279,8 +279,8 @@ class dataloader(object):
         F1 = []
         for cut in Pcut:
             predict = np.where(Proba >= cut, 1, 0)
-            p = np.mean(predict[target == 1])
-            r = np.mean(target[predict == 1])
+            p = np.mean(target[predict == 1])
+            r = np.mean(predict[target == 1])
             P.append(p)
             R.append(r)
             F1.append(2 * p * r / (p + r))
