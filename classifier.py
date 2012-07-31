@@ -108,40 +108,36 @@ class combinedAI(object):
 
     def predict_proba(self, pfds):
         """
-predict_proba(self, pfds) classifier method
-    Compute the likehoods each possible outcomes of samples in T.
+        predict_proba(self, pfds) classifier method
+        Compute the likehoods each possible outcomes of samples in T.
     
-    The model need to have probability information computed at training
-    time: fit with attribute `probability` set to True.
+        The model need to have probability information computed at training
+        time: fit with attribute `probability` set to True.
     
-    Parameters
-    ----------
-    X : array-like, shape = [n_samples, n_features]
-    
-    Returns
-    -------
-    X : array-like, shape = [n_samples, n_classes]
+        Parameters
+        ----------
+        X : array-like, shape = [n_samples, n_features]
+        
+        Returns
+        -------
+        X : array-like, shape = [n_samples, n_classes]
         Returns the probability of the sample for each class in
         the model, where classes are ordered by arithmetical
         order.
-    
-    Notes
-    -----
+        
+        Notes
+        -----
         """
-        #for clf in self.list_of_AIs:
-            #print clf.predict_proba(pfds)
         
         if self.strategy not in ['l2', 'svm', 'forest']:
             result = np.sum(np.array([clf.predict_proba(pfds) for clf in self.list_of_AIs]), axis=0)/len(self.list_of_AIs)
         else:
             predicts = [clf.predict(pfds) for clf in self.list_of_AIs]
             predicts = np.array(predicts).transpose()
-            result = self.AIonAI.predict_proba(predicts)
+            #AAR: not compatible with multi-class (future fix)
+            result = self.AIonAI.predict_proba(predicts)[...,1]
         return result
         
-
-
-
     def score(self, pfds, target, F1=True):
         """
         return the mean of success array [1,0,0,1,...,1], where 1 is being right, and 0 is being wrong.
@@ -187,15 +183,6 @@ class classifier(object):
         pfds: the training pfds
         target: the training targets
         """
-        #if 'train_pfds' in self.__dict__ and np.array(self.train_pfds == pfds).all() and str(self.feature) == self.last_feature:
-            #print 'in fit, skipping extract'
-            #data = self.train_data
-        #else:
-            #print 'in fit, not skipping extract'
-            #data = np.array([pfd.getdata(**self.feature) for pfd in pfds])
-            #self.train_pfds = tuple(pfds)
-            #self.train_data = data
-            #self.last_feature = str(self.feature)
         data = np.array([pfd.getdata(**self.feature) for pfd in pfds])
         current_class = self.__class__
         self.__class__ = self.orig_class
@@ -212,15 +199,6 @@ class classifier(object):
         args: pfds, target
         pfds: the testing pfds
         """
-        #if 'test_pfds' in self.__dict__ and np.array(self.test_pfds == pfds).all() and str(self.feature) == self.last_feature:
-            #print 'in predict, skipping extract'
-            #data = self.test_data
-        #else:
-            #print 'in predict, not skipping extract'
-            #data = np.array([pfd.getdata(**self.feature) for pfd in pfds])
-            #self.test_pfds = tuple(pfds)
-            #self.test_data = data
-            #self.last_feature = str(self.feature)
         data = np.array([pfd.getdata(**self.feature) for pfd in pfds])
         #self.test_data = data
         current_class = self.__class__
@@ -261,6 +239,7 @@ predict_proba(self, pfds) classifier method
             data = self.pca.transform(data)
         results =  self.predict_proba(data)
         self.__class__ = current_class
+        #AAR: not compatible with multi-class (future fix)
         return results[...,1]
 
     def score(self, pfds, target, F1=True):
