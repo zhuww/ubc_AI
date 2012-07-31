@@ -1,7 +1,11 @@
 import random
 import numpy as np
 from sklearn.decomposition import RandomizedPCA as PCA
-    
+from sklearn import svm, linear_model
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+
+from ubc_AI import pulsar_nnetwork as pnn 
 
 class combinedAI(object):
     """
@@ -11,14 +15,28 @@ class combinedAI(object):
         """
         inputs
         list_of_AIs: list of classifiers
-        strategy: one of ['union', 'vote']
+        strategy: one of ['union', 'vote', 'l2', 'svm', 'forest']
         
-        Note: if nvote=None, we determine best nvote value during self.fit              
+        Notes:   
+        *'l2' uses LogisticRegression on the prediction matrix from list_of_AIs,
+             and makes final prediction from the l2(predictions)
+        *'svm' uses SVM on the prediction matrix from the list_of_AIs,
+             and makes the final prediciton from SVM(predictions)
+        *'forest' uses sklearn.ensemble.RandomForestClassifier
+
+        *if strategy='vote' and nvote=None, 
+           determine best nvote value during self.fit (but this doesn't work good)
 
         """
         self.list_of_AIs = list_of_AIs
         self.strategy = strategy
-        m = len(list_of_AIs)
+        if strategy == 'l2':
+            self.AIonAI = linear_model.LogisticRegression(penalty='l2')
+        elif strategy == 'svm':
+            self.AIonAI = svm.SVC(probability=True)
+        elif strategy == 'forest':
+            self.AIonAI = RandomForestClassifier()
+                    
         self.nvote = nvote
 
     def fit(self, pfds, target, **kwds):
@@ -29,9 +47,13 @@ class combinedAI(object):
         for clf in self.list_of_AIs:
             clf.fit(pfds,target, **kwds)
 
-            if self.strategy == 'vote' and self.nvote == None:
-                train_preds.append(clf.predict(pfds)) #nclassifiers x nsamples
-                
+        if self.strategy in ['l2', 'svm', 'forest']:
+            predictions = [clf.predict_proba(pfds)\
+                               for clf in self.list_of_AIs] #npred x nsamples
+            predictions = np.array(predictions).transpose() #nsamples x npred
+
+            self.AIonAI.fit(predictions, target)
+            
 # choose 'nvote' that maximizes the trianing-set performance                
         if self.strategy == 'vote' and self.nvote == None:
             train_preds = np.array(train_preds).transpose() #nsamples x nclassifiers
@@ -43,7 +65,7 @@ class combinedAI(object):
                 if this_score > score:
                     self.nvote = i + 1
                     score = this_score
-                
+
                 
     def predict(self, test_pfds, pred_mat=False ):
         """
@@ -55,39 +77,32 @@ class combinedAI(object):
         if not type(test_pfds) in [list, np.ndarray]:
             print "warining: changing test_pfds from type %s to list" % (type(test_pfds))
             test_pfds = [test_pfds]
-        self.list_of_predicts = []
+        list_of_predicts = []
         for clf in self.list_of_AIs:
-            self.list_of_predicts.append(clf.predict(test_pfds))
+            if self.strategy in ['l2', 'svm', 'forest']:
+                #use predict_proba for our AI_on_AI classifier
+                list_of_predicts.append(clf.predict_proba(test_pfds))
+            else:
+                list_of_predicts.append(clf.predict(test_pfds))
+        self.list_of_predicts = np.array(list_of_predicts).transpose() #nsamp x npred
 
         self.predictions = []
-        for i in range(len(test_pfds)):
-            if self.strategy == 'union':
-                if any([c[i] for c in self.list_of_predicts]):
-                    self.predictions.append(1)
-                else:
-                    self.predictions.append(0)
-            elif self.strategy == 'vote':
-                #predict = [c[i] for c in self.list_of_predicts]
-                #if predict.count(1) > predict.count(0):
-                    #self.predictions.append(1)
-                #elif predict.count(1) == predict.count(0):
-                    #if random.random() > 0.5:
-                        #self.predictions.append(1)
-                    #else:
-                        #self.predictions.append(0)
-                #else:
-                    #self.predictions.append(0)
-                predict = np.array(self.list_of_predicts)
-                m,n = predict.shape
-                #print m,n
-                avepred = predict.sum(0)/m + np.array([(random.random()-0.5)*1.e-10 for i in range(n)])
-                #print avepred.shape
-                #print avepred
-                self.predictions = np.where(avepred > np.ones(n)*self.nvote/float(m), 1, 0)
+        if self.strategy == 'union':
+            #return '1'=pulsar if any AI voted yes, otherwise '0'=rfi
+            self.predictions = np.where((lop==1).sum(axis=1)>0, 1, 0)
+
+        elif self.strategy == 'vote':
+            predict = self.list_of_predicts.mean(axis=1)#[nsamples x npred]
+            npreds = float(len(self.list_of_AIs))
+            self.predictions = np.where( predict > self.nvote/npreds, 1, 0)
+            
+        elif self.strategy in ['l2', 'svm', 'forest']:
+            predict = self.list_of_predicts #[nsamples x npred]
+            self.predictions = self.AIonAI.predict(predict)
 
         #return np.array(self.predictions)
         if pred_mat:
-            return predict #[nsamples x npredictions]
+            return self.list_of_predicts #[nsamples x npredictions]
         else:
             return self.predictions
 
@@ -115,8 +130,13 @@ predict_proba(self, pfds) classifier method
         """
         #for clf in self.list_of_AIs:
             #print clf.predict_proba(pfds)
-
-        result = np.sum(np.array([clf.predict_proba(pfds) for clf in self.list_of_AIs]), axis=0)/len(self.list_of_AIs)
+        
+        if self.strategy not in ['l2', 'svm', 'forest']:
+            result = np.sum(np.array([clf.predict_proba(pfds) for clf in self.list_of_AIs]), axis=0)/len(self.list_of_AIs)
+        else:
+            predicts = [clf.predict(pfds) for clf in self.list_of_AIs]
+            predicts = np.array(predicts).transpose()
+            result = self.AIonAI.predict_proba(predicts)
         return result
         
 
@@ -280,7 +300,6 @@ predict_proba(self, pfds) classifier method
         #return super(classifier, self).score(data, target)
         #return self.orig_class.score(self, data, target)
 
-from sklearn import svm, linear_model
 class svmclf(classifier, svm.SVC):
     """
     the mix-in class for svm.SVC
@@ -295,8 +314,6 @@ class LRclf(classifier, linear_model.LogisticRegression):
     orig_class = linear_model.LogisticRegression
     pass
 
-
-from ubc_AI import pulsar_nnetwork as pnn 
 class pnnclf(classifier, pnn.NeuralNetwork):
     """ 
     the mixed in class for pnn.NeuralNetwork
@@ -304,7 +321,6 @@ class pnnclf(classifier, pnn.NeuralNetwork):
     orig_class = pnn.NeuralNetwork
     pass
 
-from sklearn.tree import DecisionTreeClassifier
 class dtreeclf(classifier, DecisionTreeClassifier):
     """ 
     the mixed in class for DecisionTree
