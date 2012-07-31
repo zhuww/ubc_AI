@@ -15,7 +15,7 @@ class combinedAI(object):
         """
         inputs
         list_of_AIs: list of classifiers
-        strategy: one of ['union', 'vote', 'l2', 'svm', 'forest']
+        strategy: one of ['union', 'vote', 'l2', 'svm', 'forest', 'tree']
         
         Notes:   
         *'l2' uses LogisticRegression on the prediction matrix from list_of_AIs,
@@ -23,11 +23,12 @@ class combinedAI(object):
         *'svm' uses SVM on the prediction matrix from the list_of_AIs,
              and makes the final prediciton from SVM(predictions)
         *'forest' uses sklearn.ensemble.RandomForestClassifier
-
+        *'tree' DecisionTreeClassifier
         *if strategy='vote' and nvote=None, 
            determine best nvote value during self.fit (but this doesn't work good)
 
         """
+        self.AIonAIs = ['l2','svm','forest','tree']
         self.list_of_AIs = list_of_AIs
         self.strategy = strategy
         if strategy == 'l2':
@@ -36,6 +37,8 @@ class combinedAI(object):
             self.AIonAI = svm.SVC(probability=True)
         elif strategy == 'forest':
             self.AIonAI = RandomForestClassifier()
+        elif strategy == 'tree':
+            self.AIonAI = DecisionTreeClassifier()
                     
         self.nvote = nvote
 
@@ -47,7 +50,7 @@ class combinedAI(object):
         for clf in self.list_of_AIs:
             clf.fit(pfds,target, **kwds)
 
-        if self.strategy in ['l2', 'svm', 'forest']:
+        if self.strategy in self.AIonAIs:
             predictions = [clf.predict_proba(pfds)\
                                for clf in self.list_of_AIs] #npred x nsamples
             predictions = np.array(predictions).transpose() #nsamples x npred
@@ -79,7 +82,7 @@ class combinedAI(object):
             test_pfds = [test_pfds]
         list_of_predicts = []
         for clf in self.list_of_AIs:
-            if self.strategy in ['l2', 'svm', 'forest']:
+            if self.strategy in self.AIonAIs:
                 #use predict_proba for our AI_on_AI classifier
                 list_of_predicts.append(clf.predict_proba(test_pfds))
             else:
@@ -96,7 +99,7 @@ class combinedAI(object):
             npreds = float(len(self.list_of_AIs))
             self.predictions = np.where( predict > self.nvote/npreds, 1, 0)
             
-        elif self.strategy in ['l2', 'svm', 'forest']:
+        elif self.strategy in self.AIonAIs:
             predict = self.list_of_predicts #[nsamples x npred]
             self.predictions = self.AIonAI.predict(predict)
 
@@ -129,7 +132,7 @@ class combinedAI(object):
         -----
         """
         
-        if self.strategy not in ['l2', 'svm', 'forest']:
+        if self.strategy not in self.AIonAIs:
             result = np.sum(np.array([clf.predict_proba(pfds) for clf in self.list_of_AIs]), axis=0)/len(self.list_of_AIs)
         else:
             predicts = [clf.predict(pfds) for clf in self.list_of_AIs]
