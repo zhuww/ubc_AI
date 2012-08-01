@@ -15,7 +15,7 @@ class combinedAI(object):
         """
         inputs
         list_of_AIs: list of classifiers
-        strategy: one of ['union', 'vote', 'l2', 'svm', 'forest', 'tree']
+        strategy: one of ['union', 'vote', 'l2', 'svm', 'forest', 'tree', 'nn']
         
         Notes:   
         *'l2' uses LogisticRegression on the prediction matrix from list_of_AIs,
@@ -24,11 +24,12 @@ class combinedAI(object):
              and makes the final prediciton from SVM(predictions)
         *'forest' uses sklearn.ensemble.RandomForestClassifier
         *'tree' DecisionTreeClassifier
+        *'nn' uses a 1-layer, N/2-neuron classifier [N=len(list_of_AIs)]
         *if strategy='vote' and nvote=None, 
            determine best nvote value during self.fit (but this doesn't work good)
 
         """
-        self.AIonAIs = ['l2','svm','forest','tree']
+        self.AIonAIs = ['l2','svm','forest','tree','nn']
         self.list_of_AIs = list_of_AIs
         self.strategy = strategy
         if strategy == 'l2':
@@ -39,6 +40,9 @@ class combinedAI(object):
             self.AIonAI = RandomForestClassifier()
         elif strategy == 'tree':
             self.AIonAI = DecisionTreeClassifier()
+        elif strategy == 'nn':
+            n = int(len(list_of_AIs)/2)
+            self.AIonAI = pnn.NeuralNetwork(gamma=1./n,design=[n])
                     
         self.nvote = nvote
 
