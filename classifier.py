@@ -54,11 +54,17 @@ class combinedAI(object):
         for clf in self.list_of_AIs:
             clf.fit(pfds,target, **kwds)
 
-        if self.strategy in self.AIonAIs:
-            predictions = [clf.predict_proba(pfds)\
-                               for clf in self.list_of_AIs] #npred x nsamples
-            predictions = np.array(predictions).transpose() #nsamples x npred
+        if (self.strategy in self.AIonAIs):
+            if (self.strategy not in ['tree', 'forest']):
+                #use predict_prob
+                predictions = [clf.predict_proba(pfds)\
+                                   for clf in self.list_of_AIs] #npred x nsamples
+            else:
+                #use predict
+                predictions = [clf.predict(pfds)\
+                                   for clf in self.list_of_AIs]
 
+            predictions = np.array(predictions).transpose() #nsamples x npred
             self.AIonAI.fit(predictions, target)
             
 # choose 'nvote' that maximizes the trianing-set performance                
@@ -82,15 +88,14 @@ class combinedAI(object):
                                (default False)
         """
         if not type(test_pfds) in [list, np.ndarray]:
-            print "warining: changing test_pfds from type %s to list" % (type(test_pfds))
+            print "warniing: changing test_pfds from type %s to list" % (type(test_pfds))
             test_pfds = [test_pfds]
-        list_of_predicts = []
-        for clf in self.list_of_AIs:
-            if self.strategy in self.AIonAIs:
-                #use predict_proba for our AI_on_AI classifier
-                list_of_predicts.append(clf.predict_proba(test_pfds))
-            else:
-                list_of_predicts.append(clf.predict(test_pfds))
+        
+        if (self.strategy in self.AIonAIs) and (self.strategy not in ['tree', 'forest']):
+            #use predict_proba for our non-tree/forest AI_on_AI classifier, 
+            list_of_predicts = [clf.predict_proba(test_pfds) for clf in self.list_of_AIs]
+        else:
+            list_of_predicts = [clf.predict(test_pfds) for clf in self.list_of_AIs]
         self.list_of_predicts = np.array(list_of_predicts).transpose() #nsamp x npred
 
         self.predictions = []
