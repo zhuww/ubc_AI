@@ -1,7 +1,11 @@
 import random
 import numpy as np
 from sklearn.decomposition import RandomizedPCA as PCA
-    
+from sklearn import svm, linear_model
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+
+from ubc_AI import pulsar_nnetwork as pnn 
 
 class combinedAI(object):
     """
@@ -11,14 +15,35 @@ class combinedAI(object):
         """
         inputs
         list_of_AIs: list of classifiers
-        strategy: one of ['union', 'vote']
+        strategy: one of ['union', 'vote', 'l2', 'svm', 'forest', 'tree', 'nn']
         
-        Note: if nvote=None, we determine best nvote value during self.fit              
+        Notes:   
+        *'l2' uses LogisticRegression on the prediction matrix from list_of_AIs,
+             and makes final prediction from the l2(predictions)
+        *'svm' uses SVM on the prediction matrix from the list_of_AIs,
+             and makes the final prediciton from SVM(predictions)
+        *'forest' uses sklearn.ensemble.RandomForestClassifier
+        *'tree' DecisionTreeClassifier
+        *'nn' uses a 1-layer, N/2-neuron classifier [N=len(list_of_AIs)]
+        *if strategy='vote' and nvote=None, 
+           determine best nvote value during self.fit (but this doesn't work good)
 
         """
+        self.AIonAIs = ['l2','svm','forest','tree','nn']
         self.list_of_AIs = list_of_AIs
         self.strategy = strategy
-        m = len(list_of_AIs)
+        if strategy == 'l2':
+            self.AIonAI = linear_model.LogisticRegression(penalty='l2')
+        elif strategy == 'svm':
+            self.AIonAI = svm.SVC(probability=True)
+        elif strategy == 'forest':
+            self.AIonAI = RandomForestClassifier()
+        elif strategy == 'tree':
+            self.AIonAI = DecisionTreeClassifier()
+        elif strategy == 'nn':
+            n = max(1,int(len(list_of_AIs)/2))
+            self.AIonAI = pnn.NeuralNetwork(gamma=1./n,design=[n,2])
+                    
         self.nvote = nvote
 
     def fit(self, pfds, target, **kwds):
@@ -29,9 +54,19 @@ class combinedAI(object):
         for clf in self.list_of_AIs:
             clf.fit(pfds,target, **kwds)
 
-            if self.strategy == 'vote' and self.nvote == None:
-                train_preds.append(clf.predict(pfds)) #nclassifiers x nsamples
-                
+        if (self.strategy in self.AIonAIs):
+            if (self.strategy not in ['tree', 'forest']):
+                #use predict_prob
+                predictions = [clf.predict_proba(pfds)\
+                                   for clf in self.list_of_AIs] #npred x nsamples
+            else:
+                #use predict
+                predictions = [clf.predict(pfds)\
+                                   for clf in self.list_of_AIs]
+
+            predictions = np.array(predictions).transpose() #nsamples x npred
+            self.AIonAI.fit(predictions, target)
+            
 # choose 'nvote' that maximizes the trianing-set performance                
         if self.strategy == 'vote' and self.nvote == None:
             train_preds = np.array(train_preds).transpose() #nsamples x nclassifiers
@@ -43,7 +78,7 @@ class combinedAI(object):
                 if this_score > score:
                     self.nvote = i + 1
                     score = this_score
-                
+
                 
     def predict(self, test_pfds, pred_mat=False ):
         """
@@ -53,75 +88,68 @@ class combinedAI(object):
                                (default False)
         """
         if not type(test_pfds) in [list, np.ndarray]:
-            print "warining: changing test_pfds from type %s to list" % (type(test_pfds))
+            print "warniing: changing test_pfds from type %s to list" % (type(test_pfds))
             test_pfds = [test_pfds]
-        self.list_of_predicts = []
-        for clf in self.list_of_AIs:
-            self.list_of_predicts.append(clf.predict(test_pfds))
+        
+        if (self.strategy in self.AIonAIs) and (self.strategy not in ['tree', 'forest']):
+            #use predict_proba for our non-tree/forest AI_on_AI classifier, 
+            list_of_predicts = [clf.predict_proba(test_pfds) for clf in self.list_of_AIs]
+        else:
+            list_of_predicts = [clf.predict(test_pfds) for clf in self.list_of_AIs]
+        self.list_of_predicts = np.array(list_of_predicts).transpose() #nsamp x npred
 
         self.predictions = []
-        for i in range(len(test_pfds)):
-            if self.strategy == 'union':
-                if any([c[i] for c in self.list_of_predicts]):
-                    self.predictions.append(1)
-                else:
-                    self.predictions.append(0)
-            elif self.strategy == 'vote':
-                #predict = [c[i] for c in self.list_of_predicts]
-                #if predict.count(1) > predict.count(0):
-                    #self.predictions.append(1)
-                #elif predict.count(1) == predict.count(0):
-                    #if random.random() > 0.5:
-                        #self.predictions.append(1)
-                    #else:
-                        #self.predictions.append(0)
-                #else:
-                    #self.predictions.append(0)
-                predict = np.array(self.list_of_predicts)
-                m,n = predict.shape
-                #print m,n
-                avepred = predict.sum(0)/m + np.array([(random.random()-0.5)*1.e-10 for i in range(n)])
-                #print avepred.shape
-                #print avepred
-                self.predictions = np.where(avepred > np.ones(n)*self.nvote/float(m), 1, 0)
+        if self.strategy == 'union':
+            #return '1'=pulsar if any AI voted yes, otherwise '0'=rfi
+            self.predictions = np.where((lop==1).sum(axis=1)>0, 1, 0)
+
+        elif self.strategy == 'vote':
+            predict = self.list_of_predicts.mean(axis=1)#[nsamples x npred]
+            npreds = float(len(self.list_of_AIs))
+            self.predictions = np.where( predict > self.nvote/npreds, 1, 0)
+            
+        elif self.strategy in self.AIonAIs:
+            predict = self.list_of_predicts #[nsamples x npred]
+            self.predictions = self.AIonAI.predict(predict)
 
         #return np.array(self.predictions)
         if pred_mat:
-            return predict #[nsamples x npredictions]
+            return self.list_of_predicts #[nsamples x npredictions]
         else:
             return self.predictions
 
     def predict_proba(self, pfds):
         """
-predict_proba(self, pfds) classifier method
-    Compute the likehoods each possible outcomes of samples in T.
+        predict_proba(self, pfds) classifier method
+        Compute the likehoods each possible outcomes of samples in T.
     
-    The model need to have probability information computed at training
-    time: fit with attribute `probability` set to True.
+        The model need to have probability information computed at training
+        time: fit with attribute `probability` set to True.
     
-    Parameters
-    ----------
-    X : array-like, shape = [n_samples, n_features]
-    
-    Returns
-    -------
-    X : array-like, shape = [n_samples, n_classes]
+        Parameters
+        ----------
+        X : array-like, shape = [n_samples, n_features]
+        
+        Returns
+        -------
+        X : array-like, shape = [n_samples, n_classes]
         Returns the probability of the sample for each class in
         the model, where classes are ordered by arithmetical
         order.
-    
-    Notes
-    -----
+        
+        Notes
+        -----
         """
-        #for clf in self.list_of_AIs:
-            #print clf.predict_proba(pfds)
-
-        result = np.sum(np.array([clf.predict_proba(pfds) for clf in self.list_of_AIs]), axis=0)/len(self.list_of_AIs)
+        
+        if self.strategy not in self.AIonAIs:
+            result = np.sum(np.array([clf.predict_proba(pfds) for clf in self.list_of_AIs]), axis=0)/len(self.list_of_AIs)
+        else:
+            predicts = [clf.predict(pfds) for clf in self.list_of_AIs]
+            predicts = np.array(predicts).transpose()
+            #AAR: not compatible with multi-class (future fix)
+            result = self.AIonAI.predict_proba(predicts)[...,1]
         return result
         
-
-
-
     def score(self, pfds, target, F1=True):
         """
         return the mean of success array [1,0,0,1,...,1], where 1 is being right, and 0 is being wrong.
@@ -167,15 +195,6 @@ class classifier(object):
         pfds: the training pfds
         target: the training targets
         """
-        #if 'train_pfds' in self.__dict__ and np.array(self.train_pfds == pfds).all() and str(self.feature) == self.last_feature:
-            #print 'in fit, skipping extract'
-            #data = self.train_data
-        #else:
-            #print 'in fit, not skipping extract'
-            #data = np.array([pfd.getdata(**self.feature) for pfd in pfds])
-            #self.train_pfds = tuple(pfds)
-            #self.train_data = data
-            #self.last_feature = str(self.feature)
         data = np.array([pfd.getdata(**self.feature) for pfd in pfds])
         current_class = self.__class__
         self.__class__ = self.orig_class
@@ -192,15 +211,6 @@ class classifier(object):
         args: pfds, target
         pfds: the testing pfds
         """
-        #if 'test_pfds' in self.__dict__ and np.array(self.test_pfds == pfds).all() and str(self.feature) == self.last_feature:
-            #print 'in predict, skipping extract'
-            #data = self.test_data
-        #else:
-            #print 'in predict, not skipping extract'
-            #data = np.array([pfd.getdata(**self.feature) for pfd in pfds])
-            #self.test_pfds = tuple(pfds)
-            #self.test_data = data
-            #self.last_feature = str(self.feature)
         data = np.array([pfd.getdata(**self.feature) for pfd in pfds])
         #self.test_data = data
         current_class = self.__class__
@@ -241,6 +251,7 @@ predict_proba(self, pfds) classifier method
             data = self.pca.transform(data)
         results =  self.predict_proba(data)
         self.__class__ = current_class
+        #AAR: not compatible with multi-class (future fix)
         return results[...,1]
 
     def score(self, pfds, target, F1=True):
@@ -280,7 +291,6 @@ predict_proba(self, pfds) classifier method
         #return super(classifier, self).score(data, target)
         #return self.orig_class.score(self, data, target)
 
-from sklearn import svm, linear_model
 class svmclf(classifier, svm.SVC):
     """
     the mix-in class for svm.SVC
@@ -295,8 +305,6 @@ class LRclf(classifier, linear_model.LogisticRegression):
     orig_class = linear_model.LogisticRegression
     pass
 
-
-from ubc_AI import pulsar_nnetwork as pnn 
 class pnnclf(classifier, pnn.NeuralNetwork):
     """ 
     the mixed in class for pnn.NeuralNetwork
@@ -304,7 +312,6 @@ class pnnclf(classifier, pnn.NeuralNetwork):
     orig_class = pnn.NeuralNetwork
     pass
 
-from sklearn.tree import DecisionTreeClassifier
 class dtreeclf(classifier, DecisionTreeClassifier):
     """ 
     the mixed in class for DecisionTree

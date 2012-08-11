@@ -59,6 +59,8 @@ class pfddata(pfd):
             if not feature in self.extracted_feature:
                 ddm = (self.dms.max() - self.dms.min())/2.
                 loDM, hiDM = (self.bestdm - ddm , self.bestdm + ddm)
+                loDM = max((0, loDM)) #make sure cut off at 0 DM
+                hiDM = max((ddm, hiDM)) #make sure cut off at 0 DM
                 N = 100
                 interp = False
                 sumprofs = self.profs.sum(0)
