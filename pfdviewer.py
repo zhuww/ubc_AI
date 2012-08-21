@@ -765,9 +765,23 @@ def convert(fin):
         if show_pfd:
             #make the .ps file (converted, next, to .png)
             full_path = os.path.abspath(fin)
+            basedir = '/'.join(full_path.split('/')[:-1])
+            basename = os.path.basename(fin)
             cmd = [show_pfd, '-noxwin', full_path]
             subprocess.call(cmd, shell=False,
                             stdout=open('/dev/null','w'))
+#delete the other generated files if they already exist
+#otherwise move them to same location as pfd files
+            fold = '%s/%s.ps' % (basedir, basename)
+            if os.path.exists(fold):
+               os.remove(fold)
+            else:
+                shutil.move('%s.ps' % basename, basedir)
+            fb = '%s/%s.bestprof' % (basedir, basename)
+            if os.path.exists(fb):
+                os.remove(fold)
+            else:
+                shutil.move('%s.bestprof' % basename, basedir)
             fin = fin + '.ps'
         else:
             #conversion failed
