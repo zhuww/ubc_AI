@@ -112,13 +112,16 @@ class MainFrameGTK(Gtk.Window):
         # start with default and '<new>' voters
         if self.data != None:
             self.voters = list(self.data.dtype.names[1:])
-            AIi = self.voters.index('AI')
-            self.voters.pop(AIi)
-            self.voters.insert(0,'<new>')
+            if 'AI' in self.voters:
+                AIi = self.voters.index('AI')
+                self.voters.pop(AIi)
+            if '<new>' not in self.voters:
+                self.voters.insert(0,'<new>')
             self.active_voter = 1
         
         ##GUI init options
 # set default voter to 1st non-AI
+            print "AAAR",self.voters
             for v in self.voters:
                 if v != 'AI':
                     self.voterbox.append_text(v)
@@ -146,6 +149,7 @@ class MainFrameGTK(Gtk.Window):
         controls keypresses on over-all window
 
         """
+        global cand_view
         key = Gdk.keyval_name(event.keyval)
         ctrl = event.state &\
             Gdk.ModifierType.CONTROL_MASK
@@ -295,7 +299,6 @@ class MainFrameGTK(Gtk.Window):
                         fpng = self.generate_AIviewfile(fname)
 
                 if fpng and os.path.exists(fpng):
-                    print "FPNMG", fpng
                     self.image.set_from_file(fpng)
                     self.image_disp.set_text('displaying : %s' % fname)
                 else:
@@ -572,11 +575,12 @@ class MainFrameGTK(Gtk.Window):
             self.loadfile = fname
             self.data = load_data(fname)
             oldvoters = self.voters
-            self.voters = list(self.data.dtype.names[1:])
+            self.voters = list(self.data.dtype.names[1:]) #0=fnames
             AIi = self.voters.index('AI')
             self.voters.pop(AIi)
-            self.voters.insert(0,'<new>')
-            self.active_voter = 2
+            if '<new>' not in self.voters:
+                self.voters.insert(0,'<new>')
+            self.active_voter = 1
 
             #add new voters to the voterbox
             for v in self.voters:
@@ -584,7 +588,7 @@ class MainFrameGTK(Gtk.Window):
                     self.voterbox.append_text(v)
 
             if self.active_voter == None: 
-                self.active_voter = 2
+                self.active_voter = 1
             elif self.active_voter >= len(self.voters):
                 self.active_voter = len(self.voters)
 
