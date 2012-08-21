@@ -53,6 +53,7 @@ cand_view = 0
 #store AI_view png's in a temporary dir
 tempdir = tempfile.mkdtemp(prefix='AIview_')
 atexit.register(lambda: shutil.rmtree(tempdir))
+bdir = '/'.join(__file__.split('/')[:-1])
 
 class MainFrameGTK(Gtk.Window):
     """This is the Main Frame for the GTK application"""
@@ -60,7 +61,7 @@ class MainFrameGTK(Gtk.Window):
     def __init__(self, data=None):
         Gtk.Window.__init__(self, title='pfd viewer')
 
-        self.gladefile = "pfdviewer.glade"
+        self.gladefile = "%s/pfdviewer.glade" % bdir
         self.builder = Gtk.Builder()
         self.builder.add_from_file(self.gladefile)
 
