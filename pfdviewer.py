@@ -319,7 +319,7 @@ class MainFrameGTK(Gtk.Window):
         """
         
         pfd = pfddata(fname)
-        plt.figure(figsize=(8,8))
+        plt.figure(figsize=(8,6))
         vals = [('pprof_nbins', 'pprof_pcacomp'), #pulse profile
                 ('si_nbins', 'si_pcacomp'),       #frequency subintervals
                 ('pi_bins', 'pi_pcacomp'),        #pulse intervals
@@ -338,34 +338,43 @@ class MainFrameGTK(Gtk.Window):
             except ValueError:
                 npca_comp = 0 #no pca
             AIview.append([nbins, npca_comp])
-            ax = plt.subplot(2, 2, subplt+1)
+#            ax = plt.subplot(2, 2, subplt+1)
             if subplt == 0:
+                ax = plt.subplot2grid((3,2),(0,0))
                 data = pfd.getdata(phasebins=nbins)
                 if npca_comp:
-                    pca = PCA(n_components=npca_comp).fit(data)
+                    pca = PCA(n_components=npca_comp)
+                    pca.fit(data)
                     pcadata = pca.transform(data)
                     data = pca.inverse_transform(pcadata)
                 ax.plot(data)
                 ax.set_title('pulse profile (bins, pca) = (%s,%s)'%(nbins,npca_comp))
             elif subplt == 1:
+                ax = plt.subplot2grid((3,2), (0,1), rowspan=2)
                 data = pfd.getdata(subbands=nbins)
                 if npca_comp:
-                    pca = PCA(n_components=npca_comp).fit(data)
-                    pcadata = pca.transform(data)
-                    data = pca.inverse_transform(pcadata)
+                    #note: PCA is best set when fed many samples, not one
+                    pca = PCA(n_components=npca_comp)
+                    rd = data.reshape(nbins,nbins)
+                    pca.fit(rd)
+                    data = pca.inverse_transform(pca.transform(rd)).flatten()
                 ax.imshow(data.reshape(nbins, nbins),
                           cmap=plt.cm.gray)
                 ax.set_title('subbands (bins, pca) = (%s,%s)'%(nbins,npca_comp))
             elif subplt == 2:
+                ax = plt.subplot2grid((3,2), (1,0), rowspan=2)
                 data = pfd.getdata(intervals=nbins)
                 if npca_comp:
-                    pca = PCA(n_components=npca_comp).fit(data)
-                    pcadata = pca.transform(data)
-                    data = pca.inverse_transform(pcadata)
+                    #note: PCA is best set when fed many samples, not one
+                    pca = PCA(n_components=npca_comp)
+                    rd = data.reshape(nbins,nbins)
+                    pca.fit(rd)
+                    data = pca.inverse_transform(pca.transform(rd)).flatten()
                 ax.imshow(data.reshape(nbins,nbins),
                                 cmap=plt.cm.gray)
                 ax.set_title('intervals (bins, pca) = (%s,%s)'%(nbins,npca_comp))
             elif subplt == 3:
+                ax = plt.subplot2grid((3,2), (2,1))
                 data = pfd.getdata(DMbins=nbins)
                 if npca_comp:
                     pca = PCA(n_components=npca_comp).fit(data)
