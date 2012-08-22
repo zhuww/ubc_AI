@@ -593,6 +593,8 @@ class MainFrameGTK(Gtk.Window):
         Should contain two columns: filename AI_prob
 
         """
+
+        fname = ''
         if event != 'load':                           
             dialog = Gtk.FileChooserDialog("choose a file to load", self,
                                            Gtk.FileChooserAction.OPEN,
@@ -605,7 +607,7 @@ class MainFrameGTK(Gtk.Window):
                 fname = dialog.get_filename()
                 print "File selected: " + fname
             elif response == Gtk.ResponseType.CANCEL:
-                print "Cancel clicked"
+                print "<Cancel clicked"
                 fname = None
             dialog.destroy()
         else:
@@ -637,6 +639,15 @@ class MainFrameGTK(Gtk.Window):
         self.pfdtree.set_cursor(0)
 
 
+    def on_help(self, event):
+        """
+        help
+        """
+        dialog = Gtk.MessageDialog(self, 0, Gtk.MessageType.INFO,
+                                   Gtk.ButtonsType.OK, "PFDviewer v0.01")
+        response = dialog.run()
+        dialog.destroy()
+        
     def on_save(self, event=None):
         """
         save the data

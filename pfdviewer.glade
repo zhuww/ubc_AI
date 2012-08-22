@@ -569,7 +569,7 @@
                         <property name="tooltip_text" translatable="yes">(Ctrl+s) Load a data file.</property>
                         <property name="image">image1</property>
                         <property name="use_stock">False</property>
-                        <signal name="activate" handler="on_open" swapped="no"/>
+                        <signal name="button-press-event" handler="on_open" swapped="no"/>
                       </object>
                     </child>
                     <child>
@@ -642,8 +642,8 @@
                         <property name="use_action_appearance">False</property>
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <property name="use_underline">True</property>
                         <property name="use_stock">True</property>
+                        <signal name="activate" handler="on_help" swapped="no"/>
                       </object>
                     </child>
                   </object>
@@ -854,9 +854,7 @@
                         <property name="can_focus">False</property>
                         <property name="image">image4</property>
                         <property name="use_stock">False</property>
-                        <signal name="select" handler="on_open" swapped="no"/>
                         <signal name="button-release-event" handler="on_open" swapped="no"/>
-                        <signal name="activate" handler="on_open" swapped="no"/>
                       </object>
                     </child>
                     <child>
@@ -932,6 +930,7 @@
                         <property name="can_focus">False</property>
                         <property name="use_underline">True</property>
                         <property name="use_stock">True</property>
+                        <signal name="activate" handler="on_help" swapped="no"/>
                       </object>
                     </child>
                   </object>
