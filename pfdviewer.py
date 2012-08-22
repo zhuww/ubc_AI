@@ -166,14 +166,14 @@ class MainFrameGTK(Gtk.Window):
             self.modifier = key
 
         if key == 'q' and self.modifier in\
-                ['Control', 'Control_L', 'Control_R']:
+                ['Control', 'Control_L', 'Control_R', 'Primary']:
             self.on_menubar_delete_event(widget, event)
 
-        elif key == 's' and self.modifier in ['Control_L', 'Control_R']:
+        elif key == 's' and self.modifier in ['Control_L', 'Control_R', 'Primary']:
             self.on_save(widget)
             pass
             
-        elif key == 'l' and self.modifier in ['Control_L', 'Control_R']:
+        elif key == 'l' and self.modifier in ['Control_L', 'Control_R', 'Primary']:
             self.on_open()
 
         elif key == 'n':           
@@ -248,7 +248,9 @@ class MainFrameGTK(Gtk.Window):
         if tmpiter != None:
             
             fname = '%s/%s' % (self.basedir,tmpstore.get_value(tmpiter, 0))
-
+# see if this path exists, update self.basedir if necessary
+            self.find_file(fname)
+            
             #we are not doing "AI view" of data
             if not self.aiview.get_active():
                 if fname.endswith('.ps'):
@@ -311,6 +313,25 @@ class MainFrameGTK(Gtk.Window):
                     self.image.set_from_file('')
                     self.image_disp.set_text('displaying : %s' % fname)
 
+    def find_file(self, fname):
+        """
+        make sure we can find the file
+
+        """
+        if not os.path.exists(fname):
+            dialog = Gtk.FileChooserDialog("Choose base path for %s." % fname,
+                                           self, Gtk.FileChooserAction.SELECT_FOLDER,
+                                           (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+                                            "Select", Gtk.ResponseType.OK))
+            dialog.set_default_size(800,400)
+            response = dialog.run()
+            if response == Gtk.ResponseType.OK:
+                self.basedir = dialog.get_filename()
+            dialog.destroy()
+
+            fname = "%s/%s" % (self.basedir, fname)
+            return fname
+        
     def generate_AIviewfile(self, fname):
         """
         Given some PFD file and the AI_view flag, generate the png
@@ -764,7 +785,7 @@ def convert(fin):
     global show_pfd
     fout = None
     if not os.path.exists(fin):
-        print "Can't find file %s" % fin
+        print "Can't find file %s" % os.path.abspath(fin)
         return fout
 
     if fin.endswith('.pfd'):
