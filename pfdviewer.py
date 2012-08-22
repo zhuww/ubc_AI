@@ -60,8 +60,10 @@ class MainFrameGTK(Gtk.Window):
     
     def __init__(self, data=None):
         Gtk.Window.__init__(self, title='pfd viewer')
-
-        self.gladefile = "%s/pfdviewer.glade" % bdir
+        if bdir:
+            self.gladefile = "%s/pfdviewer.glade" % bdir
+        else:
+            self.gladefile = "pfdviewer.glade"
         self.builder = Gtk.Builder()
         self.builder.add_from_file(self.gladefile)
 
@@ -278,7 +280,7 @@ class MainFrameGTK(Gtk.Window):
                     self.image_disp.set_text('displaying : %s' % fname)
                 else:
                     note = "Failed to generate png file %s" % fname
-                    print note
+#                    print note
                     self.statusbar.push(0,note)
                     self.image.set_from_file('')
 
@@ -763,7 +765,8 @@ def convert(fin):
     fout = None
     if not os.path.exists(fin):
         print "Can't find file %s" % fin
-        return
+        return fout
+
     if fin.endswith('.pfd'):
         #find PRESTO's show_pfd executable
         if not show_pfd:
