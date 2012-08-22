@@ -120,11 +120,12 @@ class MainFrameGTK(Gtk.Window):
             self.active_voter = 1
         
         ##GUI init options
+            #done in on_open
 # set default voter to 1st non-AI
-            print "AAAR",self.voters
-            for v in self.voters:
-                if v != 'AI':
-                    self.voterbox.append_text(v)
+#            print "AAAR",self.voters
+#            for v in self.voters:
+#                if v != 'AI':
+#                    self.voterbox.append_text(v)
             if len(self.voters) > 2:
                 self.active_voter = 1
                 self.voterbox.set_active(self.active_voter)
@@ -506,12 +507,18 @@ class MainFrameGTK(Gtk.Window):
             while d == '':
                 d = inputbox('pfdviewer','choose your voting name')
             if d != None:
-                self.voters.append(d)
-                self.voterbox.append_text(d)
-                self.voterbox.set_active(len(self.voters)-1)
-                self.active_voter = self.voterbox.get_active()
-                print "adding voter data for %s" % d
-                self.data = add_voter(d, self.data)
+                if d not in self.voters:
+                    print "adding voter data for %s" % d
+                    self.voters.append(d)
+                    self.data = add_voter(d, self.data)
+                    self.voterbox.append_text(d)
+                    self.active_voter = len(self.voters) - 1
+                else:
+                    note = 'User already exists. switching to it'
+                    print note
+                    self.statusbar.push(0,note)
+                    self.active_voter = self.voters.index(d)
+                    self.voterbox.set_active(self.active_voter)
             else:
                 #return to previous state
                 self.voterbox.set_active(self.active_voter)
@@ -519,6 +526,7 @@ class MainFrameGTK(Gtk.Window):
             self.active_voter = self.voterbox.get_active() #get newest selection
 
         if prev_voter != self.active_voter:
+            self.voterbox.set_active(self.active_voter)
             self.dataload_update()
 
 
