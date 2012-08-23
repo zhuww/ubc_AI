@@ -639,10 +639,11 @@ class MainFrameGTK(Gtk.Window):
         self.pfdtree.set_cursor(0)
 
 
-    def on_help(self, event):
+    def on_help(self, widget, event=None):
         """
         help
         """
+        
         dialog = Gtk.MessageDialog(self, 0, Gtk.MessageType.INFO,
                                    Gtk.ButtonsType.OK, "PFDviewer v0.01")
         response = dialog.run()

@@ -569,7 +569,7 @@
                         <property name="tooltip_text" translatable="yes">(Ctrl+s) Load a data file.</property>
                         <property name="image">image1</property>
                         <property name="use_stock">False</property>
-                        <signal name="button-press-event" handler="on_open" swapped="no"/>
+                        <signal name="activate" handler="on_open" swapped="no"/>
                       </object>
                     </child>
                     <child>
@@ -637,7 +637,7 @@
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <child>
-                      <object class="GtkImageMenuItem" id="imagemenuitem10">
+                      <object class="GtkImageMenuItem" id="help2">
                         <property name="label">gtk-about</property>
                         <property name="use_action_appearance">False</property>
                         <property name="visible">True</property>
@@ -854,6 +854,7 @@
                         <property name="can_focus">False</property>
                         <property name="image">image4</property>
                         <property name="use_stock">False</property>
+                        <signal name="activate" handler="on_open" swapped="no"/>
                         <signal name="button-release-event" handler="on_open" swapped="no"/>
                       </object>
                     </child>
@@ -894,7 +895,6 @@
                         <property name="can_focus">False</property>
                         <property name="image">image2</property>
                         <property name="use_stock">False</property>
-                        <signal name="event" handler="on_menubar_delete_event" swapped="no"/>
                         <signal name="activate" handler="on_menubar_delete_event" swapped="no"/>
                       </object>
                     </child>
@@ -923,7 +923,7 @@
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <child>
-                      <object class="GtkImageMenuItem" id="imagemenuitem20">
+                      <object class="GtkImageMenuItem" id="help1">
                         <property name="label">gtk-about</property>
                         <property name="use_action_appearance">False</property>
                         <property name="visible">True</property>
