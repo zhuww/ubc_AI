@@ -49,7 +49,7 @@ if not show_pfd:
     print "\t This will limit functionality"
 
 #iter on each "n". auto-save after every 10
-cand_view = 0
+cand_vote = 0
 #store AI_view png's in a temporary dir
 tempdir = tempfile.mkdtemp(prefix='AIview_')
 atexit.register(lambda: shutil.rmtree(tempdir))
@@ -97,8 +97,15 @@ class MainFrameGTK(Gtk.Window):
             cell = Gtk.CellRendererText()
             col = Gtk.TreeViewColumn(v, cell, text=vi)
             col.set_property("alignment", 0.5)
-            col.set_max_width(150)
+            if v == 'fname':
+                expcol = col
+                col.set_expand(True)
+                col.set_max_width(180)
+            else:
+                col.set_expand(False)
+                col.set_max_width(40)
             self.pfdtree.append_column(col)
+        self.pfdtree.set_expander_column(expcol)
         self.pfdstore.set_sort_column_id(1,1)
 
 
@@ -152,7 +159,7 @@ class MainFrameGTK(Gtk.Window):
         controls keypresses on over-all window
 
         """
-        global cand_view
+        global cand_vote
         key = Gdk.keyval_name(event.keyval)
         ctrl = event.state &\
             Gdk.ModifierType.CONTROL_MASK
@@ -197,8 +204,8 @@ class MainFrameGTK(Gtk.Window):
                 self.pfdtree_next()
 
             if key == '0' or key == '1':
-                cand_view += 1
-                if cand_view//10 == 1:
+                cand_vote += 1
+                if cand_vote//10 == 1:
                     if self.autosave.get_active():
                         self.on_save()
                     else:
@@ -540,7 +547,9 @@ class MainFrameGTK(Gtk.Window):
                 d = inputbox('pfdviewer','choose your voting name')
             if d != None:
                 if d not in self.voters:
-                    print "adding voter data for %s" % d
+                    note = "adding voter data for %s" % d
+                    print note
+                    self.statusbar.push(0, note)
                     self.voters.append(d)
                     self.data = add_voter(d, self.data)
                     self.voterbox.append_text(d)
@@ -548,7 +557,7 @@ class MainFrameGTK(Gtk.Window):
                 else:
                     note = 'User already exists. switching to it'
                     print note
-                    self.statusbar.push(0,note)
+                    self.statusbar.push(0, note)
                     self.active_voter = self.voters.index(d)
                     self.voterbox.set_active(self.active_voter)
             else:
@@ -573,6 +582,15 @@ class MainFrameGTK(Gtk.Window):
         response = dlg.run()
         
         if response == Gtk.ResponseType.OK:
+            if self.savefile == None and cand_vote > 0:
+                savdlg = Gtk.MessageDialog(self, 0, Gtk.MessageType.INFO,
+                                           Gtk.ButtonsType.OK_CANCEL,
+                                           "Save your votes?")
+                savrep = savdlg.run()
+                if savrep == Gtk.ResponseType.OK:
+                    self.on_save()
+                savdlg.destroy()
+
             print "Goodbye"
             dlg.destroy()
             Gtk.main_quit()
@@ -605,7 +623,7 @@ class MainFrameGTK(Gtk.Window):
             if response == Gtk.ResponseType.OK:
                 print "Select clicked"
                 fname = dialog.get_filename()
-                print "File selected: " + fname
+#                print "File selected: " + fname
             elif response == Gtk.ResponseType.CANCEL:
                 print "<Cancel clicked"
                 fname = None
@@ -679,12 +697,12 @@ class MainFrameGTK(Gtk.Window):
             response = dialog.run()
             if response == Gtk.ResponseType.OK:
                 self.savefile = dialog.get_filename()
-                print "File selected: " + self.savefile
+#                print "File selected: " + self.savefile
             dialog.destroy()
 
 #        print "Writing data to %s" % self.savefile
         if self.savefile == None:
-            note = "No file selected. File not saved"
+            note = "No file selected. Votes not saved"
             print note
             self.statusbar.push(0,note)
         elif self.savefile.endswith('.npy'):
@@ -904,6 +922,7 @@ def load_data(fname):
     if 'AI' not in data.dtype.names:
         data = add_voter('AI', data)
     if len(data.dtype.names) < 3: #fname, AI
+#        dialog = Gtk.MessageDialog(None, 
         name = inputbox('Voter chooser',\
                             'No user voters found in %s. Add your voting name' % fname)
         data = add_voter(name, data)
@@ -945,8 +964,7 @@ def inputbox(title='Input Box', label='Please input the value',
     """
 
     dlg = Gtk.Dialog(title, parent, Gtk.DialogFlags.DESTROY_WITH_PARENT,
-            (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
-            Gtk.STOCK_OK, Gtk.ResponseType.OK    ))
+            (Gtk.STOCK_OK, Gtk.ResponseType.OK    ))
     lbl = Gtk.Label(label)
     lbl.set_alignment(0, 0.5)
     lbl.show()
