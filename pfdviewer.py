@@ -662,9 +662,13 @@ class MainFrameGTK(Gtk.Window):
         """
         help
         """
+        note =  "PFDviewer v0.0.1\n\n"
+        note += "\tKey : 0/1  -- rank the candidate non-pulsar/pulsar\n"
+        note += "\tKey : b/n  -- display the previous/next candidate"
+        
         
         dialog = Gtk.MessageDialog(self, 0, Gtk.MessageType.INFO,
-                                   Gtk.ButtonsType.OK, "PFDviewer v0.01")
+                                   Gtk.ButtonsType.OK, note)
         response = dialog.run()
         dialog.destroy()
         
@@ -736,11 +740,16 @@ class MainFrameGTK(Gtk.Window):
 ############################
 ## gui related actions
 
-    def on_autosave_toggled(self, value):
+    def on_autosave_toggled(self, event):
         """
 
         """
         print "AUTO",self.autosave.get_active()
+        if self.autosave.get_active():
+            if self.savefile == None:
+                self.on_save(event)
+            else:
+                self.statusbar.push(0,"Saving to %s" % self.savefile)
 
 
     def update(self, event=None):
