@@ -744,7 +744,6 @@ class MainFrameGTK(Gtk.Window):
         """
 
         """
-        print "AUTO",self.autosave.get_active()
         if self.autosave.get_active():
             if self.savefile == None:
                 self.on_save(event)
@@ -782,13 +781,15 @@ class MainFrameGTK(Gtk.Window):
         """
         (model, pathlist) = self.pfdtree.get_selection().get_selected_rows()
 #only use first selected object
-        path = pathlist[0]
-        tree_iter = model.get_iter(path)
-        npath = model.iter_next(tree_iter)
-        if npath:
-            nextpath = model.get_path(npath)
-            self.pfdtree.set_cursor(nextpath) 
-
+        if len(pathlist) > 0:
+            path = pathlist[0]
+            tree_iter = model.get_iter(path)
+            npath = model.iter_next(tree_iter)
+            if npath:
+                nextpath = model.get_path(npath)
+                self.pfdtree.set_cursor(nextpath) 
+        else:
+            self.statusbar.push(0,"Please select a row")
         
     def pfdtree_prev(self):
         """
@@ -796,13 +797,15 @@ class MainFrameGTK(Gtk.Window):
         """
         (model, pathlist) = self.pfdtree.get_selection().get_selected_rows()
 #only use first selected object
-        path = pathlist[0]
-        tree_iter = model.get_iter(path)
-        prevn = model.iter_previous(tree_iter)
-        if prevn:
-            prevpath = model.get_path(prevn)
-            self.pfdtree.set_cursor(prevpath)
-
+        if len(pathlist) > 0:
+            path = pathlist[0]
+            tree_iter = model.get_iter(path)
+            prevn = model.iter_previous(tree_iter)
+            if prevn:
+                prevpath = model.get_path(prevn)
+                self.pfdtree.set_cursor(prevpath)
+        else:
+            self.statusbar.push(0,"Please select a row")
 
     def on_pfdwin_key_release_event(self, widget, event):
         key = Gdk.keyval_name(event.keyval)
