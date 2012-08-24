@@ -103,7 +103,7 @@ class MainFrameGTK(Gtk.Window):
                 col.set_max_width(180)
             else:
                 col.set_expand(False)
-                col.set_max_width(40)
+                col.set_max_width(60)
             self.pfdtree.append_column(col)
         self.pfdtree.set_expander_column(expcol)
         self.pfdstore.set_sort_column_id(1,1)
@@ -286,7 +286,8 @@ class MainFrameGTK(Gtk.Window):
                     fpng = convert(fname)
                 if fpng and os.path.exists(fpng):
                     self.image.set_from_file(fpng)
-                    self.image_disp.set_text('displaying : %s' % fname)
+                    self.image_disp.set_text('displaying : %s' % 
+                                             os.path.basename(fname))
                 else:
                     note = "Failed to generate png file %s" % fname
 #                    print note
