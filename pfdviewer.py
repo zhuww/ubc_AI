@@ -950,26 +950,24 @@ def convert(fin):
             elif response == Gtk.ResponseType.CANCEL:
                 print "Cancel clicked"
         if show_pfd:
-            #make the .ps file (converted, next, to .png)
+            #make the .ps file (later converted to .png)
+            pfddir = os.path.abspath(os.path.dirname(fin))
+            pfdname = os.path.basename(fin)
             full_path = os.path.abspath(fin)
-            basedir = '/'.join(full_path.split('/')[:-1])
-            basename = os.path.basename(fin)
             cmd = [show_pfd, '-noxwin', full_path]
             subprocess.call(cmd, shell=False,
                             stdout=open('/dev/null','w'))
-#delete the other generated files if they already exist
-#otherwise move them to same location as pfd files
-            fold = '%s/%s.ps' % (basedir, basename)
-            if os.path.exists(fold):
-               os.remove(fold)
-            else:
-                shutil.move('%s.ps' % basename, basedir)
-            fb = '%s/%s.bestprof' % (basedir, basename)
-            if os.path.exists(fb):
-                os.remove(fold)
-            else:
-                shutil.move('%s.bestprof' % basename, basedir)
-            fin = fin + '.ps'
+            #delete the newly generated files if they already exist
+            #otherwise move them to same location as pfd file
+            for ext in ['ps','bestprof']:
+                fnew = os.path.abspath('%s.%s' % (pfdname, ext))
+                fold = os.path.abspath('%s/%s.%s' % (pfddir, pfdname, ext))
+                if os.path.exists(fold):
+                    if fnew != fold:
+                        os.remove(fnew)
+                else:
+                    shutil.move(fnew, pfddir)
+            fin = os.path.abspath('%s/%s.ps' % (pfddir, pfdname))
         else:
             #conversion failed
             fout = None
