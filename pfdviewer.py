@@ -16,6 +16,8 @@ png: quick to display
 
 """
 import atexit
+import cPickle
+import fractions
 import numpy as np
 import os
 import shutil
@@ -29,6 +31,7 @@ import pylab as plt
 #next taken from ubc_AI.training and ubc_AI.samples
 from training import pfddata
 from sklearn.decomposition import RandomizedPCA as PCA
+import known_pulsars as KP
 
 try:
     from PythonMagick import Image
@@ -85,8 +88,11 @@ class MainFrameGTK(Gtk.Window):
         self.aiview_win = self.builder.get_object('aiview_win')
         self.aiview_win.set_deletable(False)
         self.aiview_win.connect('delete-event', lambda w, e: w.hide() or True)
-
-
+        self.pmatch_tree = self.builder.get_object('pmatch_tree')
+        self.pmatch_store = self.builder.get_object('pmatch_store')
+        self.pmatch_lab = self.builder.get_object('pmatch_lab')
+        self.pmatch_tree.hide()
+        self.pmatch_lab.hide()
 #allow Ctrl+s like key-functions        
         self.modifier = None
 #where are pfd/png/ps files stored
@@ -108,11 +114,21 @@ class MainFrameGTK(Gtk.Window):
         self.pfdtree.set_expander_column(expcol)
         self.pfdstore.set_sort_column_id(1,1)
 
+# set up the matching-pulsar tree
+        for vi, v in enumerate(['name','P0 (harm)','DM','RA','DEC']):
+            cell = Gtk.CellRendererText()
+            col = Gtk.TreeViewColumn(v, cell, text=vi)
+            col.set_property("alignment", 0.5)
+            col.set_expand(False)#True)
+            self.pmatch_tree.append_column(col)
 
         ## data-analysis related objects
         self.voters = []
         self.savefile = None
         self.loadfile = None 
+        #ATNF and GBNCC list of known pulsars (fetched when data loaded)
+        if os.path.exists('known_pulsars.pkl'):
+            self.knownpulsars = cPickle.load(open('known_pulsars.pkl'))
         #if we were passed a data file, read it in
         if data != None:
             self.on_open(event='load', fin=data)
@@ -127,29 +143,22 @@ class MainFrameGTK(Gtk.Window):
             if '<new>' not in self.voters:
                 self.voters.insert(0,'<new>')
             self.active_voter = 1
-        
-        ##GUI init options
-            #done in on_open
-# set default voter to 1st non-AI
-#            print "AAAR",self.voters
-#            for v in self.voters:
-#                if v != 'AI':
-#                    self.voterbox.append_text(v)
+
             if len(self.voters) > 2:
                 self.active_voter = 1
                 self.voterbox.set_active(self.active_voter)
             self.dataload_update()
         #put cursor on first col. if there is data
             self.pfdtree.set_cursor(0)
-            self.update()
 
         else:
-            self.update('Please load a data file')
+            self.statusbar.push(0,'Please load a data file')
             self.voters = []
             self.active_voter = None
 
 #keep track of the AI view files created (so we don't need to generate them)
         self.AIviewfiles = {}
+
 
 ############################
 ## data-manipulation actions
@@ -230,7 +239,7 @@ class MainFrameGTK(Gtk.Window):
                     self.pfdstore.append(v)
 
                 self.pfdtree.set_model(self.pfdstore)
-
+                self.find_matches()
 
     def on_pfdtree_select_row(self, widget, event=None):#, data=None):
         """
@@ -320,6 +329,7 @@ class MainFrameGTK(Gtk.Window):
                     self.statusbar.push(0,note)
                     self.image.set_from_file('')
                     self.image_disp.set_text('displaying : %s' % fname)
+            self.find_matches()
 
     def find_file(self, fname):
         """
@@ -350,7 +360,7 @@ class MainFrameGTK(Gtk.Window):
         """
         
         pfd = pfddata(fname)
-        plt.figure(figsize=(8,6))
+        plt.figure(figsize=(8,5.9))
         vals = [('pprof_nbins', 'pprof_pcacomp'), #pulse profile
                 ('si_nbins', 'si_pcacomp'),       #frequency subintervals
                 ('pi_bins', 'pi_pcacomp'),        #pulse intervals
@@ -654,9 +664,16 @@ class MainFrameGTK(Gtk.Window):
                 self.active_voter = len(self.voters)
 
             self.voterbox.set_active(self.active_voter)
+            self.statusbar.push(0,'Loaded %s candidates' % len(self.data))
         self.dataload_update()
         self.pfdtree.set_cursor(0)
 
+        if self.knownpulsars == None:
+            self.statusbar.push(0,'Downloading ATNF and GBNCC list of known pulsars')
+            self.knownpulsars = KP.get_allpulsars()
+            self.statusbar.push(0,'Downloaded %s known pulsars for x-ref'\
+                                % len(self.knownpulsars))
+#            cPickle.dump(self.knownpulsars, open('known_pulsars.pkl','w'))
 
     def on_help(self, widget, event=None):
         """
@@ -759,21 +776,69 @@ class MainFrameGTK(Gtk.Window):
 
         """        
 
-        if self.data == None:
-            ncand = 0
-        else:
-            ncand = len(self.data)
-
-        if ncand == 0:
-            stat = 'Please load a data file'
-        else:
-            stat = 'Loaded %s candidates' % ncand
-
 #set cursor to first entry when loading a data file
-        if event == 'load':
-            self.pfdtree.set_cursor(0)
-        self.statusbar.push(0, stat)
+        if event == 'load': 
+            if self.data == None:
+                ncand = 0
+            else:
+                ncand = len(self.data)
 
+            self.pfdtree.set_cursor(0)
+            if ncand == 0:
+                stat = 'Please load a data file'
+            else:
+                stat = 'Loaded %s candidates' % ncand
+            self.statusbar.push(0, stat)
+
+    def find_matches(self):
+        """
+        given the selected row (pfd file), find matches to known pulsars
+        and list the matches
+
+        """
+        gsel = self.pfdtree.get_selection()
+        if gsel:
+            tmpstore, tmpiter = gsel.get_selected()
+        else:
+            tmpiter = None
+
+        if tmpiter != None:
+            fname = '%s/%s' % (self.basedir,tmpstore.get_value(tmpiter, 0))
+# see if this path exists, update self.basedir if necessary
+#            self.find_file(fname)
+            if os.path.exists(fname) and fname.endswith('.pfd'):
+                pfd = pfddata(fname)
+                pfd.dedisperse()
+                dm = pfd.bestdm
+                ra = pfd.rastr 
+                dec = pfd.decstr 
+                p0 = pfd.bary_p1
+                if float(pfd.decstr.split(':')[0]) > 0:
+                    sgn = '+'
+                else:
+                    sgn = '' 
+                name = 'J%s%s%s' % (''.join(pfd.rastr.split(':')[:2]), sgn,\
+                                        ''.join(pfd.decstr.split(':')[:2]))
+                this_pulsar = KP.pulsar(name, name, ra, dec, p0, dm)
+                
+                matches = KP.matches(self.knownpulsars, this_pulsar)
+                self.pmatch_tree.set_model(None)
+                self.pmatch_store.clear()
+                self.pmatch_store.append(['This Candidate',str(np.round(this_pulsar.P0,5)),\
+                                              this_pulsar.DM, this_pulsar.ra,\
+                                              this_pulsar.dec])
+                for m in matches:
+                    num, den = harm_ratio(np.round(this_pulsar.P0,4), np.round(m.P0,4))
+                    d = [m.name, "%s (%s/%s)" % (np.round(m.P0,5), num, den), m.DM, m.ra, m.dec]
+                    self.pmatch_store.append(d)
+                self.pmatch_tree.set_model(self.pmatch_store)
+                self.pmatch_tree.show_all()
+                self.pmatch_lab.show_all()
+            else:
+                self.pmatch_tree.hide()
+                self.pmatch_lab.hide()
+        else:
+            self.pmatch_tree.hide()
 
     def pfdtree_next(self):
         """
@@ -790,7 +855,8 @@ class MainFrameGTK(Gtk.Window):
                 self.pfdtree.set_cursor(nextpath) 
         else:
             self.statusbar.push(0,"Please select a row")
-        
+#        self.find_matches()
+
     def pfdtree_prev(self):
         """
         select prev row in pfdtree
@@ -806,12 +872,45 @@ class MainFrameGTK(Gtk.Window):
                 self.pfdtree.set_cursor(prevpath)
         else:
             self.statusbar.push(0,"Please select a row")
+#        self.find_matches()
 
     def on_pfdwin_key_release_event(self, widget, event):
         key = Gdk.keyval_name(event.keyval)
         if key not in ['Control_L','Control_R','Alt_L','Alt_R']:
             self.modifier = None
 
+    def on_update_knownpulsars(self, widget):
+        """
+        download the ATNF and GBNCC pulsar lists.
+        If this is greater than the known_pulsars.pkl one,
+        we overwrite it.
+
+        """
+        dlg = Gtk.MessageDialog(self, 0, Gtk.MessageType.INFO,
+                                Gtk.ButtonsType.OK,
+                                'Downloading ATNF and GBNCC pulsar databases')
+
+        dlg.format_secondary_text('Please be patient...')
+        dlg.set_modal(False)
+        dlg.run()
+        self.statusbar.push(0,'Downloading ATNF and GBNCC databases')
+        newlist = KP.get_allpulsars()
+        fout = os.path.abspath('known_pulsars.pkl')
+        if self.knownpulsars == None:
+            self.knownpulsars = newlist
+            cPickle.dump(self.knownpulsars,open(fout,'w'))
+            self.statusbar.push(0,'Saved list of %s pulsars to %s' %\
+                                    (len(self.knownpulsars),fout))
+        else:
+            if len(newlist) > len(self.knownpulsars):
+                n_new = len(newlist) - len(self.knownpulsars)
+                self.knownpulsars = newlist
+                self.statusbar.push(0,'Added %s new pulsars. Saving to %s' %\
+                                        (n_new,fout))
+                cPickle.dump(self.knownpulsars,open(fout,'w'))
+            else:
+                self.statusbar.push(0,'No new pulsars listed')
+        dlg.destroy()
 ####### end MainFrame class ####
 
 ################################
@@ -1024,6 +1123,16 @@ def messagedialog(dialog_type, short, long=None, parent=None,
     d.destroy()
     return response
 
+def harm_ratio(a,b):
+    """
+    given two numbers, find the harmonic ratio
+
+    """
+    af = fractions.Fraction(a).limit_denominator()
+    bf = fractions.Fraction(b).limit_denominator()
+    c = af/bf
+    c = c.limit_denominator()
+    return c.numerator, c.denominator
 
 if __name__ == '__main__':        
     
