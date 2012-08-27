@@ -126,7 +126,7 @@ class MainFrameGTK(Gtk.Window):
         self.voters = []
         self.savefile = None
         self.loadfile = None 
-		self.knownpulsars = None
+        self.knownpulsars = None
         #ATNF and GBNCC list of known pulsars (fetched when data loaded)
         if os.path.exists('known_pulsars.pkl'):
             self.knownpulsars = cPickle.load(open('known_pulsars.pkl'))
