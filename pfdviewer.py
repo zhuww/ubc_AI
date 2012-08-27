@@ -126,6 +126,7 @@ class MainFrameGTK(Gtk.Window):
         self.voters = []
         self.savefile = None
         self.loadfile = None 
+		self.knownpulsars = None
         #ATNF and GBNCC list of known pulsars (fetched when data loaded)
         if os.path.exists('known_pulsars.pkl'):
             self.knownpulsars = cPickle.load(open('known_pulsars.pkl'))
@@ -832,13 +833,16 @@ class MainFrameGTK(Gtk.Window):
                     d = [m.name, "%s (%s/%s)" % (np.round(m.P0,5), num, den), m.DM, m.ra, m.dec]
                     self.pmatch_store.append(d)
                 self.pmatch_tree.set_model(self.pmatch_store)
-                self.pmatch_tree.show_all()
-                self.pmatch_lab.show_all()
+                if len(matches) > 0:
+                    self.pmatch_tree.show_all()
+                    self.pmatch_lab.show_all()
+                else:
+                    self.pmatch_tree.hide()
+                    self.pmatch_lab.hide()
             else:
                 self.pmatch_tree.hide()
                 self.pmatch_lab.hide()
-        else:
-            self.pmatch_tree.hide()
+
 
     def pfdtree_next(self):
         """
