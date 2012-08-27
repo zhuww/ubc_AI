@@ -119,7 +119,10 @@ class MainFrameGTK(Gtk.Window):
             cell = Gtk.CellRendererText()
             col = Gtk.TreeViewColumn(v, cell, text=vi)
             col.set_property("alignment", 0.5)
-            col.set_expand(False)#True)
+            if v == 'name':
+                col.set_expand(True)
+            else:
+                col.set_expand(False)
             self.pmatch_tree.append_column(col)
 
         ## data-analysis related objects
@@ -127,9 +130,13 @@ class MainFrameGTK(Gtk.Window):
         self.savefile = None
         self.loadfile = None 
         self.knownpulsars = {}
-        #ATNF and GBNCC list of known pulsars (fetched when data loaded)
-        if os.path.exists('known_pulsars.pkl'):
+        #ATNF and GBNCC list of known pulsars
+        if os.path.exists('%s/known_pulsars.pkl' % bdir):
             self.knownpulsars = cPickle.load(open('known_pulsars.pkl'))
+        elif os.path.exists('known_pulsars.pkl'):
+            self.knownpulsars = cPickle.load(open('known_pulsars.pkl'))
+        else:
+            self.knownpulsars = KP.get_allpulsars()
         #if we were passed a data file, read it in
         if data != None:
             self.on_open(event='load', fin=data)
@@ -188,7 +195,6 @@ class MainFrameGTK(Gtk.Window):
 
         elif key == 's' and self.modifier in ['Control_L', 'Control_R', 'Primary']:
             self.on_save(widget)
-            pass
             
         elif key == 'l' and self.modifier in ['Control_L', 'Control_R', 'Primary']:
             self.on_open()
@@ -203,15 +209,29 @@ class MainFrameGTK(Gtk.Window):
             if key == '0':
                 if act_name != 'AI':
                     self.pfdstore_set_value(float(key))
+                    self.pfdtree_next()
                 else:
                     self.statusbar.push(0,'Note: AI not editable')
-                self.pfdtree_next()
             elif key == '1':
                 if act_name != 'AI':
-                    self.pfdstore_set_value(float(key))
+                    fname = self.pfdstore_set_value(float(key), return_fname=True)
+                    self.add_candidate_to_knownpulsars(fname)
+                    self.pfdtree_next()
                 else:
                     self.statusbar.push(0,'Note: AI not editable')
+            elif key == 'm' or key == '5':
+                # marginal candidate. sets voter prob to 0.5
+                self.pfdstore_set_value(.5)
                 self.pfdtree_next()
+            elif key == 'k':
+                # known pulsar, sets voter prob to 2.
+                self.pfdstore_set_value(2.)
+                self.pfdtree_next()
+            elif key == 'h':
+                # harmonic of known pulsar, sets voter prob to 3
+                self.pfdstore_set_value(3.)
+                self.pfdtree_next()
+
 
             if key == '0' or key == '1':
                 cand_vote += 1
@@ -220,7 +240,34 @@ class MainFrameGTK(Gtk.Window):
                         self.on_save()
                     else:
                         self.statusbar.push(0,'Remember to save your output')
-            
+
+    def add_candidate_to_knownpulsars(self, fname):
+        """
+        as a user ranks candidates, add the pulsar candidates to the list
+        of known pulsars
+
+        input: 
+        filename of the pfd file
+
+        """
+        
+        if os.path.exists(fname) and fname.endswith('.pfd'):
+            pfd = pfddata(fname)
+            pfd.dedisperse()
+            dm = pfd.bestdm
+            ra = pfd.rastr
+            dec = pfd.decstr
+            p0 = pfd.bary_p1
+            name = os.path.basename(fname)
+            if float(pfd.decstr.split(':')[0]) > 0:
+                sgn = '+'
+            else:
+                sgn = ''
+                name = 'J%s%s%s' % (''.join(pfd.rastr.split(':')[:2]), sgn,\
+                                        ''.join(pfd.decstr.split(':')[:2]))
+            this_pulsar = KP.pulsar(name, name, ra, dec, p0, dm)
+            self.knownpulsars[name] = this_pulsar
+
 
     def dataload_update(self):
         """
@@ -474,10 +521,13 @@ class MainFrameGTK(Gtk.Window):
         return fpng
 
         
-    def pfdstore_set_value(self, value):
+    def pfdstore_set_value(self, value, return_fname=False):
         """
         update the pfdstore value for the active user
-
+        
+        Args:
+        Value: the voter prob (ranking) to assign
+        return_fname: return the filename of the pfd file
         """
         (model, pathlist) = self.pfdtree.get_selection().get_selected_rows()
 #only use first selected object
@@ -495,6 +545,11 @@ class MainFrameGTK(Gtk.Window):
         if self.active_voter:
             act_name = act_name = self.voters[self.active_voter]
             self.data[act_name][idx] = value
+
+        if return_fname:
+            return fname
+        else:
+            return None
        
 
     def on_aiview_toggled(self, event):
@@ -621,6 +676,8 @@ class MainFrameGTK(Gtk.Window):
         """
         load a data file. 
         Should contain two columns: filename AI_prob
+        
+        Also, check all the user's votes and add the candidates to self.known_pulsars
 
         """
 
@@ -674,14 +731,23 @@ class MainFrameGTK(Gtk.Window):
             self.knownpulsars = KP.get_allpulsars()
             self.statusbar.push(0,'Downloaded %s known pulsars for x-ref'\
                                 % len(self.knownpulsars))
-#            cPickle.dump(self.knownpulsars, open('known_pulsars.pkl','w'))
+
+#add all the candidates ranked as pulsars to the list of known_pulsars
+        for v in self.data.dtype.names[2:]:
+            cand_pulsar = self.data[v] == 1.
+            for fname in self.data['fname'][cand_pulsar]:
+                self.add_candidate_to_knownpulsars(fname)
+                
 
     def on_help(self, widget, event=None):
         """
         help
         """
         note =  "PFDviewer v0.0.1\n\n"
-        note += "\tKey : 0/1  -- rank the candidate non-pulsar/pulsar\n"
+        note += "\tKey : 0/1  -- rank candidate non-pulsar/pulsar\n"
+        note += "\tKey : 5/m  -- rank candidate as marginal (prob = 0.5)\n"
+        note += "\tKey : h  -- rank candidate as harmonic (prob = 3.)\n"
+        note += "\tKey : k  -- rank candidate as known pulsar (prob = 2.)\n"        
         note += "\tKey : b/n  -- display the previous/next candidate"
         
         
@@ -960,6 +1026,7 @@ def convert(fin):
             #delete the newly generated files if they already exist
             #otherwise move them to same location as pfd file
             for ext in ['ps','bestprof']:
+                #show_pfd outputs to CWD
                 fnew = os.path.abspath('%s.%s' % (pfdname, ext))
                 fold = os.path.abspath('%s/%s.%s' % (pfddir, pfdname, ext))
                 if os.path.exists(fold):
