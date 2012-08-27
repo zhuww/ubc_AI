@@ -1197,10 +1197,7 @@ def harm_ratio(a,b):
     given two numbers, find the harmonic ratio
 
     """
-    af = fractions.Fraction(a).limit_denominator()
-    bf = fractions.Fraction(b).limit_denominator()
-    c = af/bf
-    c = c.limit_denominator()
+    c = fractions.Fraction(a/b).limit_denominator(max_denominator=150)
     return c.numerator, c.denominator
 
 if __name__ == '__main__':        
