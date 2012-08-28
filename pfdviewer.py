@@ -1029,7 +1029,10 @@ class MainFrameGTK(Gtk.Window):
                     npath = model.iter_next(npath)
             if fname.endswith('.pfd'):
                 # go back to beginning if we don't find .pfd files
-                model.set_cursor(0) 
+                nextpath = model.get_path(npath)
+                self.pmatch_tree.set_cursor(nextpath) 
+            else:
+				self.pmatch_tree.set_cursor(0)
 
     def pfdtree_next(self):
         """
