@@ -217,7 +217,9 @@ class MainFrameGTK(Gtk.Window):
                     self.pfdtree_next()
                 else:
                     self.statusbar.push(0,'Note: AI not editable')
-            elif key == '1':
+            elif key == '1' or key == 'p':
+                if key == 'p':
+                    key = 1
                 if act_name != 'AI':
                     fname = self.pfdstore_set_value(float(key), return_fname=True)
                     self.add_candidate_to_knownpulsars(fname)
@@ -628,10 +630,11 @@ class MainFrameGTK(Gtk.Window):
                     fname = self.find_file(fname)
                     fpng = self.create_png(fname)
 
-                print "Showing image",fname
+#                print "Showing image",fname
                 if exists(fpng):
                     self.image.set_from_file(fpng)
-            
+                    self.image_disp.set_text('displaying : %s' % \
+                                                 basename(fname))
 
     def on_aiview_toggled(self, event):
         """
@@ -825,7 +828,8 @@ class MainFrameGTK(Gtk.Window):
         help
         """
         note =  "PFDviewer v0.0.1\n\n"
-        note += "\tKey : 0/1  -- rank candidate non-pulsar/pulsar\n"
+        note += "\tKey : 0  -- rank candidate non-pulsar\n"
+        note += "\tKey : 1/p  -- rank candidate pulsar\n"
         note += "\tKey : 5/m  -- rank candidate as marginal (prob = 0.5)\n"
         note += "\tKey : h  -- rank candidate as harmonic (prob = 3.)\n"
         note += "\tKey : k  -- rank candidate as known pulsar (prob = 2.)\n"        
@@ -1031,8 +1035,10 @@ class MainFrameGTK(Gtk.Window):
                 # go back to beginning if we don't find .pfd files
                 nextpath = model.get_path(npath)
                 self.pmatch_tree.set_cursor(nextpath) 
+                self.pmatch_tree.scroll_to_cell(nextpath)
             else:
-				self.pmatch_tree.set_cursor(0)
+                self.pmatch_tree.scroll_to_point(0,0)
+                self.pmatch_tree.set_cursor(0)
 
     def pfdtree_next(self):
         """
