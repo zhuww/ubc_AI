@@ -174,7 +174,7 @@ def ddmm2deg(ddmm):
                 + float(ddmm[4:6])/3600.
     return deg*sgn
     
-def matches(allpulsars, pulsar, sep=.25):
+def matches(allpulsars, pulsar, sep=.5):
     """
     given a dictionary of all pulsars, return
     the objects within 'sep' degrees of the pulsar.
@@ -182,7 +182,7 @@ def matches(allpulsars, pulsar, sep=.25):
     args:
     allpulsars : dictionary of allpulsars
     pulsar : object of interest
-    sep : degrees of separation [default 15'=.25deg]
+    sep : degrees of separation [default 30'=.5deg]
 
 
     Notes:

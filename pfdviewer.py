@@ -24,6 +24,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from os.path import abspath, basename, dirname, exists
 
 from gi.repository import Gtk, Gdk
 import pylab as plt
@@ -44,7 +45,7 @@ except ImportError:
 show_pfd = False
 for p in os.environ.get('PATH').split(':'):
     cmd = '%s/show_pfd' % p
-    if os.path.exists(cmd):
+    if exists(cmd):
         show_pfd = cmd
         break
 if not show_pfd:
@@ -91,6 +92,7 @@ class MainFrameGTK(Gtk.Window):
         self.pmatch_tree = self.builder.get_object('pmatch_tree')
         self.pmatch_store = self.builder.get_object('pmatch_store')
         self.pmatch_lab = self.builder.get_object('pmatch_lab')
+        self.pmatch_tree.connect("cursor-changed", self.on_pmatch_select_row)
         self.pmatch_tree.hide()
         self.pmatch_lab.hide()
 #allow Ctrl+s like key-functions        
@@ -118,7 +120,7 @@ class MainFrameGTK(Gtk.Window):
 
 
 # set up the matching-pulsar tree
-        for vi, v in enumerate(['name','P0 (harm)','DM','RA','DEC']):
+        for vi, v in enumerate(['name','P0 (harm)','DM','RA','DEC','vote']):
             cell = Gtk.CellRendererText()
             col = Gtk.TreeViewColumn(v, cell, text=vi)
             col.set_property("alignment", 0.5)
@@ -134,9 +136,9 @@ class MainFrameGTK(Gtk.Window):
         self.loadfile = None 
         self.knownpulsars = {}
         #ATNF and GBNCC list of known pulsars
-        if os.path.exists('%s/known_pulsars.pkl' % bdir):
+        if exists('%s/known_pulsars.pkl' % bdir):
             self.knownpulsars = cPickle.load(open('known_pulsars.pkl'))
-        elif os.path.exists('known_pulsars.pkl'):
+        elif exists('known_pulsars.pkl'):
             self.knownpulsars = cPickle.load(open('known_pulsars.pkl'))
         else:
             self.knownpulsars = KP.get_allpulsars()
@@ -234,6 +236,9 @@ class MainFrameGTK(Gtk.Window):
                 # harmonic of known pulsar, sets voter prob to 3
                 self.pfdstore_set_value(3.)
                 self.pfdtree_next()
+            elif key == 'c':
+                # cycle between ranked candidates
+                self.pmatchtree_next()
 
 
             if key == '0' or key == '1':
@@ -254,14 +259,14 @@ class MainFrameGTK(Gtk.Window):
 
         """
         
-        if os.path.exists(fname) and fname.endswith('.pfd'):
+        if exists(fname) and fname.endswith('.pfd'):
             pfd = pfddata(fname)
             pfd.dedisperse()
             dm = pfd.bestdm
             ra = pfd.rastr
             dec = pfd.decstr
             p0 = pfd.bary_p1
-            name = os.path.basename(fname)
+            name = basename(fname)
             if float(pfd.decstr.split(':')[0]) > 0:
                 sgn = '+'
             else:
@@ -314,56 +319,37 @@ class MainFrameGTK(Gtk.Window):
         ncol = self.pfdstore.get_n_columns()
         if tmpiter != None:
             
-            fname = '%s/%s' % (self.basedir,tmpstore.get_value(tmpiter, 0))
-# see if this path exists, update self.basedir if necessary
-            self.find_file(fname)
+            fname = os.path.join(self.basedir, tmpstore.get_value(tmpiter, 0))
+# find/create png file from input file
+            fpng = self.create_png(fname)
+            #update the basedir if necessary 
+            if not exists(fpng):
+                fname = self.find_file(fname)
+                fpng = self.create_png(fname)
             
             #we are not doing "AI view" of data
             if not self.aiview.get_active():
-                if fname.endswith('.ps'):
-                    fpng = fname.replace('.ps','.png')
-    # double-check ps file exists,
-    # set fname to pfd file if not to regenerate it
-                    if not os.path.exists(fname):
-                        #strip .ps
-                        pfdfile = os.path.splitext(fname)[0]
-                        if os.path.exists(pfdfile):
-                            fname = pfdfile
-                            fpng = convert(fname)
-                elif fname.endswith('.pfd'):
-                    fpng = fname + '.png'
-                elif fname.endswith('.png') or fname.endswith('.jpg'):
-                    fpng = fname
-                else:
-                    note = "Don't recognize filetype %s" % fname
-                    print note
-                    self.statusbar.push(0, note)
-                    fpng = ''
 
-    #see if png exists locally already, otherwise generate it
-                if not os.path.exists(fpng) and os.path.exists(fname):
-                    #convert to png (convert accepts .ps, or .pfd file)
-                    fpng = convert(fname)
-                if fpng and os.path.exists(fpng):
+                if fpng and exists(fpng):
                     self.image.set_from_file(fpng)
                     self.image_disp.set_text('displaying : %s' % 
-                                             os.path.basename(fname))
+                                             basename(fname))
                 else:
                     note = "Failed to generate png file %s" % fname
 #                    print note
                     self.statusbar.push(0,note)
                     self.image.set_from_file('')
 
-                l = fname
-                for i in range(1,ncol):
-                    l += ' %s ' % tmpstore.get_value(tmpiter, i)
-                print "active row",l
+#                l = fname
+#                for i in range(1,ncol):
+#                    l += ' %s ' % tmpstore.get_value(tmpiter, i)
+#                print "active row",l
 
             else:
 
                 #we are doing the AI view of the data
                 fpng= ''
-                if os.path.exists(fname) and fname.endswith('.pfd'):
+                if exists(fname) and fname.endswith('.pfd'):
                     self.statusbar.push(0,'Generating AIview...')
 
                     #have we generated this AIview before?
@@ -371,24 +357,82 @@ class MainFrameGTK(Gtk.Window):
                     if not fpng:
                         fpng = self.generate_AIviewfile(fname)
 
-                if fpng and os.path.exists(fpng):
+                    if fpng and exists(fpng):
+                        self.image.set_from_file(fpng)
+                        self.image_disp.set_text('displaying : %s' % fname)
+                    else:
+                        note = "Failed to generate png file %s" % fname
+                        print note
+                        self.statusbar.push(0,note)
+                        self.image.set_from_file('')
+                        self.image_disp.set_text('displaying : %s' % fname)
+                elif fname.endswith('.png'):
+                    note = "Can't generate AIview from png files"
+                    self.statusbar.push(0, note)
+                    fpng = fname
                     self.image.set_from_file(fpng)
-                    self.image_disp.set_text('displaying : %s' % fname)
-                else:
-                    note = "Failed to generate png file %s" % fname
-                    print note
-                    self.statusbar.push(0,note)
-                    self.image.set_from_file('')
-                    self.image_disp.set_text('displaying : %s' % fname)
+                    self.image_disp.set_text('display: %s ' % fpng)
             self.find_matches()
+
+    def create_png(self, fname):
+        """
+        given some pfd or ps file, create the png file
+        if it doesn't already exist
+
+        """
+        if fname.endswith('.ps'):
+            fpng = fname.replace('.ps', '.png')
+            if not exists(fpng):
+                #convert ps file to png
+                if exists(fname):
+                    fpng = convert(fname)
+                #convert using the pfd file
+                else:
+                    pfdfile = os.path.splitext(fname)[0]
+                    if exists(pfdfile):
+                        fname = pfdfile
+                        fpng = convert(fname)
+        elif fname.endswith('.pfd'):
+            fpng = '%s.png' % fname
+            if not exists(fpng):
+                fpng = convert(fname)
+        elif fname.endswith('.png') or fname.endswith('.jpg'):
+            #convert from ps or pfd if we can't find the png
+            if not exists(fname):
+                psfile = fname.replace('.png','.ps')
+                if not exists(psfile):
+                    pfdfile = os.path.splitext(fname)[0]
+                    if exists(pfdfile):
+                        fname = convert(pfdfile)
+                else:
+                    fname = convert(psfile)
+            fpng = fname
+        else:
+            note = "Don't recognize file %s" % fname
+            print note
+            self.statusbar.push(0, note)
+            fpng = ''
+
+
+    #see if png exists locally already, otherwise generate it
+        if not exists(fpng) and exists(fname):
+            #convert to png (convert accepts .ps, or .pfd file)
+            fpng = convert(fname)
+        return fpng
 
     def find_file(self, fname):
         """
         make sure we can find the file
+        
+        return:
+        png file name if we find it
+        '' empty string otherwise
 
         """
-        if not os.path.exists(fname):
-            dialog = Gtk.FileChooserDialog("Choose base path for %s." % fname,
+        if not exists(fname):
+            print "Can't find %s" % fname
+            dialog = Gtk.FileChooserDialog("Choose base path for %s" % \
+                                               os.path.splitext(fname)[0],
                                            self, Gtk.FileChooserAction.SELECT_FOLDER,
                                            (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
                                             "Select", Gtk.ResponseType.OK))
@@ -396,10 +440,17 @@ class MainFrameGTK(Gtk.Window):
             response = dialog.run()
             if response == Gtk.ResponseType.OK:
                 self.basedir = dialog.get_filename()
+            else:
+                self.basedir = './'
             dialog.destroy()
-
-            fname = "%s/%s" % (self.basedir, fname)
-            return fname
+            fname = basename(fname)
+            fname = os.path.join(abspath(self.basedir), fname)
+            if exists(fname):
+                return fname
+            else:
+                return basename(fname)
+        else:
+            return abspath(fname)
         
     def generate_AIviewfile(self, fname):
         """
@@ -553,7 +604,34 @@ class MainFrameGTK(Gtk.Window):
             return fname
         else:
             return None
-       
+        
+    def on_pmatch_select_row(self, event=None):
+        """
+        cycle/display the list of candidate matches
+        
+        """
+        (model, pathlist) = self.pmatch_tree.get_selection().get_selected_rows()
+#only use first selected object
+        if len(pathlist) > 0:
+            #nothing selected, so go back to first
+            path = pathlist[0]
+            tree_iter = model.get_iter(path)
+#update self.data (since dealing with TreeStore blows my mind)
+            fname, p0, dm, ra, dec, vote = self.pmatch_store[tree_iter]
+
+            if fname.endswith('.pfd'):
+                fname = os.path.join(self.basedir, fname)
+# find/create png file from input file
+                fpng = self.create_png(fname)
+            #update the basedir if necessary 
+                if not exists(fpng):
+                    fname = self.find_file(fname)
+                    fpng = self.create_png(fname)
+
+                print "Showing image",fname
+                if exists(fpng):
+                    self.image.set_from_file(fpng)
+            
 
     def on_aiview_toggled(self, event):
         """
@@ -867,6 +945,7 @@ class MainFrameGTK(Gtk.Window):
 
         """
         gsel = self.pfdtree.get_selection()
+        act_name = self.voters[self.active_voter]
         if gsel:
             tmpstore, tmpiter = gsel.get_selected()
         else:
@@ -876,7 +955,7 @@ class MainFrameGTK(Gtk.Window):
             fname = '%s/%s' % (self.basedir,tmpstore.get_value(tmpiter, 0))
 # see if this path exists, update self.basedir if necessary
 #            self.find_file(fname)
-            if os.path.exists(fname) and fname.endswith('.pfd'):
+            if exists(fname) and fname.endswith('.pfd'):
                 pfd = pfddata(fname)
                 pfd.dedisperse()
                 dm = pfd.bestdm
@@ -890,21 +969,39 @@ class MainFrameGTK(Gtk.Window):
                 name = 'J%s%s%s' % (''.join(pfd.rastr.split(':')[:2]), sgn,\
                                         ''.join(pfd.decstr.split(':')[:2]))
                 this_pulsar = KP.pulsar(name, name, ra, dec, p0, dm)
-                
+                this_idx = self.data['fname'] == fname
+                if len(this_idx[this_idx]) > 0:
+                    this_vote = self.data[act_name][this_idx][0]
+                else:
+                    this_vote = np.nan
                 matches = KP.matches(self.knownpulsars, this_pulsar)
                 self.pmatch_tree.set_model(None)
                 self.pmatch_store.clear()
-                self.pmatch_store.append(['This Candidate',str(np.round(this_pulsar.P0,5)),\
+                nm = 'This Candidate'
+                nm = basename(fname)
+                self.pmatch_store.append([nm,str(np.round(this_pulsar.P0,5)),\
                                               this_pulsar.DM, this_pulsar.ra,\
-                                              this_pulsar.dec])
+                                              this_pulsar.dec, this_vote])
                 for m in matches:
                     num, den = harm_ratio(np.round(this_pulsar.P0,4), np.round(m.P0,4))
-                    d = [m.name, "%s (%s/%s)" % (np.round(m.P0,5), num, den), m.DM, m.ra, m.dec]
-                    self.pmatch_store.append(d)
+                    idx = self.data['fname'] == m.name
+                    if len(idx[idx]) > 0:
+                        try:
+                            vote = self.data[act_name][idx][0]
+                        except ValueError:
+                            vote = np.nan
+                    else:
+                        vote = np.nan
+#don't add the current candidate to the list of matches
+                    if basename(m.name) != nm:
+                        d = [m.name, "%s (%s/%s)" % (np.round(m.P0,5), num, den),\
+                                 m.DM, m.ra, m.dec, vote]
+                        self.pmatch_store.append(d)
                 self.pmatch_tree.set_model(self.pmatch_store)
                 if len(matches) > 0:
                     self.pmatch_tree.show_all()
                     self.pmatch_lab.show_all()
+                    self.pmatch_tree.set_cursor(0)
                 else:
                     self.pmatch_tree.hide()
                     self.pmatch_lab.hide()
@@ -912,6 +1009,25 @@ class MainFrameGTK(Gtk.Window):
                 self.pmatch_tree.hide()
                 self.pmatch_lab.hide()
 
+    def pmatchtree_next(self):
+        """
+        select the next row in the "possible matches" tree
+        that is a pfd file
+
+        """
+        (model, pathlist) = self.pmatch_tree.get_selection().get_selected_rows()
+        if len(pathlist) > 0:
+            path = pathlist[0]
+            tree_iter = model.get_iter(path)
+            npath = model.iter_next(tree_iter)
+            while npath:
+                fname = model.get_value(npath, 0)
+                if fname.endswith('.pfd'):
+                    break
+                else:
+                    npath = model.iter_next(npath)
+            if fname.endswith('.pfd'):
+                model.set_cursor(npath)
 
     def pfdtree_next(self):
         """
@@ -968,7 +1084,7 @@ class MainFrameGTK(Gtk.Window):
         dlg.run()
         self.statusbar.push(0,'Downloading ATNF and GBNCC databases')
         newlist = KP.get_allpulsars()
-        fout = os.path.abspath('known_pulsars.pkl')
+        fout = abspath('known_pulsars.pkl')
         if self.knownpulsars == None:
             self.knownpulsars = newlist
             cPickle.dump(self.knownpulsars,open(fout,'w'))
@@ -999,8 +1115,8 @@ def convert(fin):
     """
     global show_pfd
     fout = None
-    if not os.path.exists(fin):
-        print "Can't find file %s" % os.path.abspath(fin)
+    if not exists(fin):
+        print "Can't find file %s" % abspath(fin)
         return fout
 
     if fin.endswith('.pfd'):
@@ -1020,9 +1136,9 @@ def convert(fin):
                 print "Cancel clicked"
         if show_pfd:
             #make the .ps file (later converted to .png)
-            pfddir = os.path.abspath(os.path.dirname(fin))
-            pfdname = os.path.basename(fin)
-            full_path = os.path.abspath(fin)
+            pfddir = dirname(abspath(fin))
+            pfdname = basename(fin)
+            full_path = abspath(fin)
             cmd = [show_pfd, '-noxwin', full_path]
             subprocess.call(cmd, shell=False,
                             stdout=open('/dev/null','w'))
@@ -1030,20 +1146,24 @@ def convert(fin):
             #otherwise move them to same location as pfd file
             for ext in ['ps','bestprof']:
                 #show_pfd outputs to CWD
-                fnew = os.path.abspath('%s.%s' % (pfdname, ext))
-                fold = os.path.abspath('%s/%s.%s' % (pfddir, pfdname, ext))
-                if os.path.exists(fold):
-                    if fnew != fold:
+                fnew = abspath('%s.%s' % (pfdname, ext))
+                fold = os.path.join(pfddir, '%s.%s' % (pfdname, ext))
+                if exists(fold):
+                    if fnew != abspath(fold):
                         os.remove(fnew)
                 else:
-                    shutil.move(fnew, pfddir)
-            fin = os.path.abspath('%s/%s.ps' % (pfddir, pfdname))
+                    if dirname(fnew) != abspath(pfddir):
+                        shutil.move(fnew, pfddir)
+            # assign fin to ps file so it converts to png below
+            fin = abspath(os.path.join(pfddir, "%s.ps" % pfdname))
         else:
             #conversion failed
             fout = None
 
     if fin.endswith('.ps'):
-        fout = fin.replace('.ps','.png')
+        bdir = dirname(abspath(fin))
+        bname = basename(fin)
+        fout = os.path.join(bdir, bname.replace('.ps','.png')) 
     #convert to png
         if pyimage:
             f = Image(fin)
@@ -1053,7 +1173,6 @@ def convert(fin):
             cmd = ['convert','-rotate','90',fin,'png:%s' % fout]
             subprocess.call(cmd, shell=False,
                             stdout=open('/dev/null','w'))
-
     return fout
 
 
