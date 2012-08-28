@@ -89,6 +89,8 @@ class MainFrameGTK(Gtk.Window):
         self.aiview_win = self.builder.get_object('aiview_win')
         self.aiview_win.set_deletable(False)
         self.aiview_win.connect('delete-event', lambda w, e: w.hide() or True)
+        self.pmatchwin_tog = self.builder.get_object('pmatchwin_tog')
+        self.pmatch_win = self.builder.get_object('pmatch_win')
         self.pmatch_tree = self.builder.get_object('pmatch_tree')
         self.pmatch_store = self.builder.get_object('pmatch_store')
         self.pmatch_lab = self.builder.get_object('pmatch_lab')
@@ -118,17 +120,8 @@ class MainFrameGTK(Gtk.Window):
         self.pfdtree.set_expander_column(expcol)
         self.pfdstore.set_sort_column_id(1,1)
 
-
 # set up the matching-pulsar tree
-        for vi, v in enumerate(['name','P0 (harm)','DM','RA','DEC','vote']):
-            cell = Gtk.CellRendererText()
-            col = Gtk.TreeViewColumn(v, cell, text=vi)
-            col.set_property("alignment", 0.5)
-            if v == 'name':
-                col.set_expand(True)
-            else:
-                col.set_expand(False)
-            self.pmatch_tree.append_column(col)
+        self.pmatch_tree_init()
 
         ## data-analysis related objects
         self.voters = []
@@ -927,6 +920,52 @@ class MainFrameGTK(Gtk.Window):
 ############################
 ## gui related actions
 
+    def pmatch_tree_init(self):
+        """
+        initialize the pmatch tree(s).
+
+        """
+        for vi, v in enumerate(['name','P0 (harm)','DM','RA','DEC','vote']):
+            cell = Gtk.CellRendererText()
+            col = Gtk.TreeViewColumn(v, cell, text=vi)
+            col.set_property("alignment", 0.5)
+            if v == 'name':
+                col.set_expand(True)
+            else:
+                col.set_expand(False)
+            self.pmatch_tree.append_column(col)
+
+
+    def on_pmatchwin_toggled(self, event):
+        """
+        show the candidate matches in their own window
+
+        """
+        if self.pmatchwin_tog.get_active():
+#hide the old stuff
+            self.pmatch_tree.hide()
+            self.pmatch_lab.hide()
+#show the new stuff
+            self.pmatch_tree = self.builder.get_object('pmatch_tree1')
+            if self.pmatch_tree.get_n_columns() == 0:
+                self.pmatch_tree_init()
+            self.pmatch_tree.connect("cursor-changed", self.on_pmatch_select_row)
+            self.pmatch_tree.set_model(self.pmatch_store)
+            self.pmatch_lab = self.builder.get_object('pmatch_lab1')
+            self.pmatch_win.show_all()
+            self.pfdtree_current()
+        else:
+            self.pmatch_win.hide()
+            self.pmatch_tree = self.builder.get_object('pmatch_tree')
+            if self.pmatch_tree.get_n_columns() == 0:
+                self.pmatch_tree_init()
+            self.pmatch_tree.connect("cursor-changed", self.on_pmatch_select_row)
+            self.pmatch_lab = self.builder.get_object('pmatch_lab')
+            self.pmatch_tree.set_model(self.pmatch_store)
+            self.pmatch_tree.show_all()
+            self.pmatch_lab.show_all()
+            self.pfdtree_current()
+        
     def on_autosave_toggled(self, event):
         """
 
@@ -1026,10 +1065,10 @@ class MainFrameGTK(Gtk.Window):
                     self.pmatch_tree.set_cursor(0)
                 else:
                     self.pmatch_tree.hide()
-                    self.pmatch_lab.hide()
+#                    self.pmatch_lab.hide()
             else:
                 self.pmatch_tree.hide()
-                self.pmatch_lab.hide()
+#                self.pmatch_lab.hide()
 
     def pmatchtree_next(self):
         """
@@ -1061,6 +1100,19 @@ class MainFrameGTK(Gtk.Window):
                     self.pmatch_tree.scroll_to_cell(path)
                     self.pmatch_tree.set_cursor(path)
 
+    def pfdtree_current(self):
+        """
+        trigger an event so the pfdtree gets updated
+
+        """
+        (model, pathlist) = self.pfdtree.get_selection().get_selected_rows()
+#only use first selected object
+        if len(pathlist) > 0:
+            path = pathlist[0]
+            self.pfdtree.set_cursor(path)
+        else:
+            self.statusbar.push(0,"Please select a row")
+                    
     def pfdtree_next(self):
         """
         select next row in pfdtree
