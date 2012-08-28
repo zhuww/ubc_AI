@@ -103,6 +103,8 @@ class MainFrameGTK(Gtk.Window):
             cell = Gtk.CellRendererText()
             col = Gtk.TreeViewColumn(v, cell, text=vi)
             col.set_property("alignment", 0.5)
+            col.set_sort_indicator(True)
+            col.set_sort_column_id(vi)
             if v == 'fname':
                 expcol = col
                 col.set_expand(True)
@@ -113,6 +115,7 @@ class MainFrameGTK(Gtk.Window):
             self.pfdtree.append_column(col)
         self.pfdtree.set_expander_column(expcol)
         self.pfdstore.set_sort_column_id(1,1)
+
 
 # set up the matching-pulsar tree
         for vi, v in enumerate(['name','P0 (harm)','DM','RA','DEC']):
