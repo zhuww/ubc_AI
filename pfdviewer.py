@@ -829,7 +829,8 @@ class MainFrameGTK(Gtk.Window):
         note += "\tKey : 5/m  -- rank candidate as marginal (prob = 0.5)\n"
         note += "\tKey : h  -- rank candidate as harmonic (prob = 3.)\n"
         note += "\tKey : k  -- rank candidate as known pulsar (prob = 2.)\n"        
-        note += "\tKey : b/n  -- display the previous/next candidate"
+        note += "\tKey : b/n  -- display the previous/next candidate\n"
+        note += "\tKey : c  -- cycle through possible matches"
         
         
         dialog = Gtk.MessageDialog(self, 0, Gtk.MessageType.INFO,
@@ -1027,7 +1028,8 @@ class MainFrameGTK(Gtk.Window):
                 else:
                     npath = model.iter_next(npath)
             if fname.endswith('.pfd'):
-                model.set_cursor(npath)
+                # go back to beginning if we don't find .pfd files
+                model.set_cursor(0) 
 
     def pfdtree_next(self):
         """
