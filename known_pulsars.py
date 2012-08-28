@@ -190,7 +190,7 @@ def matches(allpulsars, pulsar, sep=.5):
     things close if they are separated by less than a degree in dec,
     and 'sep' in RA
     """
-    matches = []
+    matches = {}
     pra = hhmm2deg(pulsar.ra)
     pdec = ddmm2deg(pulsar.dec)
     for k, v in allpulsars.iteritems():
@@ -199,11 +199,11 @@ def matches(allpulsars, pulsar, sep=.5):
         if pulsar.gbncc:
             if abs(ra - pra) <= sep and \
                     abs(dec - pdec) <= 1:
-                matches.append(v)
+                matches[k] = v
         elif abs(ra - pra) <= sep and \
                 abs(dec - pdec) <= sep:
-            matches.append(v)
-    return matches
+            matches[k] = v
+    return sorted(matches.values(), key=lambda x: x.name) #gives a sorted list
     
         
     

@@ -612,29 +612,46 @@ class MainFrameGTK(Gtk.Window):
         cycle/display the list of candidate matches
         
         """
-        (model, pathlist) = self.pmatch_tree.get_selection().get_selected_rows()
-#only use first selected object
-        if len(pathlist) > 0:
-            #nothing selected, so go back to first
-            path = pathlist[0]
-            tree_iter = model.get_iter(path)
-#update self.data (since dealing with TreeStore blows my mind)
-            fname, p0, dm, ra, dec, vote = self.pmatch_store[tree_iter]
+# get name of "selected" candidate
+        gsel = self.pfdtree.get_selection()
+        if gsel:
+            tmpstore, tmpiter = gsel.get_selected()
+        else:
+            tmpiter = None
 
-            if fname.endswith('.pfd'):
-                fname = os.path.join(self.basedir, fname)
-# find/create png file from input file
-                fpng = self.create_png(fname)
-            #update the basedir if necessary 
-                if not exists(fpng):
-                    fname = self.find_file(fname)
+        ncol = self.pfdstore.get_n_columns()
+        if tmpiter != None:
+            candname = os.path.join(self.basedir, tmpstore.get_value(tmpiter, 0))
+
+            (model, pathlist) = self.pmatch_tree.get_selection().get_selected_rows()
+    #only use first selected object
+            if len(pathlist) > 0:
+                #nothing selected, so go back to first
+                path = pathlist[0]
+                tree_iter = model.get_iter(path)
+    #update self.data (since dealing with TreeStore blows my mind)
+                fname, p0, dm, ra, dec, vote = self.pmatch_store[tree_iter]
+
+                if fname.endswith('.pfd'):
+                    fname = os.path.join(self.basedir, fname)
+    # find/create png file from input file
                     fpng = self.create_png(fname)
+                #update the basedir if necessary 
+                    if not exists(fpng):
+                        fname = self.find_file(fname)
+                        fpng = self.create_png(fname)
 
-#                print "Showing image",fname
-                if exists(fpng):
-                    self.image.set_from_file(fpng)
-                    self.image_disp.set_text('displaying : %s' % \
-                                                 basename(fname))
+    #                print "Showing image",fname
+                    if exists(fpng):
+                        self.image.set_from_file(fpng)
+                        self.image_disp.set_text('displaying : %s' % \
+                                                     basename(fname))
+                        if basename(fname) == basename(candname):
+                            disp = 'Possible matches to %s' % candname
+                        else:
+                            disp = 'Possible matches to %s\n' % candname
+                            disp += '               (displaying %s)' % fname
+                        self.pmatch_lab.set_text(disp)
 
     def on_aiview_toggled(self, event):
         """
@@ -979,7 +996,6 @@ class MainFrameGTK(Gtk.Window):
                     this_vote = self.data[act_name][this_idx][0]
                 else:
                     this_vote = np.nan
-                matches = KP.matches(self.knownpulsars, this_pulsar)
                 self.pmatch_tree.set_model(None)
                 self.pmatch_store.clear()
                 nm = 'This Candidate'
@@ -987,6 +1003,7 @@ class MainFrameGTK(Gtk.Window):
                 self.pmatch_store.append([nm,str(np.round(this_pulsar.P0,5)),\
                                               this_pulsar.DM, this_pulsar.ra,\
                                               this_pulsar.dec, this_vote])
+                matches = KP.matches(self.knownpulsars, this_pulsar)
                 for m in matches:
                     num, den = harm_ratio(np.round(this_pulsar.P0,4), np.round(m.P0,4))
                     idx = self.data['fname'] == m.name
@@ -1021,6 +1038,7 @@ class MainFrameGTK(Gtk.Window):
 
         """
         (model, pathlist) = self.pmatch_tree.get_selection().get_selected_rows()
+        fname = ''
         if len(pathlist) > 0:
             path = pathlist[0]
             tree_iter = model.get_iter(path)
@@ -1035,10 +1053,13 @@ class MainFrameGTK(Gtk.Window):
                 # go back to beginning if we don't find .pfd files
                 nextpath = model.get_path(npath)
                 self.pmatch_tree.set_cursor(nextpath) 
-                self.pmatch_tree.scroll_to_cell(nextpath)
+                self.pmatch_tree.scroll_to_cell(nextpath, use_align=False)
             else:
-                self.pmatch_tree.scroll_to_point(0,0)
-                self.pmatch_tree.set_cursor(0)
+                first_iter = self.pmatch_store.get_iter_first()
+                if first_iter is not None:
+                    path = model.get_path(first_iter)
+                    self.pmatch_tree.scroll_to_cell(path)
+                    self.pmatch_tree.set_cursor(path)
 
     def pfdtree_next(self):
         """
