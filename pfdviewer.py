@@ -268,8 +268,8 @@ class MainFrameGTK(Gtk.Window):
                 sgn = ''
                 name = 'J%s%s%s' % (''.join(pfd.rastr.split(':')[:2]), sgn,\
                                         ''.join(pfd.decstr.split(':')[:2]))
-            this_pulsar = KP.pulsar(name, name, ra, dec, p0, dm)
-            self.knownpulsars[name] = this_pulsar
+            this_pulsar = KP.pulsar(fname, name, ra, dec, p0, dm)
+            self.knownpulsars[fname] = this_pulsar
 
 
     def dataload_update(self):
@@ -614,7 +614,9 @@ class MainFrameGTK(Gtk.Window):
 
         ncol = self.pfdstore.get_n_columns()
         if tmpiter != None:
-            candname = os.path.join(self.basedir, tmpstore.get_value(tmpiter, 0))
+            
+#            candname = os.path.join(self.basedir, tmpstore.get_value(tmpiter, 0))
+            candname = tmpstore.get_value(tmpiter, 0)
 
             (model, pathlist) = self.pmatch_tree.get_selection().get_selected_rows()
     #only use first selected object
@@ -640,10 +642,15 @@ class MainFrameGTK(Gtk.Window):
                         self.image_disp.set_text('displaying : %s' % \
                                                      basename(fname))
                         if basename(fname) == basename(candname):
-                            disp = 'Possible matches to %s' % candname
+                            disp = 'Possible matches to %s' % basename(candname)
                         else:
-                            disp = 'Possible matches to %s\n' % candname
-                            disp += '               (displaying %s)' % fname
+                            idx = self.data['fname'] == candname
+                            if len(idx[idx]) > 0:
+                                vote = self.data[self.voters[self.active_voter]][idx][0]
+                            else:
+                                vote = np.nan
+                            disp = 'Possible matches to %s\n' % basename(candname)
+                            disp += '               (displaying %s (%s))' % (basename(fname), vote)
                         self.pmatch_lab.set_text(disp)
 
     def on_aiview_toggled(self, event):
@@ -1014,6 +1021,7 @@ class MainFrameGTK(Gtk.Window):
 
         if tmpiter != None:
             fname = '%s/%s' % (self.basedir,tmpstore.get_value(tmpiter, 0))
+            store_name = tmpstore.get_value(tmpiter, 0)
 # see if this path exists, update self.basedir if necessary
 #            self.find_file(fname)
             if exists(fname) and fname.endswith('.pfd'):
@@ -1029,8 +1037,8 @@ class MainFrameGTK(Gtk.Window):
                     sgn = '' 
                 name = 'J%s%s%s' % (''.join(pfd.rastr.split(':')[:2]), sgn,\
                                         ''.join(pfd.decstr.split(':')[:2]))
-                this_pulsar = KP.pulsar(name, name, ra, dec, p0, dm)
-                this_idx = self.data['fname'] == fname
+                this_pulsar = KP.pulsar(fname, name, ra, dec, p0, dm)
+                this_idx = self.data['fname'] == store_name
                 if len(this_idx[this_idx]) > 0:
                     this_vote = self.data[act_name][this_idx][0]
                 else:
@@ -1054,7 +1062,7 @@ class MainFrameGTK(Gtk.Window):
                     else:
                         vote = np.nan
 #don't add the current candidate to the list of matches
-                    if basename(m.name) != nm:
+                    if basename(m.name) != basename(nm):
                         d = [m.name, "%s (%s/%s)" % (np.round(m.P0,5), num, den),\
                                  m.DM, m.ra, m.dec, vote]
                         self.pmatch_store.append(d)
