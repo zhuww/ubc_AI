@@ -95,6 +95,7 @@ class MainFrameGTK(Gtk.Window):
         self.pmatch_store = self.builder.get_object('pmatch_store')
         self.pmatch_lab = self.builder.get_object('pmatch_lab')
         self.pmatch_tree.connect("cursor-changed", self.on_pmatch_select_row)
+        self.pmatch_tree.connect("row-activated", self.on_pmatch_row_activated)
         self.pmatch_tree.hide()
         self.pmatch_lab.hide()
 #allow Ctrl+s like key-functions        
@@ -599,7 +600,40 @@ class MainFrameGTK(Gtk.Window):
             return fname
         else:
             return None
+
+    def on_pmatch_row_activated(self, widget, event, data=None):
+        """
+        respond to double-clicks in pmatch tree
+        if it is a candidate file, we move the pfdtree to this row
+
+        """
+        #get name of double-clicked object
+        (model, pathlist) = self.pmatch_tree.get_selection().get_selected_rows()
+        if len(pathlist) != 0:
+            path = pathlist[0]
+            match_iter = model.get_iter(path)
+            fname = self.pmatch_store[match_iter][0]
+            
+        print "DOUBLE CLICK"
+        # scroll through entire list of candidates until
+        # we find the candidate, then switch to it
+        pfd_iter = self.pfdstore.get_iter_first()
+        found = False
+        while pfd_iter is not None:
+            candname = self.pfdstore[pfd_iter][0]
+            if basename(candname) == basename(fname):
+                print "Found",candname, fname
+                found = True
+                break
+            pfd_iter = self.pfdstore.iter_next(pfd_iter)
         
+        if found:
+            (pfdtreemodel, pdel) = self.pfdtree.get_selection().get_selected_rows()
+            print "PATH",type(pfd_iter),pfd_iter
+            path = pfdtreemodel.get_path(pfd_iter)
+            self.pfdtree.set_cursor(path)
+            self.pfdtree.scroll_to_cell(path)
+            pass
     def on_pmatch_select_row(self, event=None):
         """
         cycle/display the list of candidate matches

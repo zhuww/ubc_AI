@@ -203,7 +203,7 @@ def matches(allpulsars, pulsar, sep=.5):
         elif abs(ra - pra) <= sep and \
                 abs(dec - pdec) <= sep:
             matches[k] = v
-    return sorted(matches.values(), key=lambda x: x.name) #gives a sorted list
+    return sorted(matches.values(), key=lambda x: x.name, reverse=True) #gives a sorted list
     
         
     
