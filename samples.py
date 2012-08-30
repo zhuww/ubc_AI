@@ -40,10 +40,10 @@ def downsample(a, n):
             coords = mgrid[0:1:1j*n]
         elif D == 2:
             d1,d2 = shape
-            coords = mgrid[0:d1:1j*n, 0:d2:1j*n]
+            coords = mgrid[0:d1-1:1j*n, 0:d2-1:1j*n]
         elif D == 3:
             d1,d2,d3 = shape
-            coords = mgrid[0:d1:1j*n, 0:d2:1j*n, 0:d3:1j*n]
+            coords = mgrid[0:d1-1:1j*n, 0:d2-1:1j*n, 0:d3-1:1j*n]
         else:
             raise "too many dimentions %s " % D
         def map_to_index(x,bounds,N):

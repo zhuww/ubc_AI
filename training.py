@@ -2,6 +2,7 @@ from prepfold import pfd
 from samples import downsample, normalize
 import numpy as np
 import psr_utils
+import matplotlib.pyplot as plt
 #from scipy.linalg import svd
 #from pylab import *
 class pfddata(pfd):
@@ -308,7 +309,6 @@ def singleclass_score(classifier, test_data, test_target, verbose=False):
    
     return F1
 
-import pylab as plt
 
 def learning_curve(classifier, X, y,
                    Xval=None, 
@@ -562,7 +562,6 @@ def feature_curve(classifier,
     return train_score, test_score, vals, vals[test_score.argmin()]
 
 import cPickle
-import matplotlib.pyplot as plt
 class datafitter(object):
     """
     A class to hold the data and provide methods for testing AIs.
