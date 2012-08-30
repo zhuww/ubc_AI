@@ -4,6 +4,7 @@ from sklearn.decomposition import RandomizedPCA as PCA
 from sklearn import svm, linear_model
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
+from scipy import mgrid
 
 from ubc_AI import pulsar_nnetwork as pnn 
 
@@ -11,13 +12,17 @@ class combinedAI(object):
     """
     A class to combine different AIs, and have them operate as one
     """
-    def __init__(self, list_of_AIs, strategy='vote', nvote=None):
+    def __init__(self, list_of_AIs, strategy='vote', nvote=None, shift_predict=False):
         """
         inputs
         list_of_AIs: list of classifiers
         strategy: one of ['union', 'vote', 'l2', 'svm', 'forest', 'tree', 'nn']
+        shift_predict: shift each feature along phasebin, getting predict_proba
+                        with each shift. Return 'predict/predict_proba' for best
+                        phase (if the different features maximize at same location).
+                        *All classifiers (expect DM-related) in list_of_AIs need this option)
         
-        Notes:   
+        Notes:  
         *'l2' uses LogisticRegression on the prediction matrix from list_of_AIs,
              and makes final prediction from the l2(predictions)
         *'svm' uses SVM on the prediction matrix from the list_of_AIs,
@@ -32,6 +37,7 @@ class combinedAI(object):
         self.AIonAIs = ['l2','svm','forest','tree','nn']
         self.list_of_AIs = list_of_AIs
         self.strategy = strategy
+        self.shift_predict = shift_predict
         if strategy == 'l2':
             self.AIonAI = linear_model.LogisticRegression(penalty='l2')
         elif strategy == 'svm':
@@ -57,17 +63,18 @@ class combinedAI(object):
         if (self.strategy in self.AIonAIs):
             if (self.strategy not in ['tree', 'forest']):
                 #use predict_prob
-                predictions = [clf.predict_proba(pfds)\
+                predictions = [clf.predict_proba(pfds, shift_predict=False)\
                                    for clf in self.list_of_AIs] #npred x nsamples
             else:
                 #use predict
-                predictions = [clf.predict(pfds)\
+                predictions = [clf.predict(pfds, shift_predict=False)\
                                    for clf in self.list_of_AIs]
 
             predictions = np.array(predictions).transpose() #nsamples x npred
             self.AIonAI.fit(predictions, target)
             
-# choose 'nvote' that maximizes the trianing-set performance                
+# choose 'nvote' that maximizes the trianing-set performance  
+# Note: this should be avoided...               
         if self.strategy == 'vote' and self.nvote == None:
             train_preds = np.array(train_preds).transpose() #nsamples x nclassifiers
             score = 0.
@@ -80,45 +87,108 @@ class combinedAI(object):
                     score = this_score
 
                 
-    def predict(self, test_pfds, pred_mat=False ):
+    def predict(self, test_pfds, pred_mat=False, shift_predict=None):
         """
         args: [list of test pfd instances], test target
         optionally: pred_mat = True returns the [nsamples x npredictions] matrix
                                so you can run your own prediction combo schemes
                                (default False)
+
+        Notes:
+        shift_predict is provided here because we don't us 
+        self.shift_predict in the fit routine and need to override it
+
         """
+        if shift_predict is None:
+            shift_predict = self.shift_predict
+
         if not type(test_pfds) in [list, np.ndarray]:
-            print "warniing: changing test_pfds from type %s to list" % (type(test_pfds))
+            print "warning: changing test_pfds from type %s to list" % (type(test_pfds))
             test_pfds = [test_pfds]
         
-        if (self.strategy in self.AIonAIs) and (self.strategy not in ['tree', 'forest']):
+        if not shift_predict:
+            #then we do regular voting, taking PFD data as-is (no phase-shifting)
+
+            if (self.strategy in self.AIonAIs) and (self.strategy not in ['tree', 'forest']):
             #use predict_proba for our non-tree/forest AI_on_AI classifier, 
-            list_of_predicts = [clf.predict_proba(test_pfds) for clf in self.list_of_AIs]
+                list_of_predicts = [clf.predict_proba(test_pfds, shift_predict=False)\
+                                        for clf in self.list_of_AIs]
+            else:
+                list_of_predicts = [clf.predict(test_pfds, shift_predict=False)\
+                                        for clf in self.list_of_AIs]
+            self.list_of_predicts = np.array(list_of_predicts).transpose() #nsamp x npred
+
+            self.predictions = self.vote(self.list_of_predicts)
         else:
-            list_of_predicts = [clf.predict(test_pfds) for clf in self.list_of_AIs]
-        self.list_of_predicts = np.array(list_of_predicts).transpose() #nsamp x npred
+            #then list_of_predicts is [nclassifiers][nbins x nsamples]
+            if (self.strategy in self.AIonAIs) and (self.strategy not in ['tree', 'forest']):
+            #use predict_proba for our non-tree/forest AI_on_AI classifier, 
+                list_of_predicts = [clf.predict_proba(test_pfds, shift_predict=shift_predict)\
+                                        for clf in self.list_of_AIs\
+                                        if clf.feature.keys()[0] != 'DMbins']
+            else:
+                list_of_predicts = [clf.predict(test_pfds, shift_predict=shift_predict)\
+                                         for clf in self.list_of_AIs\
+                                        if clf.feature.keys()[0] != 'DMbins']
+            lop = np.array(list_of_predicts)
 
-        self.predictions = []
-        if self.strategy == 'union':
-            #return '1'=pulsar if any AI voted yes, otherwise '0'=rfi
-            self.predictions = np.where((lop==1).sum(axis=1)>0, 1, 0)
+#downsample all Probs vs phase to same grid
+            min_nbin = min([len(i) for i in lop])
+            coords = mgrid[0:1:1j*min_nbin]
+            nclf = len(lop) #number of non-DM classifiers
+            nsamples = lop[0][0].size
+    #change order of indices to [nsamples, nclassifers, nbins]
+            lop_dwn = np.zeros((nsamples, nclf, min_nbin), dtype=np.int)
+            for clfi, dat in enumerate(lop):
+                m = len(dat)
+                x = mgrid[0:1:1j*m]
+                data = np.array(dat).transpose() #[data] = [nsamples x min_nbin]
+                for si, sv in enumerate(data):
+                    lop_dwn[si,clfi,:] = np.interp(coords, x, sv)
+            #add up all the predictions and find first index with best prob
+            lop_dwn_bestbin = lop_dwn.mean(axis=1).argmax(axis=1) #gives [nsamples]
+#now go back to our predictions, filling in with the phase-shifted votes:
+            list_of_predicts = []
+            for clfi, clf in enumerate(self.list_of_AIs):
+                if clf.feature.keys()[0] == 'DMbins':
+                    if (self.strategy in self.AIonAIs) and (self.strategy not in ['tree', 'forest']):
+                        list_of_predicts.append( clf.predict_proba(test_pfds) )
+                    else:
+                        list_of_predicts.append( clf.predict(test_pfds) )
+                else:
+                    # use Prob(bestphase) calculated previously
+                    samps = [lop_dwn[:, clfi, i][i] for i in lop_dwn_bestbin]
+                    list_of_predicts.append( samps ) #npred x nsamples
 
-        elif self.strategy == 'vote':
-            predict = self.list_of_predicts.mean(axis=1)#[nsamples x npred]
-            npreds = float(len(self.list_of_AIs))
-            self.predictions = np.where( predict > self.nvote/npreds, 1, 0)
-            
-        elif self.strategy in self.AIonAIs:
-            predict = self.list_of_predicts #[nsamples x npred]
-            self.predictions = self.AIonAI.predict(predict)
+            self.list_of_predicts = np.array(list_of_predicts).transpose() #nsamp x npred
+            self.predictions = self.vote(self.list_of_predicts)
 
-        #return np.array(self.predictions)
         if pred_mat:
             return self.list_of_predicts #[nsamples x npredictions]
         else:
             return self.predictions
 
-    def predict_proba(self, pfds):
+    def vote(self, pred_mat):
+        """
+        given the prediction matrix pred_mat = [nsamples x npred]
+        perform the voting strategy, returning the final prediction
+
+        """
+        predictions = []
+        if self.strategy == 'union':
+        #return '1'=pulsar if any AI voted yes, otherwise '0'=rfi
+            predictions = np.where((pred_mat==1).sum(axis=1)>0, 1, 0) #nsamples
+        elif self.strategy == 'vote':
+            predict = pred_mat.sum(axis=1)#[nsamples x npred]
+            npreds = float(len(self.list_of_AIs))
+            predictions = np.where( predict > self.nvote/npreds, 1, 0)
+
+        elif self.strategy in self.AIonAIs:
+            predict = pred_mat #[nsamples x npred]
+            predictions = self.AIonAI.predict(predict)
+        return predictions
+
+    def predict_proba(self, pfds, shift_predict=None):
         """
         predict_proba(self, pfds) classifier method
         Compute the likehoods each possible outcomes of samples in T.
@@ -139,12 +209,18 @@ class combinedAI(object):
         
         Notes
         -----
+        shift_predict is provided here because we don't us 
+        self.shift_predict in the fit routine and need to override it
         """
-        
+        if shift_predict is None:
+            shift_predict = self.shift_predict
+
         if self.strategy not in self.AIonAIs:
-            result = np.sum(np.array([clf.predict_proba(pfds) for clf in self.list_of_AIs]), axis=0)/len(self.list_of_AIs)
+            result = np.sum(np.array([clf.predict_proba(pfds)\
+                                          for clf in self.list_of_AIs]), axis=0)/len(self.list_of_AIs)
         else:
-            predicts = [clf.predict(pfds) for clf in self.list_of_AIs]
+            predicts = [clf.predict(pfds)\
+                            for clf in self.list_of_AIs]
             predicts = np.array(predicts).transpose()
             #AAR: not compatible with multi-class (future fix)
             result = self.AIonAI.predict_proba(predicts)[...,1]
@@ -180,6 +256,12 @@ class classifier(object):
     clf1 = svmclf(gamma=0.1, C=0.8, scale_C=False, feature={'phasebins':32})
 
     the feature has to be a diction like {'phasebins':32}, where 'phasebins' being the name of the feature, 32 is the size.
+    
+    Notes:
+    predict and predict_proba accept a 'shift_predict' argument,
+    returning prediction matrix (nbins, nsamples). This matrix is 
+    used for x-comparison in combinedAI to find best phase.
+   
     """
     def __init__(self, feature=None, use_pca=False, n_comp=12, *args, **kwds):
         if feature == None:
@@ -187,6 +269,7 @@ class classifier(object):
         self.feature = feature
         self.use_pca = use_pca
         self.n_components = n_comp
+#        self.shift_predict = shift_predict
         super(classifier, self).__init__( *args, **kwds)
 
     def fit(self, pfds, target):
@@ -206,23 +289,43 @@ class classifier(object):
         return results
         #return self.orig_class.fit(self, data, target)
 
-    def predict(self, pfds):
+    def predict(self, pfds, shift_predict=False):
         """
         args: pfds, target
         pfds: the testing pfds
         """
+#        if shift_predict is None:
+#            shift_predict = self.shift_predict
+
         data = np.array([pfd.getdata(**self.feature) for pfd in pfds])
         #self.test_data = data
         current_class = self.__class__
         self.__class__ = self.orig_class
-        if self.use_pca:
-            data = self.pca.transform(data)
-        results =  self.predict(data)
+        if shift_predict:
+            shift_probs = []
+            nbins = self.feature.values()[0]
+            nsamples = data.shape[0]
+            for shift in range(nbins):
+                if self.feature.keys()[0] == 'phasebins':
+                    shift_data = np.roll(data, shift, axis=1)
+                else:
+                    rdata = data.reshape((nsamples, nbins, nbins))
+                    shift_data = np.roll(rdata, shift, axis=2).reshape((nsamples,nbins*nbins))
+                if self.use_pca:
+                    shift_data = self.pca.transform(shift_data)
+                    #AAR: not compatible with multi-class (future fix)
+                shift_probs.append(self.predict(shift_data))
+            results = shift_probs #(nbins, Nsamples)
+        else:
+            if self.use_pca:
+                data = self.pca.transform(data)
+            results =  self.predict(data)
+
         self.__class__ = current_class
         return results
         #return self.orig_class.predict(self, data)
         
-    def predict_proba(self, pfds):
+    def predict_proba(self, pfds, shift_predict=False):
         """
 predict_proba(self, pfds) classifier method
     Compute the likehoods each possible outcomes of samples in T.
@@ -237,22 +340,45 @@ predict_proba(self, pfds) classifier method
     Returns
     -------
     X : array-like, shape = [n_samples, n_classes]
-        Returns the probability of the sample for each class in
-        the model, where classes are ordered by arithmetical
-        order.
-    
+        Returns the probability of the sample for class '1' in
+        the model. Not compatible with multi-class yet.
+    if shift_predict:
+    Returns X : list-like, shape = [nbins, n_samples]
+                Returns the probability of class 1 in the model
+                at each phase. Processed in combinedAI to determine
+                best phase.
     Notes
     -----
         """
+#        if shift_predict is None:
+#            shift_predict = self.shift_predict
+
         data = np.array([pfd.getdata(**self.feature) for pfd in pfds])
         current_class = self.__class__
         self.__class__ = self.orig_class
-        if self.use_pca:
-            data = self.pca.transform(data)
-        results =  self.predict_proba(data)
+        if shift_predict:
+            shift_probs = []
+            nbins = self.feature.values()[0]
+            nsamples = data.shape[0]
+            for shift in range(nbins):
+                if self.feature.keys()[0] == 'phasebins':
+                    shift_data = np.roll(data, shift, axis=1)
+                else:
+                    rdata = data.reshape((nsamples, nbins, nbins))
+                    shift_data = np.roll(rdata, shift, axis=2).reshape((nsamples,nbins*nbins))
+                if self.use_pca:
+                    shift_data = self.pca.transform(shift_data)
+                    #AAR: not compatible with multi-class (future fix)
+                shift_probs.append(self.predict_proba(shift_data)[...,1])
+            results = shift_probs #(nbins, Nsamples)
+        else:
+            if self.use_pca:
+                data = self.pca.transform(data)
+            #AAR: not compatible with multi-class (future fix)
+            results =  self.predict_proba(data)[...,1]
+
         self.__class__ = current_class
-        #AAR: not compatible with multi-class (future fix)
-        return results[...,1]
+        return results
 
     def score(self, pfds, target, F1=True):
         """
