@@ -614,7 +614,6 @@ class MainFrameGTK(Gtk.Window):
             match_iter = model.get_iter(path)
             fname = self.pmatch_store[match_iter][0]
             
-        print "DOUBLE CLICK"
         # scroll through entire list of candidates until
         # we find the candidate, then switch to it
         pfd_iter = self.pfdstore.get_iter_first()
@@ -622,14 +621,12 @@ class MainFrameGTK(Gtk.Window):
         while pfd_iter is not None:
             candname = self.pfdstore[pfd_iter][0]
             if basename(candname) == basename(fname):
-                print "Found",candname, fname
                 found = True
                 break
             pfd_iter = self.pfdstore.iter_next(pfd_iter)
         
         if found:
             (pfdtreemodel, pdel) = self.pfdtree.get_selection().get_selected_rows()
-            print "PATH",type(pfd_iter),pfd_iter
             path = pfdtreemodel.get_path(pfd_iter)
             self.pfdtree.set_cursor(path)
             self.pfdtree.scroll_to_cell(path)
