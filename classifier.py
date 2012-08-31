@@ -116,71 +116,84 @@ class combinedAI(object):
             else:
                 list_of_predicts = [clf.predict(test_pfds, shift_predict=False)\
                                         for clf in self.list_of_AIs]
-            self.list_of_predicts = np.array(list_of_predicts).transpose() #nsamp x npred
-
-            self.predictions = self.vote(self.list_of_predicts)
         else:
-            #then list_of_predicts is [nclassifiers][nbins x nsamples]
-            if (self.strategy in self.AIonAIs) and (self.strategy not in ['tree', 'forest']):
-            #use predict_proba for our non-tree/forest AI_on_AI classifier, 
-                list_of_predicts = [clf.predict_proba(test_pfds, shift_predict=shift_predict)\
-                                        for clf in self.list_of_AIs\
-                                        if clf.feature.keys()[0] != 'DMbins']
-                dtype = np.float
-            else:
-                list_of_predicts = [clf.predict(test_pfds, shift_predict=shift_predict)\
-                                         for clf in self.list_of_AIs\
-                                        if clf.feature.keys()[0] != 'DMbins']
-                dtype = np.int
-            lop = np.array(list_of_predicts)
+            list_of_predicts = self.shift_predictions(test_pfds, shift_predict)
 
-#downsample all Probs vs phase to same grid
-            nbins = [len(i) for i in lop]
-            min_nbin = min(nbins)
-            coords = mgrid[0:1:1j*min_nbin]
-            nclf = len(lop) #number of non-DM classifiers
-            nsamples = lop[0][0].size
-    #change order of indices to [nsamples, nclassifers, nbins]
-            lop_dwn = np.zeros((nsamples, nclf, min_nbin), dtype=dtype)
-            for clfi, dat in enumerate(lop):
-                m = len(dat)
-                x = mgrid[0:1:1j*m]
-                data = np.array(dat).transpose() #[data] = [nsamples x min_nbin]
-                for si, sv in enumerate(data):
-                    lop_dwn[si,clfi,:] = np.interp(coords, x, sv)
-            #add up all the predictions and find first index with best prob
-            lop_dwn_bestbin = lop_dwn.sum(axis=1).argmax(axis=1) #gives best bin for [nsamples] on min_nbin grid
-
-#now go back to our predictions, filling in with the phase-shifted votes:
-            list_of_predicts = []
-            n_nondm = 0
-            for clfi, clf in enumerate(self.list_of_AIs):
-                if clf.feature.keys()[0] == 'DMbins':
-                    if (self.strategy in self.AIonAIs) and (self.strategy not in ['tree', 'forest']):
-                        list_of_predicts.append( clf.predict_proba(test_pfds) )
-                    else:
-                        list_of_predicts.append( clf.predict(test_pfds) )
-                else:
-                    # use Prob(bestphase) calculated previously
-                    samps = []
-                    for bi, bv in enumerate(lop_dwn_bestbin):
-                        orig_bin = int(float(bv)/min_nbin*nbins[n_nondm]) #scale back to original grid
-                    #    if orig_bin != 0:
-                    #        print "Shifting %s, P(0), P(%s)= %s, %s" % (orig_bin, orig_bin,lop[n_nondm][0][bi],lop[n_nondm][orig_bin][bi])
-                    #    samps.append(lop[n_nondm][orig_bin][bi]) #non-downsampled
-                        if bv != 0:
-                            print "Shifting %s, P(0), P(%s)= %s, %s" % (bv, bv, lop_dwn[bi,n_nondm,0],lop_dwn[bi,n_nondm,bv])
-                        samps.append(lop_dwn[bi,n_nondm,bv])   #downsampled
-                    n_nondm += 1
-                    list_of_predicts.append( samps ) #npred x nsamples
-
-            self.list_of_predicts = np.array(list_of_predicts).transpose() #nsamp x npred
-            self.predictions = self.vote(self.list_of_predicts)
+        #get [nsamples x npred]
+        self.list_of_predicts = np.array(list_of_predicts).transpose() 
+        self.predictions = self.vote(self.list_of_predicts)
 
         if pred_mat:
             return self.list_of_predicts #[nsamples x npredictions]
         else:
             return self.predictions
+
+    def shift_predictions(self, test_pfds, shift_predict):
+        """
+        the heart of the "predict" and "predict_proba" routines
+        if we are doing "shift_predict"
+        Returns:
+        the optimal probability after shifting all classifiers
+        to each phase bin.
+        This is an array of [nsamples x npredictions(best_phase)]
+
+        """
+        #then list_of_predicts is [nclassifiers][nbins x nsamples]
+        if (self.strategy in self.AIonAIs) and (self.strategy not in ['tree', 'forest']):
+        #use predict_proba for our non-tree/forest AI_on_AI classifier, 
+            list_of_predicts = [clf.predict_proba(test_pfds, shift_predict=shift_predict)\
+                                    for clf in self.list_of_AIs\
+                                    if clf.feature.keys()[0] != 'DMbins']
+            dtype = np.float
+        else:
+            list_of_predicts = [clf.predict(test_pfds, shift_predict=shift_predict)\
+                                     for clf in self.list_of_AIs\
+                                    if clf.feature.keys()[0] != 'DMbins']
+            dtype = np.int
+        lop = np.array(list_of_predicts)
+
+    #sample all Probs vs phase to the largest grid
+        nbins = [len(i) for i in lop]
+        max_nbin = max(nbins)
+        coords = mgrid[0:1:1j*max_nbin]
+        nclf = len(lop) #number of non-DM classifiers
+        nsamples = lop[0][0].size
+#change order of indices to [nsamples, nclassifers, nbins]
+        lop_dwn = np.zeros((nsamples, nclf, max_nbin), dtype=dtype)
+        for clfi, dat in enumerate(lop):
+            m = len(dat)
+            x = mgrid[0:1:1j*m]
+            data = np.array(dat).transpose() #[data] = [nsamples x max_nbin]
+            for si, sv in enumerate(data):
+                lop_dwn[si,clfi,:] = np.interp(coords, x, sv)
+        #add up all the predictions and find first index with best prob
+        lop_dwn_bestbin = lop_dwn.sum(axis=1).argmax(axis=1) #gives best bin for [nsamples] on min_nbin grid
+
+     #now go back to our predictions, filling in with the phase-shifted votes:
+        list_of_predicts = []
+        n_nondm = 0
+        for clfi, clf in enumerate(self.list_of_AIs):
+            if clf.feature.keys()[0] == 'DMbins':
+                if (self.strategy in self.AIonAIs) and (self.strategy not in ['tree', 'forest']):
+                    list_of_predicts.append( clf.predict_proba(test_pfds) )
+                else:
+                    list_of_predicts.append( clf.predict(test_pfds) )
+            else:
+                # use Prob(bestphase) calculated previously
+                samps = []
+                for bi, bv in enumerate(lop_dwn_bestbin):
+                    
+                    if 1:
+                        #use original predictions
+                        orig_bin = int(float(bv)/max_nbin*nbins[n_nondm]) 
+                        samps.append(lop[n_nondm][orig_bin][bi]) 
+                    else:
+                        #use downsampled bin (bv)
+                        samps.append(lop_dwn[bi,n_nondm,bv])   
+                n_nondm += 1
+                list_of_predicts.append( samps ) #[npred x nsamples
+        return list_of_predicts #[npred x nsamples]
+
 
     def vote(self, pred_mat):
         """
@@ -229,15 +242,20 @@ class combinedAI(object):
         if shift_predict is None:
             shift_predict = self.shift_predict
 
-        if self.strategy not in self.AIonAIs:
-            result = np.sum(np.array([clf.predict_proba(pfds)\
-                                          for clf in self.list_of_AIs]), axis=0)/len(self.list_of_AIs)
-        else:
-            predicts = [clf.predict(pfds)\
-                            for clf in self.list_of_AIs]
-            predicts = np.array(predicts).transpose()
+        if not shift_predict:
+            if self.strategy not in self.AIonAIs:
+                result = np.sum(np.array([clf.predict_proba(pfds)\
+                                              for clf in self.list_of_AIs]), axis=0)/len(self.list_of_AIs)
+            else:
+                predicts = [clf.predict(pfds)\
+                                for clf in self.list_of_AIs]
+                predicts = np.array(predicts).transpose()
             #AAR: not compatible with multi-class (future fix)
-            result = self.AIonAI.predict_proba(predicts)[...,1]
+                result = self.AIonAI.predict_proba(predicts)[...,1]
+        else:
+            list_of_predicts = self.shift_predictions(test_pfds, shift_predict)
+            result = self.AIonAI.predict_proba(list_of_predicts)[...,1]
+            
         return result
         
     def score(self, pfds, target, F1=True):
@@ -458,3 +476,83 @@ class dtreeclf(classifier, DecisionTreeClassifier):
     """
     orig_class = DecisionTreeClassifier
     pass
+
+
+def plot_shiftpredict(cAI, pfd):
+    """
+    Accepts: a combinedAI object and a single pfd file.
+    Plots the probability distribution
+    for the each classifier as we shift in phase
+
+    """
+    import pylab as plt
+    from itertools import cycle
+    lines = ["-",":","-.","--"]
+    linecycler = cycle(lines)
+    if not isinstance(pfd, type(list())):
+        pfd = [pfd]
+
+    lop = [clf.predict_proba(pfd, shift_predict=True)\
+                            for clf in cAI.list_of_AIs\
+                            if clf.feature.keys()[0] != 'DMbins']
+    n_nondm = 0
+    fig = plt.figure()
+    ax = fig.add_subplot(221)
+    for clfi, clf in enumerate(cAI.list_of_AIs):
+        if clf.feature.keys()[0] != 'DMbins':
+            v = lop[n_nondm]
+            x = mgrid[0:1:len(v)*1j]
+            lbl = str(type(clf)).split('.')[-1].strip('>').strip('\'')
+            lbl += ' %s' % clf.feature
+            ax.plot(x,v, next(linecycler),label=lbl)
+            n_nondm += 1
+    ax.set_xlabel('phase')
+    ax.set_ylabel('Probability')
+    ax.set_title('non-gridded prob distr')
+    ax.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+
+    ax = fig.add_subplot(223)
+    nbins = [len(i) for i in lop]
+    min_nbin = min(nbins)
+    coords = mgrid[0:1:1j*min_nbin]
+    n_nondm = 0
+    linecycler = cycle(lines)
+    for clfi, clf in enumerate(cAI.list_of_AIs):
+        if clf.feature.keys()[0] != 'DMbins':
+            v = lop[n_nondm]
+            m = len(v)
+            x = mgrid[0:1:len(v)*1j]
+            data = np.interp(coords, x, np.array(v).transpose()[0])
+            lbl = str(type(clf)).split('.')[-1].strip('>').strip('\'')
+            lbl += ' %s' % clf.feature
+            ax.plot(coords, data, next(linecycler) ,label=lbl)
+            n_nondm += 1
+    ax.set_xlabel('phase')
+    ax.set_ylabel('Probability')
+    ax.set_title('gridded prob distr')
+    ax.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+    plt.show()
+
+    #now try doing a surface plot (z = f(phase, classifier))
+    plt.clf()
+    fig = plt.figure()
+    from mpl_toolkits.mplot3d import Axes3D
+    ax = fig.gca(projection='3d')#fig.add_subplot(111, projection='3d')
+    x = mgrid[0:1:100j]#coords #phase
+    y = range(len(lop))
+    X, Y = np.meshgrid(x,y)
+    def fun(x, y):
+        v = lop[int(y)]
+        p = mgrid[0:1:len(v)*1j]
+        data = np.interp(x, p, np.array(v).transpose()[0])
+        return data
+    zs = np.array([fun(x,y) for x,y in zip(np.ravel(X), np.ravel(Y))])
+    Z = zs.reshape(X.shape)
+    ax.plot_surface(X, Y, Z, rstride=8, cstride=8, alpha=0.3)
+    cset = ax.contour(X, Y, Z, zdir='z', offset=0)
+    cset = ax.contour(X, Y, Z, zdir='x', offset=0)
+    cset = ax.contour(X, Y, Z, zdir='y', offset=len(lop)-1)
+    ax.set_xlabel('Phase')
+    ax.set_ylabel('Classifier')
+    ax.set_zlabel('Probability')
+    plt.show()
