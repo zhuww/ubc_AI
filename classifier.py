@@ -133,7 +133,8 @@ class combinedAI(object):
             lop = np.array(list_of_predicts)
 
 #downsample all Probs vs phase to same grid
-            min_nbin = min([len(i) for i in lop])
+            nbins = [len(i) for i in lop]
+            min_nbin = min(nbins)
             coords = mgrid[0:1:1j*min_nbin]
             nclf = len(lop) #number of non-DM classifiers
             nsamples = lop[0][0].size
@@ -146,7 +147,9 @@ class combinedAI(object):
                 for si, sv in enumerate(data):
                     lop_dwn[si,clfi,:] = np.interp(coords, x, sv)
             #add up all the predictions and find first index with best prob
-            lop_dwn_bestbin = lop_dwn.mean(axis=1).argmax(axis=1) #gives [nsamples]
+            lop_dwn_bestbin = lop_dwn.mean(axis=1).argmax(axis=1) #gives best bin for [nsamples] on min_nbin grid
+
+
 #now go back to our predictions, filling in with the phase-shifted votes:
             list_of_predicts = []
             for clfi, clf in enumerate(self.list_of_AIs):
@@ -157,7 +160,10 @@ class combinedAI(object):
                         list_of_predicts.append( clf.predict(test_pfds) )
                 else:
                     # use Prob(bestphase) calculated previously
-                    samps = [lop_dwn[:, clfi, i][i] for i in lop_dwn_bestbin]
+                    samps = []
+                    for bi, bv in enumerate(lop_dwn_bestbin):
+                        orig_bin = int(float(bv)/min_nbin*nbins[clfi])
+                        samps.append(lop[clfi][orig_bin][bi])
                     list_of_predicts.append( samps ) #npred x nsamples
 
             self.list_of_predicts = np.array(list_of_predicts).transpose() #nsamp x npred
