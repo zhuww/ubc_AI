@@ -205,7 +205,7 @@ class classifier(object):
             data = np.array([np.roll(pfd.getdata(**self.feature), shift) for pfd in pfds])
         elif feature in ['intervals', 'subbands']:
             #print '%s %s 2D shift:%s'%(self.orig_class, self.feature, shift)
-            data = np.array([np.roll(pfd.getdata(**self.feature), shift, axis=1) for pfd in pfds])
+            data = np.array([np.roll(pfd.getdata(**self.feature).reshape(MaxN, MaxN), shift, axis=1).ravel() for pfd in pfds])
         else:
             data = np.array([pfd.getdata(**self.feature) for pfd in pfds])
         current_class = self.__class__
