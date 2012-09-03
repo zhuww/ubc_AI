@@ -195,7 +195,14 @@ class classifier(object):
         pfds: the training pfds
         target: the training targets
         """
-        data = np.array([pfd.getdata(**self.feature) for pfd in pfds])
+        MaxN = max([self.feature[k] for k in self.feature])
+        shift = random.randint(0, MaxN-1)
+        if self.feature.keys() in ['phasebins', 'timebins', 'freqbins']:
+            data = np.array([np.roll(pfd.getdata(**self.feature), shift) for pfd in pfds])
+        elif self.feature.keys() in ['intervals', 'subbands']:
+            data = np.array([np.roll(pfd.getdata(**self.feature), shift, axis=1) for pfd in pfds])
+        else:
+            data = np.array([pfd.getdata(**self.feature) for pfd in pfds])
         current_class = self.__class__
         self.__class__ = self.orig_class
         if self.use_pca:
