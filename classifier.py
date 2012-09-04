@@ -128,10 +128,18 @@ class combinedAI(object):
         else:
             return self.predictions
 
-    def shift_predictions(self, test_pfds, shift_predict):
+    def shift_predictions(self, test_pfds, shift_predict=True, retmat=False):
         """
         the heart of the "predict" and "predict_proba" routines
         if we are doing "shift_predict"
+        Args:
+        test_pfds : list of pfddata files
+        shift_predict : do shift predict or not (default True)
+        retmat : return a matrix of [nsamples x npredictions x max(nbins)] 
+                 if a classifier is non-phase related (eg. DMbins), it is included
+                 but its result is smply repeated max(nbins) times.
+                 This is useful to do your own analysis on the Prob(phase shift)
+
         Returns:
         the optimal probability after shifting all classifiers
         to each phase bin.
@@ -171,18 +179,33 @@ class combinedAI(object):
 
      #now go back to our predictions, filling in with the phase-shifted votes:
         list_of_predicts = []
+        if retmat:
+            retmat_lop = np.zeros((nsamples, len(self.list_of_AIs), max_nbin))
         n_nondm = 0
         for clfi, clf in enumerate(self.list_of_AIs):
             if clf.feature.keys()[0] == 'DMbins':
                 if (self.strategy in self.AIonAIs) and (self.strategy not in ['tree', 'forest']):
                     list_of_predicts.append( clf.predict_proba(test_pfds) )
+                    if retmat:
+                        retmat_lop[:, clfi, :] = np.array([clf.predict_proba(test_pfds)\
+                                                               for n in range(max_nbin)]).transpose()
                 else:
                     list_of_predicts.append( clf.predict(test_pfds) )
+                    if retmat:
+                        retmat_lop[:, clfi, :] = np.array([clf.predict(test_pfds)\
+                                                               for n in range(max_nbin)]).transpose()
+                    
             else:
                 # use Prob(bestphase) calculated previously
                 samps = []
                 for bi, bv in enumerate(lop_dwn_bestbin):
-                    
+                    if retmat:
+                        dat = lop[n_nondm]
+                        m = len(dat)
+                        x = mgrid[0:1:1j*m]
+                        data = np.array(dat).transpose() #[nsamples x max_nbin]
+                        for si, sv in enumerate(data):
+                            retmat_lop[si, clfi, :] = np.interp(coords, x, sv)
                     if 1:
                         #use original predictions
                         orig_bin = int(float(bv)/max_nbin*nbins[n_nondm]) 
@@ -192,7 +215,10 @@ class combinedAI(object):
                         samps.append(lop_dwn[bi,n_nondm,bv])   
                 n_nondm += 1
                 list_of_predicts.append( samps ) #[npred x nsamples
-        return list_of_predicts #[npred x nsamples]
+        if retmat:
+            return retmat_lop #[nsamples x len(list_of_AIs) x max_nbins]
+        else:
+            return np.array(list_of_predicts) #[npred x nsamples]
 
 
     def vote(self, pred_mat):
@@ -275,7 +301,84 @@ class combinedAI(object):
                 #print target
             return F1score
 
+    def plot_shiftpredict(self, pfd):
+        """
+        Accepts: a combinedAI object and a single pfd file.
+        Plots the probability distribution
+        for the each classifier as we shift in phase
 
+        """
+        import pylab as plt
+        from itertools import cycle
+        lines = ["-",":","-.","--"]
+        linecycler = cycle(lines)
+        if not isinstance(pfd, type(list())):
+            pfd = [pfd]
+
+        lop = [clf.predict_proba(pfd, shift_predict=True)\
+                                for clf in self.list_of_AIs\
+                                if clf.feature.keys()[0] != 'DMbins']
+        n_nondm = 0
+        fig = plt.figure()
+        ax = fig.add_subplot(221)
+        for clfi, clf in enumerate(self.list_of_AIs):
+            if clf.feature.keys()[0] != 'DMbins':
+                v = lop[n_nondm]
+                x = mgrid[0:1:len(v)*1j]
+                lbl = str(type(clf)).split('.')[-1].strip('>').strip('\'')
+                lbl += ' %s' % clf.feature
+                ax.plot(x,v, next(linecycler),label=lbl)
+                n_nondm += 1
+        ax.set_xlabel('phase')
+        ax.set_ylabel('Probability')
+        ax.set_title('non-gridded prob distr')
+        ax.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+
+        ax = fig.add_subplot(223)
+        nbins = [len(i) for i in lop]
+        min_nbin = min(nbins)
+        coords = mgrid[0:1:1j*min_nbin]
+        n_nondm = 0
+        linecycler = cycle(lines)
+        for clfi, clf in enumerate(self.list_of_AIs):
+            if clf.feature.keys()[0] != 'DMbins':
+                v = lop[n_nondm]
+                m = len(v)
+                x = mgrid[0:1:len(v)*1j]
+                data = np.interp(coords, x, np.array(v).transpose()[0])
+                lbl = str(type(clf)).split('.')[-1].strip('>').strip('\'')
+                lbl += ' %s' % clf.feature
+                ax.plot(coords, data, next(linecycler) ,label=lbl)
+                n_nondm += 1
+        ax.set_xlabel('phase')
+        ax.set_ylabel('Probability')
+        ax.set_title('gridded prob distr')
+        ax.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+        plt.show()
+
+        #now try doing a surface plot (z = f(phase, classifier))
+        plt.clf()
+        fig = plt.figure()
+        from mpl_toolkits.mplot3d import Axes3D
+        ax = fig.gca(projection='3d')#fig.add_subplot(111, projection='3d')
+        x = mgrid[0:1:100j]#coords #phase
+        y = range(len(lop))
+        X, Y = np.meshgrid(x,y)
+        def fun(x, y):
+            v = lop[int(y)]
+            p = mgrid[0:1:len(v)*1j]
+            data = np.interp(x, p, np.array(v).transpose()[0])
+            return data
+        zs = np.array([fun(x,y) for x,y in zip(np.ravel(X), np.ravel(Y))])
+        Z = zs.reshape(X.shape)
+        ax.plot_surface(X, Y, Z, rstride=8, cstride=8, alpha=0.3)
+        cset = ax.contour(X, Y, Z, zdir='z', offset=0)
+        cset = ax.contour(X, Y, Z, zdir='x', offset=0)
+        cset = ax.contour(X, Y, Z, zdir='y', offset=len(lop)-1)
+        ax.set_xlabel('Phase')
+        ax.set_ylabel('Classifier')
+        ax.set_zlabel('Probability')
+        plt.show()
 
 class classifier(object):
     """
@@ -449,6 +552,140 @@ predict_proba(self, pfds) classifier method
         #return super(classifier, self).score(data, target)
         #return self.orig_class.score(self, data, target)
 
+    def plot_shiftpredict(self, pfd, compare=None):
+        """
+        plot the predictions vs phase-shift for this classifier
+        Args:
+        pfd = a single pfddata object
+        compare : an array of Prob(phase) that is plotted for comparison
+     
+        saves output to file based on class and shift
+        """
+        import pylab as plt
+        curclass = self.__class__
+        self.__class__ = self.orig_class
+
+        data = np.array(pfd.getdata(**self.feature))
+
+        nbin = self.feature.values()[0]
+        feature = self.feature.keys()[0]
+        if feature in 'DMbins': 
+            print "DMbins doesn't have phase bins. Exiting"
+            return
+
+        if feature in ['phasebins']:
+            D = 1
+        else:
+            D = 2
+        if D == 2:
+            data = data.reshape((nbin, nbin))
+        preds = []
+        x = mgrid[0:1:nbin*1j]
+
+        if compare is not None:
+            comp_coords = mgrid[0:1:1j*len(compare)]
+            compdata = np.interp(x, comp_coords, compare)
+
+
+        #get Prob(phase) first
+        for shift in range(nbin):
+            sdata = np.roll(data, shift, axis=D-1)
+            if self.use_pca:
+                sdata = self.pca.transform(sdata.flatten())
+            if D == 1:
+                preds.append(self.predict_proba([sdata])[...,1][0])
+            else:
+                preds.append(self.predict_proba([sdata.flatten()])[...,1][0])
+
+        for shift in range(nbin):
+            fout = "%s_%s%i-%03d" %\
+                (str(type(self)).split('.')[-1].strip('>').strip("'"), feature, nbin, shift)
+            plt.clf()
+            plt.subplots_adjust(hspace=0.15)
+            sdata = np.roll(data, shift, axis=D-1)
+
+            # show Prob(phase), orig data(phase), pca data(phase)
+            if self.use_pca:
+                pdata = self.pca.inverse_transform(self.pca.transform(sdata.flatten()))
+
+                ax1 = plt.subplot2grid((2,2), (0,0), colspan=2)#, aspect='equal')
+                ax1.plot(x, preds, 'b',label='%s' % \
+                             str(type(self)).split('.')[-1].strip('>').strip("'"))
+                ax1.plot(x[shift], preds[shift], 'bo', markersize=10, alpha=0.5)
+                if compare is not None:
+                    ax1.plot(x, compdata, 'r',label='combinedAI')
+                    ax1.plot(x[shift], compdata[shift], 'ro', markersize=10, alpha=0.5)
+                ax1.set_ylabel('Probability')
+                ax1.set_title('%s, %s, shift %i' % \
+                                  (str(type(self)).split('.')[-1].strip('>').strip("'"),
+                                   self.feature, shift))
+                ax1.set_ylim(0, 1)
+                ax1.set_xlabel('Phase Shift')
+#                plt.setp( ax1.get_xticklabels(), visible=False)
+
+                ax2 = plt.subplot2grid((2,2), (1,0), aspect='equal')
+                if D == 2:
+                    ax2.imshow(sdata, cmap=plt.cm.gray)
+                else:
+                    ax2.plot(x, sdata)
+                if feature == 'phasebins':
+                    ax2.set_ylabel('Shifted Profile (orig)')
+                else:
+                    ax2.set_ylabel('%s (orig)' % feature)
+                ax2.set_xlabel('Phase')
+                plt.setp( ax2.get_yticklabels(), visible=False)
+                plt.setp( ax2.get_xticklabels(), visible=False)
+
+                ax3 = plt.subplot2grid((2, 2), (1,1), aspect='equal')
+                if D == 2:
+                    pdata = pdata.reshape((nbin, nbin))
+                    ax3.imshow(pdata, cmap=plt.cm.gray)
+                    ax3.set_xticks([0,nbin/4,nbin/2,3*nbin/4,nbin],\
+                                       ['0','.25','.5','.75','1'])
+                else:
+                    ax2.plot(x, pdata)
+                if feature == 'phasebins':
+                    ax3.set_ylabel('Shifted Profile (pca)')
+                else:
+                    ax3.set_ylabel('%s (pca)' % feature)
+                plt.setp( ax3.get_xticklabels(), visible=False)
+                plt.setp( ax3.get_yticklabels(), visible=False)
+                
+                ax3.set_xlabel('Phase')
+                
+            else:
+                plt.subplots_adjust(hspace=0)
+                ax1  = plt.subplot(2,1,1)
+                ax1.plot(x, preds, 'b',label='%s' % \
+                             str(type(self)).split('.')[-1].strip('>').strip("'"))
+                ax1.plot(x[shift], preds[shift], 'bo', markersize=10, alpha=0.5)
+                if compare is not None:
+                    ax1.plot(x, compdata, 'r',label='combinedAI')
+                    ax1.plot(x[shift], compdata[shift], 'ro', markersize=10, alpha=0.5)
+                ax1.set_ylabel('Probability')
+                ax1.set_title('%s, %s, shift %i' % \
+                                  (str(type(self)).split('.')[-1].strip('>').strip("'"),
+                                   self.feature, shift))
+                ax1.set_ylim(0,1)
+                plt.setp( ax1.get_xticklabels(), visible=False)
+
+                ax2 = plt.subplot(2,1,2)
+                if D == 2:
+                    ax2.imshow(sdata, cmap=plt.cm.gray, aspect='equal')
+                else:
+                    ax2.plot(x, sdata)
+                if feature == 'phasebins':
+                    ax2.set_ylabel('Shifted Profile')
+                else:
+                    ax2.set_ylabel('%s (orig)' % feature)
+                ax2.set_xlabel('Phase (shift)')
+
+
+            plt.savefig(fout)
+
+        self.__class__ = curclass
+
+
 class svmclf(classifier, svm.SVC):
     """
     the mix-in class for svm.SVC
@@ -478,81 +715,4 @@ class dtreeclf(classifier, DecisionTreeClassifier):
     pass
 
 
-def plot_shiftpredict(cAI, pfd):
-    """
-    Accepts: a combinedAI object and a single pfd file.
-    Plots the probability distribution
-    for the each classifier as we shift in phase
 
-    """
-    import pylab as plt
-    from itertools import cycle
-    lines = ["-",":","-.","--"]
-    linecycler = cycle(lines)
-    if not isinstance(pfd, type(list())):
-        pfd = [pfd]
-
-    lop = [clf.predict_proba(pfd, shift_predict=True)\
-                            for clf in cAI.list_of_AIs\
-                            if clf.feature.keys()[0] != 'DMbins']
-    n_nondm = 0
-    fig = plt.figure()
-    ax = fig.add_subplot(221)
-    for clfi, clf in enumerate(cAI.list_of_AIs):
-        if clf.feature.keys()[0] != 'DMbins':
-            v = lop[n_nondm]
-            x = mgrid[0:1:len(v)*1j]
-            lbl = str(type(clf)).split('.')[-1].strip('>').strip('\'')
-            lbl += ' %s' % clf.feature
-            ax.plot(x,v, next(linecycler),label=lbl)
-            n_nondm += 1
-    ax.set_xlabel('phase')
-    ax.set_ylabel('Probability')
-    ax.set_title('non-gridded prob distr')
-    ax.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
-
-    ax = fig.add_subplot(223)
-    nbins = [len(i) for i in lop]
-    min_nbin = min(nbins)
-    coords = mgrid[0:1:1j*min_nbin]
-    n_nondm = 0
-    linecycler = cycle(lines)
-    for clfi, clf in enumerate(cAI.list_of_AIs):
-        if clf.feature.keys()[0] != 'DMbins':
-            v = lop[n_nondm]
-            m = len(v)
-            x = mgrid[0:1:len(v)*1j]
-            data = np.interp(coords, x, np.array(v).transpose()[0])
-            lbl = str(type(clf)).split('.')[-1].strip('>').strip('\'')
-            lbl += ' %s' % clf.feature
-            ax.plot(coords, data, next(linecycler) ,label=lbl)
-            n_nondm += 1
-    ax.set_xlabel('phase')
-    ax.set_ylabel('Probability')
-    ax.set_title('gridded prob distr')
-    ax.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
-    plt.show()
-
-    #now try doing a surface plot (z = f(phase, classifier))
-    plt.clf()
-    fig = plt.figure()
-    from mpl_toolkits.mplot3d import Axes3D
-    ax = fig.gca(projection='3d')#fig.add_subplot(111, projection='3d')
-    x = mgrid[0:1:100j]#coords #phase
-    y = range(len(lop))
-    X, Y = np.meshgrid(x,y)
-    def fun(x, y):
-        v = lop[int(y)]
-        p = mgrid[0:1:len(v)*1j]
-        data = np.interp(x, p, np.array(v).transpose()[0])
-        return data
-    zs = np.array([fun(x,y) for x,y in zip(np.ravel(X), np.ravel(Y))])
-    Z = zs.reshape(X.shape)
-    ax.plot_surface(X, Y, Z, rstride=8, cstride=8, alpha=0.3)
-    cset = ax.contour(X, Y, Z, zdir='z', offset=0)
-    cset = ax.contour(X, Y, Z, zdir='x', offset=0)
-    cset = ax.contour(X, Y, Z, zdir='y', offset=len(lop)-1)
-    ax.set_xlabel('Phase')
-    ax.set_ylabel('Classifier')
-    ax.set_zlabel('Probability')
-    plt.show()
