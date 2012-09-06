@@ -613,8 +613,16 @@ class NeuralNetwork(BaseEstimator):
         #find most-active label
         if N == 1:
             cls = np.array([h.argmax()])
+            #only accept class '1' if it is *really* active
+#            if h[1] < 0.5:
+#                cls = np.array([0])
         else:
             cls = h.argmax(axis=1)
+            #only accept class '1' if it is *really* active
+#            classone = cls == 1
+#            h5 = h[:,1] < 0.5
+#            cls[h5 & classone] = 0
+            
         return cls
     
     def predict_proba(self, X):
@@ -641,9 +649,12 @@ class NeuralNetwork(BaseEstimator):
             N = 1
 
         z, h  = self.forward_propagate(X)
-        norm = h.sum(axis=1)
-        for ni, nv in enumerate(norm):
-            h[ni] = h[ni] / nv
+        if 0:
+            #normalize between the different classes
+            #(each class neuron is already individually normalized)
+            norm = h.sum(axis=1)
+            for ni, nv in enumerate(norm):
+                h[ni] = h[ni] / nv
         return h
 
     def score_weiwei(self, X, y, verbose=None):

@@ -70,11 +70,23 @@ class combinedAI(object):
                     predictions = [clf.predict(pfds, shift_predict=False)\
                                        for clf in self.list_of_AIs]
             else:
-                #shift-predict
-                #choose best phase ('sum' of individ. classifiers)
-                #to train the AIonAI
-                predictions= self.shift_predictions(pfds) #npred x nsamples
-            
+                if 0:
+                    #we shift-predict for AIonAI during 'fit'
+                    #choose best phase ('sum' of individ. classifiers)
+                    #to train the AIonAI
+                    predictions= self.shift_predictions(pfds) #npred x nsamples
+                else:
+                    #we don't shift the AIonAI during 'fit'
+                    #Note: tests indicate the above works much better.
+                    if (self.strategy not in ['tree', 'forest']):
+                    #use predict_prob
+                        predictions = [clf.predict_proba(pfds, shift_predict=False)\
+                                           for clf in self.list_of_AIs] #npred x nsamples
+                    else:
+                    #use predict
+                        predictions = [clf.predict(pfds, shift_predict=False)\
+                                           for clf in self.list_of_AIs]
+                    
             predictions = np.array(predictions).transpose() #nsamples x npred
             self.AIonAI.fit(predictions, target)
             
@@ -204,7 +216,7 @@ class combinedAI(object):
                                     for clf in self.list_of_AIs]
             dtype = np.int
 
-        #sample all classifiers on same phase grid
+        #sample all classifiers on same phase grid (of max(nbins))
         nbins = [clf.feature.values()[0] for clf in self.list_of_AIs]
         max_nbin = max(nbins)
         coords = mgrid[0:1.-1./max_nbin:max_nbin*1j]
@@ -217,7 +229,7 @@ class combinedAI(object):
             for sample, data in enumerate(dat):
                 lop[sample, clfi, :] = np.interp(coords, x, data)
         
-        #now find index of best phase:
+        #index of best phase:
         bp = lop.sum(axis=1).argmax(axis=1) #[Nsamples] 
 
         #create the final [nsamples, nclassifiers] prediction matrix
@@ -226,7 +238,7 @@ class combinedAI(object):
             samps.append(lop[s, :, bp[s]]) #[nsamples, nclassifiers]
             
         if retmat:
-            return lop #[Nsampes, nclassifiers, max_nbins]
+            return lop #[Nsamples, nclassifiers, max_nbins]
         else:
             return np.array(samps).transpose() #return [nclassifiers, nsamples] (historical)
 
