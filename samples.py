@@ -37,7 +37,7 @@ def downsample(a, n):
         shape = a.shape
         D = len(shape)
         if D == 1:
-            coords = mgrid[0:1:1j*n]
+            coords = mgrid[0:1-1./n:1j*n]
         elif D == 2:
             d1,d2 = shape
             coords = mgrid[0:d1-1:1j*n, 0:d2-1:1j*n]
@@ -51,7 +51,7 @@ def downsample(a, n):
             return (x - xmin)/(xmax-xmin)*N
         if D == 1:
             m = len(a)
-            x = mgrid[0:1:1j*m]
+            x = mgrid[0:1-1./m:1j*m]
             #newf = interp(x, a, bounds_error=True)
             #return newf(coords)
             return np.interp(coords, x, a)

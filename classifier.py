@@ -11,7 +11,7 @@ class combinedAI(object):
     """
     A class to combine different AIs, and have them operate as one
     """
-    def __init__(self, list_of_AIs, strategy='vote', nvote=None):
+    def __init__(self, list_of_AIs, strategy='vote', nvote=None, **kwds):
         """
         inputs
         list_of_AIs: list of classifiers
@@ -33,16 +33,16 @@ class combinedAI(object):
         self.list_of_AIs = list_of_AIs
         self.strategy = strategy
         if strategy == 'l2':
-            self.AIonAI = linear_model.LogisticRegression(penalty='l2')
+            self.AIonAI = linear_model.LogisticRegression(penalty='l2', **kwds)
         elif strategy == 'svm':
-            self.AIonAI = svm.SVC(probability=True)
+            self.AIonAI = svm.SVC(probability=True, **kwds)
         elif strategy == 'forest':
             self.AIonAI = RandomForestClassifier()
         elif strategy == 'tree':
             self.AIonAI = DecisionTreeClassifier()
         elif strategy == 'nn':
             n = max(1,int(len(list_of_AIs)/2))
-            self.AIonAI = pnn.NeuralNetwork(gamma=1./n,design=[n,2])
+            self.AIonAI = pnn.NeuralNetwork(gamma=1./n,design=[n,2], **kwds)
                     
         self.nvote = nvote
 
