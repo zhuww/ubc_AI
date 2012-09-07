@@ -6,6 +6,7 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 
 from ubc_AI import pulsar_nnetwork as pnn 
+from scipy import mgrid
 
 class combinedAI(object):
     """
@@ -334,7 +335,6 @@ class classifier(object):
         if not type(pfds) in [list, np.ndarray]:
             print "warning: changing test_pfds from type %s to list" % (type(pfds))
             pfds = [pfds]
-
         if not shift_predict:
             data = np.array([pfd.getdata(**self.feature) for pfd in pfds])
             if self.use_pca:
@@ -353,8 +353,9 @@ class classifier(object):
                     data = np.array([np.roll(pfd.getdata(**self.feature).reshape(nbin, nbin), shift, axis=1).ravel() for pfd in pfds])
                 elif feature in ['phasebins', 'timebins', 'freqbins']:
                     data = np.array([np.roll(pfd.getdata(**self.feature), shift) for pfd in pfds])
-                else: #DMbins
+                else: #no shift (eg. DMbins )
                     data = np.array([pfd.getdata(**self.feature) for pfd in pfds])
+
                 if self.use_pca:
                     data = self.pca.transform(data)
                 current_class = self.__class__
@@ -413,8 +414,8 @@ class classifier(object):
                     data = np.array([np.roll(pfd.getdata(**self.feature), shift) for pfd in pfds])
                 elif feature in ['intervals', 'subbands']:
                     data = np.array([np.roll(pfd.getdata(**self.feature).reshape(nbin,nbin), shift, axis=1).ravel() for pfd in pfds])
-                else:
-                    data = np.array([pfd.getdata(**self.feature) for pfd in pfds])
+                else: #use raw data (eg. DMbins)
+                    data = np.array([pfd.getdata(**self.feature) for pfd in pfds]) #[Nsamples, nbin]
                 if self.use_pca:
                     data = self.pca.transform(data)
                 current_class = self.__class__
