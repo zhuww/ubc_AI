@@ -11,7 +11,7 @@ class combinedAI(object):
     """
     A class to combine different AIs, and have them operate as one
     """
-    def __init__(self, list_of_AIs, strategy='vote', nvote=None):
+    def __init__(self, list_of_AIs, strategy='vote', nvote=None, **kwds):
         """
         inputs
         list_of_AIs: list of classifiers
@@ -33,16 +33,16 @@ class combinedAI(object):
         self.list_of_AIs = list_of_AIs
         self.strategy = strategy
         if strategy == 'l2':
-            self.AIonAI = linear_model.LogisticRegression(penalty='l2')
+            self.AIonAI = linear_model.LogisticRegression(penalty='l2', **kwds)
         elif strategy == 'svm':
-            self.AIonAI = svm.SVC(probability=True)
+            self.AIonAI = svm.SVC(probability=True, **kwds)
         elif strategy == 'forest':
             self.AIonAI = RandomForestClassifier()
         elif strategy == 'tree':
             self.AIonAI = DecisionTreeClassifier()
         elif strategy == 'nn':
             n = max(1,int(len(list_of_AIs)/2))
-            self.AIonAI = pnn.NeuralNetwork(gamma=1./n,design=[n,2])
+            self.AIonAI = pnn.NeuralNetwork(gamma=1./n,design=[n,2], **kwds)
                     
         self.nvote = nvote
 
@@ -195,7 +195,19 @@ class classifier(object):
         pfds: the training pfds
         target: the training targets
         """
-        data = np.array([pfd.getdata(**self.feature) for pfd in pfds])
+        MaxN = max([self.feature[k] for k in self.feature])
+        feature = [k for k in self.feature if self.feature[k] == MaxN][0]
+        #print '%s %s MaxN:%s'%(self.orig_class, self.feature, MaxN)
+        shift = random.randint(0, MaxN-1)
+
+        if feature in ['phasebins', 'timebins', 'freqbins']:
+            #print '%s %s 1D shift:%s'%(self.orig_class, self.feature, shift)
+            data = np.array([np.roll(pfd.getdata(**self.feature), shift) for pfd in pfds])
+        elif feature in ['intervals', 'subbands']:
+            #print '%s %s 2D shift:%s'%(self.orig_class, self.feature, shift)
+            data = np.array([np.roll(pfd.getdata(**self.feature).reshape(MaxN, MaxN), shift, axis=1).ravel() for pfd in pfds])
+        else:
+            data = np.array([pfd.getdata(**self.feature) for pfd in pfds])
         current_class = self.__class__
         self.__class__ = self.orig_class
         if self.use_pca:

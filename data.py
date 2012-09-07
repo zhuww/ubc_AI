@@ -4,7 +4,6 @@ A moudule for the new datafitter class that works with the new classifier class.
 import numpy as np
 from random import shuffle
 import cPickle
-import matplotlib.pyplot as plt
 from scipy import mgrid
 
 from ubc_AI.training import pfddata
@@ -213,6 +212,7 @@ class dataloader(object):
             v_F1[i] =  classifier.score(Xval, yval)
             
         if plot:
+            import matplotlib.pyplot as plt
             plt.plot(ntrials, t_F1, 'r+', label='training')
             plt.plot(ntrials, v_F1, 'bx', label='x-val')
             plt.xlabel('training set size')
@@ -252,6 +252,7 @@ class dataloader(object):
             train_score[i] = 1-classifier.score(self.train_pfds, self.train_target)
             test_score[i] = 1-classifier.score(self.test_pfds, self.test_target)
         if plot:
+            import matplotlib.pyplot as plt
             plt.plot(vals, train_score, 'r+', label='training')
             plt.plot(vals, test_score, 'bx', label='x-val')
             plt.xlabel(feature)
@@ -284,6 +285,7 @@ class dataloader(object):
             P.append(p)
             R.append(r)
             F1.append(2 * p * r / (p + r))
+        import matplotlib.pyplot as plt
         plt.figure(figsize=(2,2))
         ax = plt.subplot(221)
         ax.plot(P, R, '-')
@@ -354,6 +356,7 @@ class dataloader(object):
         test_data = [pf.getdata(**self.kwds) for pf in self.test_pfds]
 
         if plot:
+            import matplotlib.pyplot as plt
             plt.figure(figsize=(8,8))
             i = 0
             axisNum = 0
@@ -403,6 +406,7 @@ class dataloader(object):
         else:
             test_data = [pf.getdata(**self.kwds) for pf in self.pfds]
 
+        import matplotlib.pyplot as plt
         plt.figure(figsize=(8,8))
         axisNum = 0
         ncol = min(8,int(np.sqrt(len(sample_list))))
