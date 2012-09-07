@@ -1068,7 +1068,7 @@ class MainFrameGTK(Gtk.Window):
                     sgn = '' 
                 name = 'J%s%s%s' % (''.join(pfd.rastr.split(':')[:2]), sgn,\
                                         ''.join(pfd.decstr.split(':')[:2]))
-                this_pulsar = KP.pulsar(fname, name, ra, dec, p0, dm)
+                this_pulsar = KP.pulsar(fname, name, ra, dec, p0*1e-3, dm) #pfd.p0 in [ms]
                 this_idx = self.data['fname'] == store_name
                 if len(this_idx[this_idx]) > 0:
                     this_vote = self.data[act_name][this_idx][0]
