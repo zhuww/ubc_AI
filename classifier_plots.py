@@ -76,7 +76,7 @@ def plot_combinedAI_shiftpredict(cAI, pfd):
     plt.show()
 
 
-def plot_classifier_shiftpredict(clf, pfd):
+def plot_classifier_shiftpredict(clf, pfd, compare=None):
     """
     Plot the predictions vs phase-shift for a single ubc_AI.classifier.
     This routine generate 'nbin' snapshot files, useful for 
@@ -85,6 +85,7 @@ def plot_classifier_shiftpredict(clf, pfd):
     Args:
       clf : the ubc_AI.classifier object
       pfd : a single pfddata file
+      compare : optional Prob(phase) for other classifiers
 
     Outputs:
       a sequence of files showing the classifiers performance as a function
