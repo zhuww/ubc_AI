@@ -46,8 +46,16 @@ class combinedAI(object):
         elif strategy == 'tree':
             self.AIonAI = DecisionTreeClassifier()
         elif strategy == 'nn':
-            n = max(1,int(len(list_of_AIs)/2))
-            self.AIonAI = pnn.NeuralNetwork(gamma=1./n,design=[n,2], **kwds)
+            if 'design' in kwds and 'gamma' in kwds:
+                self.AIonAI = pnn.NeuralNetwork(**kwds)
+            elif 'design' in kwds:
+                self.AIonAI = pnn.NeuralNetwork(gamma=1./n, **kwds)
+            elif 'gamma' in kwds:
+                n = max(1,int(len(list_of_AIs)/2))
+                self.AIonAI = pnn.NeuralNetwork(design=[n,2], **kwds)
+            else:
+                n = max(1,int(len(list_of_AIs)/2))
+                self.AIonAI = pnn.NeuralNetwork(gamma=1./n,design=[n,2], **kwds)
                     
         self.nvote = nvote
 
