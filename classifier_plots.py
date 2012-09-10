@@ -93,6 +93,7 @@ def plot_classifier_shiftpredict(clf, pfd, compare=None):
       it can be visually inspected for problems.
 
     """
+    curclass = clf.__class__
     clf.__class__ = clf.orig_class
     
     if isinstance(pfd, type(list())):
@@ -130,7 +131,7 @@ def plot_classifier_shiftpredict(clf, pfd, compare=None):
         else:
             preds.append(clf.predict_proba([sdata.flatten()])[...,1][0])
 
-    clfname = str(type(self)).split('.')[-1].strip('>').strip("'")
+    clfname = str(type(clf)).split('.')[-1].strip('>').strip("'")
     clfname = clfname.replace('NeuralNetwork', 'NN')
     clfname = clfname.replace('LogisticRegression', 'LR')
     for shift in range(nbin):
@@ -145,7 +146,7 @@ def plot_classifier_shiftpredict(clf, pfd, compare=None):
 
             ax1 = plt.subplot2grid((2,2), (0,0), colspan=2)#, aspect='equal')
             ax1.plot(x, preds, 'b',label='%s' % \
-                         str(type(self)).split('.')[-1].strip('>').strip("'"))
+                         str(type(clf)).split('.')[-1].strip('>').strip("'"))
             ax1.plot(x[shift], preds[shift], 'bo', markersize=10, alpha=0.5)
             if preds[shift] > .88:
                 offset = -.05
@@ -164,7 +165,7 @@ def plot_classifier_shiftpredict(clf, pfd, compare=None):
                          bbox={'facecolor':'red', 'alpha':0.5, 'pad':10})
             ax1.set_ylabel('Probability')
             ax1.set_title('%s, %s, shift %i' % \
-                              (str(type(self)).split('.')[-1].strip('>').strip("'"),
+                              (str(type(clf)).split('.')[-1].strip('>').strip("'"),
                                clf.feature, shift))
             ax1.set_ylim(0, 1)
             ax1.set_xlabel('Phase Shift')
@@ -209,7 +210,7 @@ def plot_classifier_shiftpredict(clf, pfd, compare=None):
             plt.subplots_adjust(hspace=0)
             ax1  = plt.subplot(2,1,1)
             ax1.plot(x, preds, 'b',label='%s' % \
-                         str(type(self)).split('.')[-1].strip('>').strip("'"))
+                         str(type(clf)).split('.')[-1].strip('>').strip("'"))
             ax1.plot(x[shift], preds[shift], 'bo', markersize=10, alpha=0.5)
             if preds[shift] > .88:
                 offset = -0.05
@@ -228,7 +229,7 @@ def plot_classifier_shiftpredict(clf, pfd, compare=None):
                          bbox={'facecolor':'red', 'alpha':0.5, 'pad':10})
             ax1.set_ylabel('Probability')
             ax1.set_title('%s, %s, shift %i' % \
-                              (str(type(self)).split('.')[-1].strip('>').strip("'"),
+                              (str(type(clf)).split('.')[-1].strip('>').strip("'"),
                                clf.feature, shift))
             ax1.set_ylim(0,1)
             plt.setp( ax1.get_xticklabels(), visible=False)

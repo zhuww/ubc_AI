@@ -131,7 +131,7 @@ class MainFrameGTK(Gtk.Window):
         self.knownpulsars = {}
         #ATNF and GBNCC list of known pulsars
         if exists('%s/known_pulsars.pkl' % bdir):
-            self.knownpulsars = cPickle.load(open('known_pulsars.pkl'))
+            self.knownpulsars = cPickle.load(open('%s/known_pulsars.pkl' % bdir))
         elif exists('known_pulsars.pkl'):
             self.knownpulsars = cPickle.load(open('known_pulsars.pkl'))
         else:
