@@ -411,7 +411,7 @@ class MainFrameGTK(Gtk.Window):
 
 
     #see if png exists locally already, otherwise generate it
-        if not exists(fpng) and exists(fname):
+        if not exists(str(fpng)) and exists(str(fname)):
             #convert to png (convert accepts .ps, or .pfd file)
             fpng = convert(fname)
         return fpng

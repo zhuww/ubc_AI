@@ -86,6 +86,7 @@ def plot_classifier_shiftpredict(clf, pfd, compare=None):
       clf : the ubc_AI.classifier object
       pfd : a single pfddata file
       compare : optional Prob(phase) for other classifiers
+              should be list of tuples [('label1', data1), ('label2', data2)...]
 
     Outputs:
       a sequence of files showing the classifiers performance as a function
@@ -114,11 +115,7 @@ def plot_classifier_shiftpredict(clf, pfd, compare=None):
     if D == 2:
         data = data.reshape((nbin, nbin))
     preds = []
-    x = mgrid[0:1:nbin*1j]
-
-    if compare is not None:
-        comp_coords = mgrid[0:1:1j*len(compare)]
-        compdata = np.interp(x, comp_coords, compare)
+    x = mgrid[0:1.-1./nbin:nbin*1j]
 
 
     #get Prob(phase) first
@@ -155,14 +152,18 @@ def plot_classifier_shiftpredict(clf, pfd, compare=None):
             ax1.text(x[shift], preds[shift]+offset, '%.03f' % preds[shift],
                      bbox={'facecolor':'blue', 'alpha':0.5, 'pad':10})
             if compare is not None:
-                ax1.plot(comp_coords, compare, 'r',label='combinedAI')
-                ax1.plot(x[shift], compdata[shift], 'ro', markersize=10, alpha=0.5)
-                if compdata[shift] > .88:
-                    offset = -0.05
-                else:
-                    offset = .05
-                ax1.text(x[shift], compdata[shift]+offset, '%.03f' % compdata[shift],
-                         bbox={'facecolor':'red', 'alpha':0.5, 'pad':10})
+                for name, data in compare:
+                    cbin = len(data)
+                    comp_coords = mgrid[1:1.-1./cbin:cbin*1j]
+                    ax1.plot(comp_coords, data, 'r',label=name)
+                    cdata = np.interp(x, comp_coords, data)
+                    ax1.plot(x[shift], cdata[shift], 'ro', markersize=10, alpha=0.5)
+                    if cdata[shift] > .88:
+                        offset = -0.05
+                    else:
+                        offset = .05
+                    ax1.text(x[shift], cdata[shift]+offset, '%.03f' % cdata[shift],
+                             bbox={'facecolor':'red', 'alpha':0.5, 'pad':10})
             ax1.set_ylabel('Probability')
             ax1.set_title('%s, %s, shift %i' % \
                               (str(type(clf)).split('.')[-1].strip('>').strip("'"),
@@ -170,9 +171,10 @@ def plot_classifier_shiftpredict(clf, pfd, compare=None):
             ax1.set_ylim(0, 1)
             ax1.set_xlabel('Phase Shift')
             if compare is not None:
+                names = [i for i,v in compare]
 #                    ax1.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
 #                                ncol=2, mode="expand", borderaxespad=0.)
-                ax1.legend(loc='lower center',ncol=2, mode="expand")
+                ax1.legend(loc='lower center',ncol=len(names), mode="expand")
 #                    ax1.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
 #                plt.setp( ax1.get_xticklabels(), visible=False)
 
@@ -219,14 +221,18 @@ def plot_classifier_shiftpredict(clf, pfd, compare=None):
             ax1.text(x[shift], preds[shift]+offset, '%.03f' % preds[shift],
                      bbox={'facecolor':'blue', 'alpha':0.5, 'pad':10})
             if compare is not None:
-                ax1.plot(x, compdata, 'r',label='combinedAI')
-                ax1.plot(x[shift], compdata[shift], 'ro', markersize=10, alpha=0.5)
-                if compdata[shift] > .88:
-                    offset = -0.05
-                else:
-                    offset = 0.05
-                ax1.text(x[shift], compdata[shift]+offset, '%.03f' % compdata[shift],
-                         bbox={'facecolor':'red', 'alpha':0.5, 'pad':10})
+                for name, data in compare:
+                    cbin = len(data)
+                    comp_coords = mgrid[0:1.-1./cbin:cbin*1j]
+                    cdata = np.interp(x, comp_coords, data)
+                    ax1.plot(x, cdata, 'r',label=name)
+                    ax1.plot(x[shift], cdata[shift], 'ro', markersize=10, alpha=0.5)
+                    if cdata[shift] > .88:
+                        offset = -0.05
+                    else:
+                        offset = 0.05
+                    ax1.text(x[shift], cdata[shift]+offset, '%.03f' % cdata[shift],
+                             bbox={'facecolor':'red', 'alpha':0.5, 'pad':10})
             ax1.set_ylabel('Probability')
             ax1.set_title('%s, %s, shift %i' % \
                               (str(type(clf)).split('.')[-1].strip('>').strip("'"),
@@ -234,9 +240,11 @@ def plot_classifier_shiftpredict(clf, pfd, compare=None):
             ax1.set_ylim(0,1)
             plt.setp( ax1.get_xticklabels(), visible=False)
             if compare is not None:
+                names = [i for i,v in compare]
 #                    ax1.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
 #                               ncol=2, mode="expand", borderaxespad=0.)
-                ax1.legend(loc='lower center',ncol=2, mode="expand")
+                ax1.legend(loc='lower center',ncol=len(names),\
+                               mode="expand")
 #                    ax1.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
 
             ax2 = plt.subplot(2,1,2)
