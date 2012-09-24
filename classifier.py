@@ -176,7 +176,7 @@ class combinedAI(object):
                 predicts = np.hstack([clf.predict_proba(pfds)\
                                      for clf in self.list_of_AIs]) #nsamples x (npreds x nclasses)
 
-            result = self.AIonAI.predict_proba(predicts)
+            result = self.AIonAI.predict_proba(predicts) #nsamples x nclasses
         return result
         
     def score(self, pfds, target, F1=True):
