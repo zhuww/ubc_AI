@@ -5,6 +5,7 @@ from sklearn import svm, linear_model
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 
+from ubc_AI.training import split_data
 from ubc_AI import pulsar_nnetwork as pnn 
 
 class combinedAI(object):
@@ -15,26 +16,30 @@ class combinedAI(object):
         """
         inputs
         list_of_AIs: list of classifiers
-        strategy: one of ['union', 'vote', 'l2', 'svm',
-                          'forest', 'tree', 'nn', 'kitchensink']
+        strategy: What to do with the prediction matrix from the list_of_AIs.
+                One of ['vote', 'l2', 'svm', 'forest', 'tree', 'nn', 'adaboost','kitchensink' ]
         
-        Notes:   
-        * 'vote' strategy **assumes** pulsars are labelled class 1
+        Notes:
+        *'vote': **assumes** pulsars are labelled class 1, 
+                    requires 'nvote' argument too (the number of votes to be considered a pulsar)
+        *'adaboost': implementation of http://en.wikipedia.org/wiki/Adaboost
+                    *only works for 2-class systems
+                    *doesn't output predict_proba
+        *'l2': uses LogisticRegression on the prediction matrix from list_of_AIs,
+               and makes final prediction from the l2(predictions)
+        *'svm': uses SVM on the prediction matrix from the list_of_AIs,
+                and makes the final prediciton from SVM(predictions)
+        *'forest': uses sklearn.ensemble.RandomForestClassifier
+        *'tree': DecisionTreeClassifier
+        *'nn': uses a 1-layer, N/2-neuron classifier [N=len(list_of_AIs)]
+        *'kitchensink': runs SVM, LR, tree, *and* NN on prediction matrix, 
+                        then takes majority vote or 'l2' for final classification
 
-        *'l2' uses LogisticRegression on the prediction matrix from list_of_AIs,
-             and makes final prediction from the l2(predictions)
-        *'svm' uses SVM on the prediction matrix from the list_of_AIs,
-             and makes the final prediciton from SVM(predictions)
-        *'forest' uses sklearn.ensemble.RandomForestClassifier
-        *'tree' DecisionTreeClassifier
-        *'nn' uses a 1-layer, N/2-neuron classifier [N=len(list_of_AIs)]
-        *'kitchensink' runs SVM, LR, *and* NN on prediction matrix, 
-                  then takes majority vote or 'l2' for final classification
         *if strategy='vote' and nvote=None, 
            determine best nvote value during self.fit (but this doesn't work good)
 
         """
-        self.AIonAIs = ['l2', 'svm', 'forest', 'tree', 'nn', 'kitchensink']
+        self.AIonAIs = ['l2', 'svm', 'forest', 'tree', 'nn', 'adaboost', 'kitchensink']
         self.list_of_AIs = list_of_AIs
         self.strategy = strategy
         if strategy == 'l2':
@@ -49,12 +54,16 @@ class combinedAI(object):
 #            n = max(1,int(len(list_of_AIs)/2))
 #            self.AIonAI = pnn.NeuralNetwork(gamma=1./n,design=[n,2], **kwds)
             self.AIonAI = pnn.NeuralNetwork(gamma=15, design=[64], **kwds) #2-class, 9-vote optimized
+        elif strategy == 'adaboost':
+            self.AIonAI = adaboost()
         elif strategy == 'kitchensink':
             lr = linear_model.LogisticRegression(C=0.5, penalty='l1') #grid-searched
             nn = pnn.NeuralNetwork(design=[64], gamma=1.5, maxiter=200) #2-class, 9-vote optimized
             svc = svm.SVC(C=15, kernel='poly', degree=5, probability=True) #grid-searched
-            self.AIonAI = combinedAI([lr,nn,svc], nvote=2) #majority vote
+            dtree = DecisionTreeClassifier()
+#            self.AIonAI = combinedAI([lr,nn,svc, dtree], nvote=2) #majority vote
 #            self.AIonAI = combinedAI([lr,nn,svc], strategy='l2')
+            self.AIonAI = combinedAI([lr, nn, svc, dtree], strategy='adaboost')
                     
         self.nvote = nvote
         self.nclasses = None #keep track of number of classes (determined in 'fit')
@@ -62,20 +71,38 @@ class combinedAI(object):
     def fit(self, pfds, target, **kwds):
         """
         args: [list of pfd instances], target
+
+        Notes:
+        following advice from http://en.wikipedia.org/wiki/Ensemble_learning
+        we train each classifier on a subset of the training data
+        
+        
         """
-        #train the individual classifiers
+        #train the individual classifiers on a random subset of data
         for clf in self.list_of_AIs:
-            clf.fit(pfds,target, **kwds)
+            tr_data, tr_target, te_data, te_target = split_data(pfds, target, pct=0.75)
+#            clf.fit(pfds, target, **kwds)
+            clf.fit(tr_data, tr_target, **kwds)
 
         self.nclasses = len(np.unique(target))
+        if self.nclasses > 2 and self.strategy == 'adaboost':
+            print "Warning, adaboost only works in 2-class systems"
+            print "Reverting to Logistic Regression on the prediction matrix"
+            self.strategy = 'l2'
+            self.AIonAI = linear_model.LogisticRegression(penalty='l2')
 
         #train the AIonAI if used
         if (self.strategy in self.AIonAIs):
-            #use predict_prob 
-            predictions = np.hstack([clf.predict_proba(pfds)\
-                                         for clf in self.list_of_AIs]) #nsamples x (npred x nclasses)
-
+            if self.strategy != 'adaboost':
+                #use predict_prob 
+                predictions = np.hstack([clf.predict_proba(pfds)\
+                                             for clf in self.list_of_AIs]) #nsamples x (npred x nclasses)
+            else:
+                #use predict
+                predictions = np.transpose([clf.predict(pfds)\
+                                      for clf in self.list_of_AIs]) #nsamples x npred
             self.AIonAI.fit(predictions, target)
+
             
 # choose 'nvote' that maximizes the trianing-set performance                
         if self.strategy == 'vote' and self.nvote == None:
@@ -90,7 +117,7 @@ class combinedAI(object):
                     self.nvote = i + 1
                     score = this_score
 
-                
+
     def predict(self, pfds, pred_mat=False ):
         """
         args: 
@@ -107,24 +134,18 @@ class combinedAI(object):
             print "warniing: changing pfds from type %s to list" % (type(pfds))
             pfds = [pfds]
         
-        if (self.strategy in self.AIonAIs):
+        if (self.strategy in self.AIonAIs) and self.strategy != 'adaboost':
             #use predict_proba for AI_on_AI classifier, 
             list_of_predicts = np.hstack([clf.predict_proba(pfds)\
                                               for clf in self.list_of_AIs])#nsamples x (npred x classes)
         else:
             list_of_predicts = np.transpose([clf.predict(pfds)\
-                                             for clf in self.list_of_AIs]) #nsamples x npred
+                                                 for clf in self.list_of_AIs]) #nsamples x npred
 
         self.list_of_predicts = list_of_predicts
 
         self.predictions = []
-        if self.strategy == 'union':
-            #return '1'=pulsar if any AI voted yes, otherwise '0'=rfi
-            #AAR: not fully compatible with multi-class, 
-            #better to use 'vote' with nvote=1
-            self.predictions = np.where((self.list_of_predicts==1).sum(axis=1)>0, 1, 0)
-
-        elif self.strategy == 'vote':
+        if self.strategy == 'vote':
             # return pulsar class ('1') if number of votes > nvotes
             # otherwise return the most-voted non-pulsar class
             #**assumes pulsar class is '1'
@@ -141,7 +162,7 @@ class combinedAI(object):
             #return pulsar if more than self.nvote votes, 
             #otherwise return most-likely non-pulsar class
             self.predictions = np.where( nvotes_pc[:,1] >= self.nvote, 1, most_votes_nonpulsar)
-            
+
         elif self.strategy in self.AIonAIs:
             self.predictions = self.AIonAI.predict(self.list_of_predicts)
          
@@ -171,6 +192,8 @@ class combinedAI(object):
         Notes
         -----
         * for NN, return the activation of the 'label' neuron
+        ** this method doesn't work for "adaboost" 
+
         """
         if not type(pfds) in [list, np.ndarray]:
             pfds = [pfds]        
@@ -377,3 +400,90 @@ class dtreeclf(classifier, DecisionTreeClassifier):
     """
     orig_class = DecisionTreeClassifier
     pass
+
+
+class adaboost(object):
+    """
+    a class to help with ensembles. 
+    This class implements the adaboost method, determining the optimal weighting
+    of the ensemble to maximize overall performance.
+
+    Notes:
+    It only works for 2-class systems, and expects labels of +1 and -1
+
+    refer to http://en.wikipedia.org/wiki/Adaboost for more information
+   
+    """
+    def fit(self, preds, targets):
+        """
+        use the adaboost to determine the optimal weights for
+        the ensemble.
+
+        We store the optimal weights in self.weights, later used in 
+        self.predict
+
+        Args:
+        preds : [nsamples x npredictions]
+        targets : [nsamples]
+
+        Note:
+        we do accept labels (0,1) or (-1,1)
+
+        """
+        if preds.ndim == 1:
+            npreds = preds.shape[0]
+        else:
+            npreds = preds.shape[1]
+        
+        #'True' for wrong prediction, 'False' for correct prediction
+        Wrong_pred = np.transpose([v != targets for v in preds.transpose()]) 
+
+        #remap predictions/targets from 0 to -1 if necessary
+        if 0 in np.unique(targets):
+            targets[ targets == 0 ] = -1 #use labels +/- 1
+            preds = np.where(preds==0,-1,1)
+
+        #indicator function  or scouting matrix(1 for wrong, 0 for right prediction)
+        I = np.where(Wrong_pred, 1., 0.)
+
+        clfs = {}
+        alphas = {}
+        #Weight of each data point
+        D = np.ones(len(targets))/len(targets)
+        allclfs = set(range(npreds))
+        for t in range(npreds):
+            # find best remaining classifier
+            idcs = list(allclfs - set(clfs.values()))
+            W_e = np.dot(D,I) 
+            best = np.argmin(W_e[idcs]) #same as np.argmax(np.abs(0.5-W_e))
+            h_t = np.where(W_e[idcs][best] == W_e)[0][0]
+
+            e_t = W_e[h_t]/W_e.sum()
+#            if np.abs(0.5 - e_t) <= .01: break #then we've done great!
+
+            clfs[t] = h_t
+            alpha_t = np.log((1.-e_t)/e_t)/2.
+            alphas[t] = alpha_t
+            
+            Z_t = D*np.exp(-alpha_t*targets*preds[:,h_t]).sum()
+            D = D*np.exp(-alpha_t*targets*preds[:,h_t])/Z_t
+
+        #append the classifier weights (in order of list_of_AIs)
+        w = np.array(alphas.values())
+        self.weights = w[clfs.values()]
+
+    def predict(self, list_of_predictions):
+        """
+        apply the adaboost weights and form the final hypothesis
+        H(x) = sign( \sum_classifier weight(i) * h_i(x) )
+        
+        Note:
+        although we accept labels of (0,1) or (-1, 1)
+        we only return labels (0, 1)
+        """
+        #assumes labels are -1, +1, so re-map
+        if 0 in np.unique(predictions):
+            list_of_predictions = np.where(list_of_predictions == 0, -1, 1)
+
+        return  np.where(np.dot(list_of_predictions, self.weights) > 0, 1, 0)
+
