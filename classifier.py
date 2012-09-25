@@ -4,6 +4,7 @@ from sklearn.decomposition import RandomizedPCA as PCA
 from sklearn import svm, linear_model
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import GradientBoostingClassifier as GBC
 
 from ubc_AI.training import split_data
 from ubc_AI import pulsar_nnetwork as pnn 
@@ -17,7 +18,8 @@ class combinedAI(object):
         inputs
         list_of_AIs: list of classifiers
         strategy: What to do with the prediction matrix from the list_of_AIs.
-                One of ['vote', 'l2', 'svm', 'forest', 'tree', 'nn', 'adaboost','kitchensink' ]
+                One of ['vote', 'l2', 'svm', 'forest', 'tree', 'nn', 'adaboost', 'kitchensink']
+                Default = 'vote'
         
         Notes:
         *'vote': **assumes** pulsars are labelled class 1, 
@@ -482,7 +484,7 @@ class adaboost(object):
         we only return labels (0, 1)
         """
         #assumes labels are -1, +1, so re-map
-        if 0 in np.unique(predictions):
+        if 0 in np.unique(list_of_predictions):
             list_of_predictions = np.where(list_of_predictions == 0, -1, 1)
 
         return  np.where(np.dot(list_of_predictions, self.weights) > 0, 1, 0)
