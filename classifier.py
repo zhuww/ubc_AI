@@ -19,6 +19,8 @@ class combinedAI(object):
                           'forest', 'tree', 'nn', 'kitchensink']
         
         Notes:   
+        * 'vote' strategy **assumes** pulsars are labelled class 1
+
         *'l2' uses LogisticRegression on the prediction matrix from list_of_AIs,
              and makes final prediction from the l2(predictions)
         *'svm' uses SVM on the prediction matrix from the list_of_AIs,
@@ -44,9 +46,9 @@ class combinedAI(object):
         elif strategy == 'tree':
             self.AIonAI = DecisionTreeClassifier()
         elif strategy == 'nn':
-            n = max(1,int(len(list_of_AIs)/2))
+#            n = max(1,int(len(list_of_AIs)/2))
 #            self.AIonAI = pnn.NeuralNetwork(gamma=1./n,design=[n,2], **kwds)
-            self.AIonAI = pnn.NeuralNetwork(gamma=15, design=[64]) #2-class, 9-vote optimized
+            self.AIonAI = pnn.NeuralNetwork(gamma=15, design=[64], **kwds) #2-class, 9-vote optimized
         elif strategy == 'kitchensink':
             lr = linear_model.LogisticRegression(C=0.5, penalty='l1') #grid-searched
             nn = pnn.NeuralNetwork(design=[64], gamma=1.5, maxiter=200) #2-class, 9-vote optimized
@@ -55,6 +57,7 @@ class combinedAI(object):
 #            self.AIonAI = combinedAI([lr,nn,svc], strategy='l2')
                     
         self.nvote = nvote
+        self.nclasses = None #keep track of number of classes (determined in 'fit')
 
     def fit(self, pfds, target, **kwds):
         """
@@ -64,19 +67,13 @@ class combinedAI(object):
         for clf in self.list_of_AIs:
             clf.fit(pfds,target, **kwds)
 
+        self.nclasses = len(np.unique(target))
+
         #train the AIonAI if used
         if (self.strategy in self.AIonAIs):
-            if (self.strategy in ['tree', 'forest']):
-                #use predict
-                predictions = [clf.predict(pfds)\
-                                   for clf in self.list_of_AIs]#npred x nsamples
-                predictions = np.array(predictions).transpose() #nsamples x npred
-
-            else:
-                #use predict_prob 
-                predictions = [clf.predict_proba(pfds)\
-                                   for clf in self.list_of_AIs]#nsamples x (npred x nclasses)
-                predictions = np.hstack(predictions) 
+            #use predict_prob 
+            predictions = np.hstack([clf.predict_proba(pfds)\
+                                         for clf in self.list_of_AIs]) #nsamples x (npred x nclasses)
 
             self.AIonAI.fit(predictions, target)
             
@@ -110,8 +107,8 @@ class combinedAI(object):
             print "warniing: changing pfds from type %s to list" % (type(pfds))
             pfds = [pfds]
         
-        if (self.strategy in self.AIonAIs) and (self.strategy not in ['tree', 'forest']):
-            #use predict_proba for our non-tree/forest AI_on_AI classifier, 
+        if (self.strategy in self.AIonAIs):
+            #use predict_proba for AI_on_AI classifier, 
             list_of_predicts = np.hstack([clf.predict_proba(pfds)\
                                               for clf in self.list_of_AIs])#nsamples x (npred x classes)
         else:
@@ -123,16 +120,31 @@ class combinedAI(object):
         self.predictions = []
         if self.strategy == 'union':
             #return '1'=pulsar if any AI voted yes, otherwise '0'=rfi
-            #AAR: not fully compatible with multi-class
+            #AAR: not fully compatible with multi-class, 
+            #better to use 'vote' with nvote=1
             self.predictions = np.where((self.list_of_predicts==1).sum(axis=1)>0, 1, 0)
+
         elif self.strategy == 'vote':
-            predict = self.list_of_predicts.mean(axis=1)#[nsamples x npred]
-            npreds = float(len(self.list_of_AIs))
-            self.predictions = np.where( predict > self.nvote/npreds, 1, 0)
+            # return pulsar class ('1') if number of votes > nvotes
+            # otherwise return the most-voted non-pulsar class
+            #**assumes pulsar class is '1'
+
+            # find N(votes)/class
+            nvotes_pc = np.hstack([[np.sum(self.list_of_predicts==k,axis=1)\
+                                     for k in range(self.nclasses)]]).transpose() #[nsamples x nclasses]
+            npc = range(self.nclasses)[2:]
+            npc.insert(0,0)
+            most_votes_nonpulsar = np.argmax(nvotes_pc[:,npc], axis=1) 
+            #add 1 for the missing class '1'=pulsar
+            most_votes_nonpulsar[most_votes_nonpulsar != 0] += 1#[nsamples] (value =2nd  best class)
+
+            #return pulsar if more than self.nvote votes, 
+            #otherwise return most-likely non-pulsar class
+            self.predictions = np.where( nvotes_pc[:,1] >= self.nvote, 1, most_votes_nonpulsar)
             
         elif self.strategy in self.AIonAIs:
             self.predictions = self.AIonAI.predict(self.list_of_predicts)
-
+         
         #return np.array(self.predictions)
         if pred_mat:
             return self.list_of_predicts #if AIonAI [nsamples x (npredictions x nclasses)]
@@ -169,12 +181,8 @@ class combinedAI(object):
             result = result.mean(axis=0) #nsamples x nclasses
             
         else:
-            if self.strategy in ['tree', 'forest']:
-                predicts = [clf.predict(pfds) for clf in self.list_of_AIs] #npreds x nsamples
-                predicts = np.transpose(predicts) #nsamples x npredictions
-            else:
-                predicts = np.hstack([clf.predict_proba(pfds)\
-                                     for clf in self.list_of_AIs]) #nsamples x (npreds x nclasses)
+            predicts = np.hstack([clf.predict_proba(pfds)\
+                                      for clf in self.list_of_AIs]) #nsamples x (npreds x nclasses)
 
             result = self.AIonAI.predict_proba(predicts) #nsamples x nclasses
         return result
