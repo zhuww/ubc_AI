@@ -1,9 +1,7 @@
 import random
 import numpy as np
 from sklearn.decomposition import RandomizedPCA as PCA
-from sklearn import svm, linear_model
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import RandomForestClassifier
+from sklearn import svm, linear_model, tree, ensemble
 from sklearn.ensemble import GradientBoostingClassifier as GBC
 
 from ubc_AI.training import split_data
@@ -54,9 +52,9 @@ class combinedAI(object):
         elif strategy == 'svm':
             self.AIonAI = svm.SVC(probability=True, **kwds)
         elif strategy == 'forest':
-            self.AIonAI = RandomForestClassifier()
+            self.AIonAI = ensemble.RandomForestClassifier()
         elif strategy == 'tree':
-            self.AIonAI = DecisionTreeClassifier()
+            self.AIonAI = tree.DecisionTreeClassifier()
         elif strategy == 'nn':
 #            n = max(1,int(len(list_of_AIs)/2))
 #            self.AIonAI = pnn.NeuralNetwork(gamma=1./n,design=[n,2], **kwds)
@@ -69,7 +67,7 @@ class combinedAI(object):
             lr = linear_model.LogisticRegression(C=0.5, penalty='l1') #grid-searched
             nn = pnn.NeuralNetwork(design=[64], gamma=1.5, maxiter=200) #2-class, 9-vote optimized
             svc = svm.SVC(C=15, kernel='poly', degree=5, probability=True) #grid-searched
-            dtree = DecisionTreeClassifier()
+            dtree = tree.DecisionTreeClassifier()
             self.AIonAI = combinedAI([lr,nn,svc, dtree], nvote=2) #majority vote
 #            self.AIonAI = combinedAI([lr,nn,svc], strategy='l2')
 
@@ -395,7 +393,7 @@ class svmclf(classifier, svm.SVC):
 
 class LRclf(classifier, linear_model.LogisticRegression):
     """
-    the mix-in class for svm.SVC
+    the mix-in class for linear_model.LogisticRegression
     """
     orig_class = linear_model.LogisticRegression
     pass
@@ -407,11 +405,11 @@ class pnnclf(classifier, pnn.NeuralNetwork):
     orig_class = pnn.NeuralNetwork
     pass
 
-class dtreeclf(classifier, DecisionTreeClassifier):
+class dtreeclf(classifier, tree.DecisionTreeClassifier):
     """ 
     the mixed in class for DecisionTree
     """
-    orig_class = DecisionTreeClassifier
+    orig_class = tree.DecisionTreeClassifier
     pass
 
 
