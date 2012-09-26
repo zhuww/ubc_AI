@@ -26,7 +26,7 @@ class combinedAI(object):
                     requires 'nvote' argument too (the number of votes to be considered a pulsar)
         *'adaboost': implementation of http://en.wikipedia.org/wiki/Adaboost
                     *only works for 2-class systems
-                    *doesn't output predict_proba
+                    *predict_proba output is not too good (arxiv.org/pdf/1207.1403.pdf)
         *'l2': uses LogisticRegression on the prediction matrix from list_of_AIs,
                and makes final prediction from the l2(predictions)
         *'svm': uses SVM on the prediction matrix from the list_of_AIs,
@@ -200,7 +200,7 @@ class combinedAI(object):
         Notes
         -----
         * for NN, return the activation of the 'label' neuron
-        ** this method doesn't work for "adaboost" 
+
 
         """
         if not type(pfds) in [list, np.ndarray]:
@@ -212,8 +212,12 @@ class combinedAI(object):
             result = result.mean(axis=0) #nsamples x nclasses
             
         else:
-            predicts = np.hstack([clf.predict_proba(pfds)\
-                                      for clf in self.list_of_AIs]) #nsamples x (npreds x nclasses)
+            if self.strategy in self.req_predict:
+                predicts = np.transpose([clf.predict(pfds)\
+                                             for clf in self.list_of_AIs]) #nsamples x nclasses
+            else:
+                predicts = np.hstack([clf.predict_proba(pfds)\
+                                          for clf in self.list_of_AIs]) #nsamples x (npreds x nclasses)
 
             result = self.AIonAI.predict_proba(predicts) #nsamples x nclasses
         return result
@@ -422,6 +426,11 @@ class adaboost(object):
     refer to http://en.wikipedia.org/wiki/Adaboost for more information
    
     """
+    def __init__(self):
+        #use platt calibration to help get a predict_proba
+        #arxiv.org/pdf/1207.1403.pdf
+        self.platt = linear_model.LogisticRegression(penalty='l2')
+
     def fit(self, preds, targets):
         """
         use the adaboost to determine the optimal weights for
@@ -438,17 +447,35 @@ class adaboost(object):
         we accept labels (0,1), but process on (-1,1) labels
 
         """
-        if preds.ndim == 1:
-            npreds = preds.shape[0]
+        #split the data into training and x-val (for predict_proba fit)
+        from random import shuffle
+        L = len(targets)
+        index = range(L)
+        cut = int(.8*L)  #80pct training, 20pct x-val
+        while 1:
+            shuffle(index)
+            train_idx = index[:cut]
+            train_target = targets[train_idx]
+            train_preds = preds[train_idx]
+
+            test_idx = index[cut:]
+            test_target = targets[test_idx]
+            test_preds = preds[test_idx]
+            
+            if len(np.unique(train_target)) == len(np.unique(test_target)):
+                break
+        
+        if train_preds.ndim == 1:
+            npreds = train_preds.shape[0]
         else:
-            npreds = preds.shape[1]
+            npreds = train_preds.shape[1]
         
         #'True' for wrong prediction, 'False' for correct prediction
-        Wrong_pred = np.transpose([v != targets for v in preds.transpose()]) 
+        Wrong_pred = np.transpose([v != train_target for v in train_preds.transpose()]) 
 
         #remap predictions/targets from 0 to -1 if necessary
-        y = np.where(targets == 0, -1, 1)
-        preds2 = np.where(preds==0, -1,1)
+        y = np.where(train_target == 0, -1, 1)
+        preds2 = np.where(train_preds==0, -1,1)
 
         #indicator function  or scouting matrix(1 for wrong, 0 for right prediction)
         I = np.where(Wrong_pred, 1., 0.)
@@ -462,11 +489,12 @@ class adaboost(object):
             # find best remaining classifier
             idcs = list(allclfs - set(clfs.values()))
             W_e = np.dot(D,I) 
-            best = np.argmax(np.abs(0.5-W_e)) #same as np.argmin(W_e[idcs])
+            best = np.argmax(np.abs(0.5-W_e[idcs])) #same as np.argmin(W_e[idcs])
             h_t = np.where(W_e[idcs][best] == W_e)[0][0]
 
             e_t = W_e[h_t]/W_e.sum()
-#            if np.abs(0.5 - e_t) <= .01: break #then we've done great!
+            if np.abs(0.5 - e_t) <= .4: break # we've done enough, error<10%ish
+                                              # things not improving much
 
             clfs[t] = h_t
             alpha_t = np.log((1.-e_t)/e_t)/2.
@@ -476,10 +504,17 @@ class adaboost(object):
             D = D*np.exp(-alpha_t*y*preds2[:,h_t])/Z_t
 
         #append the classifier weights (in order of list_of_AIs)
-        w = np.array(alphas.values())
-        self.weights = w[clfs.values()]
+        w = np.zeros(npreds, dtype=float)
+        for k, v in clfs.iteritems():
+            w[v] = alphas[k]
+        self.weights = w
         self.clfs = clfs
         self.alphas = alphas
+
+        #finally, fit the platt calibration for predict_proba functionality
+        test_preds2 = np.where(test_preds==0, -1,1)
+        this_preds = np.transpose([np.where(np.dot(test_preds2, self.weights) > 0, 1, 0)]) 
+        self.platt.fit( this_preds, test_target)
 
     def predict(self, list_of_predictions):
         """
@@ -487,7 +522,7 @@ class adaboost(object):
         H(x) = sign( \sum_classifier weight(i) * h_i(x) )
         
         Note:
-        although we accept labels of (0,1)
+        although we accept labels of (0,1) and (-1,1)
         we only return labels (0, 1)
         """
         #GBC assumes labels are -1, +1, so re-map
@@ -498,3 +533,27 @@ class adaboost(object):
 
         return  np.where(np.dot(tmp, self.weights) > 0, 1, 0)
 
+    def predict_proba(self, list_of_predictions):
+        """
+        following arxiv.org/pdf/1207.1403.pdf
+        use a Platt calibration (done in 'fit') to provide
+        a predict_proba
+
+        Args:
+        list_of_predictions: the yes/no (1,0) or (1,-1) list of predictions
+        
+        Returns:
+        array of [nsamples x nclasses]
+        """
+        if 0:
+        #this techniques doesn't do that well
+            f = np.transpose([self.predict(list_of_predictions)]) #[nsamples x 1] 
+            return  self.platt.predict_proba(f)
+        else:
+            #self.weight is for 1 class, list_of_predictions may have several
+            npreds = len(self.weights)
+            nclass = list_of_predicts.shape[1] // npreds
+            #so repeat the weights nclass times
+            w = np.hstack([self.weights for k in range(nclass)])
+            f = np.dot(list_of_predictions, w)/ self.weight.sum()
+            return f
