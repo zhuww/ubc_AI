@@ -52,24 +52,25 @@ class combinedAI(object):
         elif strategy == 'svm':
             self.AIonAI = svm.SVC(probability=True, **kwds)
         elif strategy == 'forest':
-            self.AIonAI = ensemble.RandomForestClassifier()
+            self.AIonAI = ensemble.RandomForestClassifier(**kwds)
         elif strategy == 'tree':
-            self.AIonAI = tree.DecisionTreeClassifier()
+            self.AIonAI = tree.DecisionTreeClassifier(**kwds)
         elif strategy == 'nn':
 #            n = max(1,int(len(list_of_AIs)/2))
 #            self.AIonAI = pnn.NeuralNetwork(gamma=1./n,design=[n,2], **kwds)
             self.AIonAI = pnn.NeuralNetwork(gamma=15, design=[64], **kwds) #2-class, 9-vote optimized
         elif strategy == 'adaboost':
-            self.AIonAI = adaboost()
+            self.AIonAI = adaboost(**kwds)
         elif strategy == 'gbc':
-            self.AIonAI = GBC()
+            self.AIonAI = GBC(**kwds)
         elif strategy == 'kitchensink':
             lr = linear_model.LogisticRegression(C=0.5, penalty='l1') #grid-searched
             nn = pnn.NeuralNetwork(design=[64], gamma=1.5, maxiter=200) #2-class, 9-vote optimized
             svc = svm.SVC(C=15, kernel='poly', degree=5, probability=True) #grid-searched
             dtree = tree.DecisionTreeClassifier()
-            self.AIonAI = combinedAI([lr,nn,svc, dtree], nvote=2) #majority vote
-#            self.AIonAI = combinedAI([lr,nn,svc], strategy='l2')
+#            self.AIonAI = combinedAI([lr,nn,svc, dtree], nvote=2) #majority vote
+#            self.AIonAI = combinedAI([lr,nn,svc, dtree], strategy='l2')
+            self.AIonAI = combinedAI([lr,nn,svc,dtree], strategy='adaboost')
 
         self.nvote = nvote
         self.nclasses = None #keep track of number of classes (determined in 'fit')
@@ -492,7 +493,7 @@ class adaboost(object):
             h_t = np.where(W_e[idcs][best] == W_e)[0][0]
 
             e_t = W_e[h_t]/W_e.sum()
-            if np.abs(0.5 - e_t) <= .4: break # we've done enough, error<10%ish
+            if np.abs(0.5 - e_t) <= .375: break # we've done enough, error<12.5%ish
                                               # things not improving much
 
             clfs[t] = h_t
@@ -532,27 +533,39 @@ class adaboost(object):
 
         return  np.where(np.dot(tmp, self.weights) > 0, 1, 0)
 
-    def predict_proba(self, list_of_predictions):
+    def predict_proba(self, lops):
         """
         following arxiv.org/pdf/1207.1403.pdf
         use a Platt calibration (done in 'fit') to provide
         a predict_proba
 
         Args:
-        list_of_predictions: the yes/no (1,0) or (1,-1) list of predictions
+        lops: the yes/no (1,0) or (1,-1) list of predictions
         
         Returns:
         array of [nsamples x nclasses]
         """
+        if isinstance(lops, list()):
+            lops = np.array(lops)
         if 0:
         #this techniques doesn't do that well
-            f = np.transpose([self.predict(list_of_predictions)]) #[nsamples x 1] 
+            f = np.transpose([self.predict(lops)]) #[nsamples x 1] 
             return  self.platt.predict_proba(f)
         else:
-            #self.weight is for 1 class, list_of_predictions may have several
+            #self.weight is for 1 class, lops may have several
             npreds = len(self.weights)
-            nclass = list_of_predicts.shape[1] // npreds
+            if lops.ndim == 2:
+                nclass = lops.shape[1] // npreds
+                nsamples = lops.shape[0]
+            else:
+                nclass = lops.shape[0] // npreds
+                nsamples = 1
+                
             #so repeat the weights nclass times
-            w = np.hstack([self.weights for k in range(nclass)])
-            f = np.dot(list_of_predictions, w)/ self.weight.sum()
+            #weights are only for 'class 1', so use uniform weight on non-'1' classes
+            w = np.ones((npreds,nclass))
+            w[:,1] = self.weights
+
+            f = np.transpose([np.dot( lops[:,c::nclass], v)/v.sum()\
+                                  for v in w.transpose()])
             return f
