@@ -212,7 +212,8 @@ class combinedAI(object):
             result = result.mean(axis=0) #nsamples x nclasses
             
         else:
-            if self.strategy in self.req_predict:
+            #note: adaboost.predict_proba now accepts predict_proba inputs
+            if self.strategy in self.req_predict and self.strategy != 'adaboost':
                 predicts = np.transpose([clf.predict(pfds)\
                                              for clf in self.list_of_AIs]) #nsamples x nclasses
             else:
