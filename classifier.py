@@ -18,7 +18,7 @@ class combinedAI(object):
         inputs
         list_of_AIs: list of classifiers
         strategy: What to do with the prediction matrix from the list_of_AIs.
-                One of ['vote', 'l2', 'svm', 'forest', 'tree', 'nn', 'adaboost', 'kitchensink']
+                One of ['vote', 'l2', 'svm', 'forest', 'tree', 'nn', 'adaboost', 'gbc', 'kitchensink']
                 Default = 'vote'
         
         Notes:
@@ -34,6 +34,7 @@ class combinedAI(object):
         *'forest': uses sklearn.ensemble.RandomForestClassifier
         *'tree': DecisionTreeClassifier
         *'nn': uses a 1-layer, N/2-neuron classifier [N=len(list_of_AIs)]
+        *'gbc': use sklearn.ensemble.GraidentBoostingClassifier 
         *'kitchensink': runs SVM, LR, tree, *and* NN on prediction matrix, 
                         then takes majority vote or 'l2' for final classification
 
@@ -41,7 +42,11 @@ class combinedAI(object):
            determine best nvote value during self.fit (but this doesn't work good)
 
         """
-        self.AIonAIs = ['l2', 'svm', 'forest', 'tree', 'nn', 'adaboost', 'kitchensink']
+        #things that require a 'fit'
+        self.AIonAIs = ['l2', 'svm', 'forest', 'tree', 'nn', 'adaboost', 'gbc', 'kitchensink']
+        #things that train on 'predict' instead of 'predict_proba'
+        self.req_predict = ['adaboost', 'gbc']
+
         self.list_of_AIs = list_of_AIs
         self.strategy = strategy
         if strategy == 'l2':
@@ -58,15 +63,16 @@ class combinedAI(object):
             self.AIonAI = pnn.NeuralNetwork(gamma=15, design=[64], **kwds) #2-class, 9-vote optimized
         elif strategy == 'adaboost':
             self.AIonAI = adaboost()
+        elif strategy == 'gbc':
+            self.AIonAI = GBC()
         elif strategy == 'kitchensink':
             lr = linear_model.LogisticRegression(C=0.5, penalty='l1') #grid-searched
             nn = pnn.NeuralNetwork(design=[64], gamma=1.5, maxiter=200) #2-class, 9-vote optimized
             svc = svm.SVC(C=15, kernel='poly', degree=5, probability=True) #grid-searched
             dtree = DecisionTreeClassifier()
-#            self.AIonAI = combinedAI([lr,nn,svc, dtree], nvote=2) #majority vote
+            self.AIonAI = combinedAI([lr,nn,svc, dtree], nvote=2) #majority vote
 #            self.AIonAI = combinedAI([lr,nn,svc], strategy='l2')
-            self.AIonAI = combinedAI([lr, nn, svc, dtree], strategy='adaboost')
-                    
+
         self.nvote = nvote
         self.nclasses = None #keep track of number of classes (determined in 'fit')
 
@@ -95,7 +101,7 @@ class combinedAI(object):
 
         #train the AIonAI if used
         if (self.strategy in self.AIonAIs):
-            if self.strategy != 'adaboost':
+            if self.strategy not in self.req_predict:
                 #use predict_prob 
                 predictions = np.hstack([clf.predict_proba(pfds)\
                                              for clf in self.list_of_AIs]) #nsamples x (npred x nclasses)
@@ -136,7 +142,7 @@ class combinedAI(object):
             print "warniing: changing pfds from type %s to list" % (type(pfds))
             pfds = [pfds]
         
-        if (self.strategy in self.AIonAIs) and self.strategy != 'adaboost':
+        if (self.strategy in self.AIonAIs) and self.strategy not in self.req_predict:
             #use predict_proba for AI_on_AI classifier, 
             list_of_predicts = np.hstack([clf.predict_proba(pfds)\
                                               for clf in self.list_of_AIs])#nsamples x (npred x classes)
@@ -411,7 +417,7 @@ class adaboost(object):
     of the ensemble to maximize overall performance.
 
     Notes:
-    It only works for 2-class systems, and expects labels of +1 and -1
+    It only works for 2-class systems, and expects labels of (0,1)
 
     refer to http://en.wikipedia.org/wiki/Adaboost for more information
    
@@ -429,7 +435,7 @@ class adaboost(object):
         targets : [nsamples]
 
         Note:
-        we do accept labels (0,1) or (-1,1)
+        we accept labels (0,1), but process on (-1,1) labels
 
         """
         if preds.ndim == 1:
@@ -441,9 +447,8 @@ class adaboost(object):
         Wrong_pred = np.transpose([v != targets for v in preds.transpose()]) 
 
         #remap predictions/targets from 0 to -1 if necessary
-        if 0 in np.unique(targets):
-            targets[ targets == 0 ] = -1 #use labels +/- 1
-            preds = np.where(preds==0,-1,1)
+        y = np.where(targets == 0, -1, 1)
+        preds2 = np.where(preds==0, -1,1)
 
         #indicator function  or scouting matrix(1 for wrong, 0 for right prediction)
         I = np.where(Wrong_pred, 1., 0.)
@@ -451,13 +456,13 @@ class adaboost(object):
         clfs = {}
         alphas = {}
         #Weight of each data point
-        D = np.ones(len(targets))/len(targets)
+        D = np.ones(len(y))/len(y)
         allclfs = set(range(npreds))
         for t in range(npreds):
             # find best remaining classifier
             idcs = list(allclfs - set(clfs.values()))
             W_e = np.dot(D,I) 
-            best = np.argmin(W_e[idcs]) #same as np.argmax(np.abs(0.5-W_e))
+            best = np.argmax(np.abs(0.5-W_e)) #same as np.argmin(W_e[idcs])
             h_t = np.where(W_e[idcs][best] == W_e)[0][0]
 
             e_t = W_e[h_t]/W_e.sum()
@@ -467,12 +472,14 @@ class adaboost(object):
             alpha_t = np.log((1.-e_t)/e_t)/2.
             alphas[t] = alpha_t
             
-            Z_t = D*np.exp(-alpha_t*targets*preds[:,h_t]).sum()
-            D = D*np.exp(-alpha_t*targets*preds[:,h_t])/Z_t
+            Z_t = D*np.exp(-alpha_t*y*preds2[:,h_t]).sum()
+            D = D*np.exp(-alpha_t*y*preds2[:,h_t])/Z_t
 
         #append the classifier weights (in order of list_of_AIs)
         w = np.array(alphas.values())
         self.weights = w[clfs.values()]
+        self.clfs = clfs
+        self.alphas = alphas
 
     def predict(self, list_of_predictions):
         """
@@ -480,12 +487,14 @@ class adaboost(object):
         H(x) = sign( \sum_classifier weight(i) * h_i(x) )
         
         Note:
-        although we accept labels of (0,1) or (-1, 1)
+        although we accept labels of (0,1)
         we only return labels (0, 1)
         """
-        #assumes labels are -1, +1, so re-map
+        #GBC assumes labels are -1, +1, so re-map
         if 0 in np.unique(list_of_predictions):
-            list_of_predictions = np.where(list_of_predictions == 0, -1, 1)
+            tmp = np.where(list_of_predictions == 0, -1, 1)
+        else:
+            tmp = list_of_predictions
 
-        return  np.where(np.dot(list_of_predictions, self.weights) > 0, 1, 0)
+        return  np.where(np.dot(tmp, self.weights) > 0, 1, 0)
 
