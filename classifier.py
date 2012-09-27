@@ -47,6 +47,8 @@ class combinedAI(object):
 
         self.list_of_AIs = list_of_AIs
         self.strategy = strategy
+        if strategy != 'vote' and strategy not in self.AIonAIs:
+            raise "strategy %s is not recognized" % strategy
         if strategy == 'lr':
             #grid-search optimized
             self.AIonAI = linear_model.LogisticRegression(C=0.5, penalty='l1', **kwds)
