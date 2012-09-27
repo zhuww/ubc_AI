@@ -41,35 +41,36 @@ class combinedAI(object):
 
         """
         #things that require a 'fit'
-        self.AIonAIs = ['l2', 'svm', 'forest', 'tree', 'nn', 'adaboost', 'gbc', 'kitchensink']
+        self.AIonAIs = ['lr', 'svm', 'forest', 'tree', 'nn', 'adaboost', 'gbc', 'kitchensink']
         #things that train on 'predict' instead of 'predict_proba'
         self.req_predict = ['adaboost', 'gbc']
 
         self.list_of_AIs = list_of_AIs
         self.strategy = strategy
-        if strategy == 'l2':
-            self.AIonAI = linear_model.LogisticRegression(penalty='l2', **kwds)
+        if strategy == 'lr':
+            #grid-search optimized
+            self.AIonAI = linear_model.LogisticRegression(C=0.5, penalty='l1', **kwds)
         elif strategy == 'svm':
-            self.AIonAI = svm.SVC(probability=True, **kwds)
+            #grid-search optimized
+            self.AIonAI = svm.SVC(C=15, kernel='poly', degree=5, probability=True, **kwds)
         elif strategy == 'forest':
             self.AIonAI = ensemble.RandomForestClassifier(**kwds)
         elif strategy == 'tree':
             self.AIonAI = tree.DecisionTreeClassifier(**kwds)
         elif strategy == 'nn':
-#            n = max(1,int(len(list_of_AIs)/2))
-#            self.AIonAI = pnn.NeuralNetwork(gamma=1./n,design=[n,2], **kwds)
-            self.AIonAI = pnn.NeuralNetwork(gamma=15, design=[64], **kwds) #2-class, 9-vote optimized
+            #grid-search optimized (2class)
+            self.AIonAI = pnn.NeuralNetwork(gamma=15, design=[64], **kwds) 
         elif strategy == 'adaboost':
             self.AIonAI = adaboost(**kwds)
         elif strategy == 'gbc':
             self.AIonAI = GBC(**kwds)
         elif strategy == 'kitchensink':
-            lr = linear_model.LogisticRegression(C=0.5, penalty='l1') #grid-searched
+            lr = linear_model.LogisticRegression(C=0.5, penalty='l1') 
             nn = pnn.NeuralNetwork(design=[64], gamma=1.5, maxiter=200) #2-class, 9-vote optimized
             svc = svm.SVC(C=15, kernel='poly', degree=5, probability=True) #grid-searched
             dtree = tree.DecisionTreeClassifier()
 #            self.AIonAI = combinedAI([lr,nn,svc, dtree], nvote=2) #majority vote
-#            self.AIonAI = combinedAI([lr,nn,svc, dtree], strategy='l2')
+#            self.AIonAI = combinedAI([lr,nn,svc, dtree], strategy='lr')
             self.AIonAI = combinedAI([lr,nn,svc,dtree], strategy='adaboost')
 
         self.nvote = nvote
@@ -95,8 +96,8 @@ class combinedAI(object):
         if self.nclasses > 2 and self.strategy == 'adaboost':
             print "Warning, adaboost only works in 2-class systems"
             print "Reverting to Logistic Regression on the prediction matrix"
-            self.strategy = 'l2'
-            self.AIonAI = linear_model.LogisticRegression(penalty='l2')
+            self.strategy = 'lr'
+            self.AIonAI = linear_model.LogisticRegression(penalty='l1')
 
         #train the AIonAI if used
         if (self.strategy in self.AIonAIs):
@@ -504,7 +505,7 @@ class adaboost(object):
             D = D*np.exp(-alpha_t*y*preds2[:,h_t])/Z_t
 
         #append the classifier weights (in order of list_of_AIs)
-        w = np.zeros(npreds, dtype=float)
+        w = np.ones(npreds, dtype=float)/npreds #start with equal weighting
         for k, v in clfs.iteritems():
             w[v] = alphas[k]
         self.weights = w
@@ -536,8 +537,11 @@ class adaboost(object):
     def predict_proba(self, lops):
         """
         following arxiv.org/pdf/1207.1403.pdf
-        use a Platt calibration (done in 'fit') to provide
-        a predict_proba
+        
+        *use a Platt calibration (done in 'fit') to provide
+        a predict_proba (actually, this didn't work well)
+        *apply the adaboost.weights to the predict_proba class 1
+        uniform weight to all other classes (which we largely ignore anyways)
 
         Args:
         lops: the yes/no (1,0) or (1,-1) list of predictions
@@ -545,7 +549,7 @@ class adaboost(object):
         Returns:
         array of [nsamples x nclasses]
         """
-        if isinstance(lops, list()):
+        if isinstance(lops, list):
             lops = np.array(lops)
         if 0:
         #this techniques doesn't do that well
@@ -567,5 +571,5 @@ class adaboost(object):
             w[:,1] = self.weights
 
             f = np.transpose([np.dot( lops[:,c::nclass], v)/v.sum()\
-                                  for v in w.transpose()])
+                                  for c, v in enumerate(w.transpose())])
             return f
