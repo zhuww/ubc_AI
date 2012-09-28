@@ -58,7 +58,8 @@ class combinedAI(object):
         elif strategy == 'forest':
             self.AIonAI = ensemble.RandomForestClassifier(**kwds)
         elif strategy == 'tree':
-            self.AIonAI = tree.DecisionTreeClassifier(**kwds)
+            nleafs = len(list_of_AIs)/2
+            self.AIonAI = tree.DecisionTreeClassifier(min_samples_leaf=nleafs,**kwds)
         elif strategy == 'nn':
             #grid-search optimized (2class)
             self.AIonAI = pnn.NeuralNetwork(gamma=15, design=[64], **kwds) 
@@ -477,8 +478,8 @@ class adaboost(object):
         Wrong_pred = np.transpose([v != train_target for v in train_preds.transpose()]) 
 
         #remap predictions/targets from 0 to -1 if necessary
-        y = np.where(train_target == 0, -1, 1)
-        preds2 = np.where(train_preds==0, -1,1)
+        y = np.where(train_target != 1, -1, 1)
+        preds2 = np.where(train_preds != 1, -1,1)
 
         #indicator function  or scouting matrix(1 for wrong, 0 for right prediction)
         I = np.where(Wrong_pred, 1., 0.)
@@ -496,8 +497,8 @@ class adaboost(object):
             h_t = np.where(W_e[idcs][best] == W_e)[0][0]
 
             e_t = W_e[h_t]/W_e.sum()
-            if np.abs(0.5 - e_t) <= .375: break # we've done enough, error<12.5%ish
-                                              # things not improving much
+            if np.abs(0.5 - e_t) <= .425: break # we've done enough, error<17%ish
+                                                # lowering threshold brings in more error
 
             clfs[t] = h_t
             alpha_t = np.log((1.-e_t)/e_t)/2.
@@ -507,7 +508,11 @@ class adaboost(object):
             D = D*np.exp(-alpha_t*y*preds2[:,h_t])/Z_t
 
         #append the classifier weights (in order of list_of_AIs)
-        w = np.ones(npreds, dtype=float)/npreds #start with equal weighting
+        if len(clfs) == 0:
+            #if everything was poor, give equal weighting
+            w = np.ones(npreds, dtype=float)/npreds 
+        else:
+            w = np.zeros(npreds, dtype=float)
         for k, v in clfs.iteritems():
             w[v] = alphas[k]
         self.weights = w
@@ -515,7 +520,7 @@ class adaboost(object):
         self.alphas = alphas
 
         #finally, fit the platt calibration for predict_proba functionality
-        test_preds2 = np.where(test_preds==0, -1,1)
+        test_preds2 = np.where(test_preds != 1, -1,1)
         this_preds = np.transpose([np.where(np.dot(test_preds2, self.weights) > 0, 1, 0)]) 
         self.platt.fit( this_preds, test_target)
 
@@ -530,7 +535,7 @@ class adaboost(object):
         """
         #GBC assumes labels are -1, +1, so re-map
         if 0 in np.unique(list_of_predictions):
-            tmp = np.where(list_of_predictions == 0, -1, 1)
+            tmp = np.where(list_of_predictions != 1, -1, 1)
         else:
             tmp = list_of_predictions
 
