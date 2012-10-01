@@ -318,6 +318,7 @@ class MainFrameGTK(Gtk.Window):
             fname = os.path.join(self.basedir, tmpstore.get_value(tmpiter, 0))
 # find/create png file from input file
             fpng = self.create_png(fname)
+
             #update the basedir if necessary 
             if not exists(fpng):
                 fname = self.find_file(fname)
@@ -332,7 +333,7 @@ class MainFrameGTK(Gtk.Window):
                                              basename(fname))
                 else:
                     note = "Failed to generate png file %s" % fname
-#                    print note
+                    print note
                     self.statusbar.push(0,note)
                     self.image.set_from_file('')
 
@@ -352,7 +353,6 @@ class MainFrameGTK(Gtk.Window):
                     fpng = self.check_AIviewfile_match(fname)
                     if not fpng:
                         fpng = self.generate_AIviewfile(fname)
-
                     if fpng and exists(fpng):
                         self.image.set_from_file(fpng)
                         self.image_disp.set_text('displaying : %s' % fname)
@@ -376,6 +376,7 @@ class MainFrameGTK(Gtk.Window):
         if it doesn't already exist
 
         """
+
         if fname.endswith('.ps'):
             fpng = fname.replace('.ps', '.png')
             if not exists(fpng):
@@ -411,9 +412,11 @@ class MainFrameGTK(Gtk.Window):
 
 
     #see if png exists locally already, otherwise generate it
+
         if not exists(fpng) and exists(fname):
             #convert to png (convert accepts .ps, or .pfd file)
             fpng = convert(fname)
+
         return fpng
 
     def find_file(self, fname):
@@ -660,15 +663,22 @@ class MainFrameGTK(Gtk.Window):
 
                 if fname.endswith('.pfd'):
                     fname = os.path.join(self.basedir, fname)
-    # find/create png file from input file
-                    fpng = self.create_png(fname)
-                #update the basedir if necessary 
-                    if not exists(fpng):
-                        fname = self.find_file(fname)
+                    if not self.aiview.get_active():
+                        # find/create png file from input file
                         fpng = self.create_png(fname)
+                       #update the basedir if necessary 
+                        if not exists(fpng):
+                            fname = self.find_file(fname)
+                            fpng = self.create_png(fname)
+                    elif exists(fname):
+                        fpng = self.check_AIviewfile_match(fname)
+                        if not fpng:
+                            fpng = self.generate_AIviewfile(fname)
+                    else:
+                        fpng = ''
 
     #                print "Showing image",fname
-                    if exists(fpng):
+                    if fpng and exists(fpng):
                         self.image.set_from_file(fpng)
                         self.image_disp.set_text('displaying : %s' % \
                                                      basename(fname))
@@ -1077,7 +1087,7 @@ class MainFrameGTK(Gtk.Window):
                 self.pmatch_tree.set_model(None)
                 self.pmatch_store.clear()
                 nm = 'This Candidate'
-                nm = basename(fname)
+                nm = fname #basename(fname)
                 self.pmatch_store.append([nm,str(np.round(this_pulsar.P0,5)),\
                                               this_pulsar.DM, this_pulsar.ra,\
                                               this_pulsar.dec, this_vote])
@@ -1237,9 +1247,9 @@ def convert(fin):
 
     """
     global show_pfd
-    fout = None
+    fout = ''
     if not exists(fin):
-        print "Can't find file %s" % abspath(fin)
+        print "Convert: can't find file %s\n" % abspath(fin)
         return fout
 
     if fin.endswith('.pfd'):
@@ -1275,7 +1285,7 @@ def convert(fin):
                     if fnew != abspath(fold):
                         os.remove(fnew)
                 else:
-                    if dirname(fnew) != abspath(pfddir):
+                    if dirname(fnew) != abspath(pfddir) and exists(fnew):
                         shutil.move(fnew, pfddir)
             # assign fin to ps file so it converts to png below
             fin = abspath(os.path.join(pfddir, "%s.ps" % pfdname))

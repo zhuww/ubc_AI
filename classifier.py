@@ -16,7 +16,7 @@ class combinedAI(object):
         inputs
         list_of_AIs: list of classifiers
         strategy: What to do with the prediction matrix from the list_of_AIs.
-                One of ['vote', 'l2', 'svm', 'forest', 'tree', 'nn', 'adaboost', 'gbc', 'kitchensink']
+                One of ['vote', 'lr', 'svm', 'forest', 'tree', 'nn', 'adaboost', 'gbc', 'kitchensink']
                 Default = 'vote'
         
         Notes:
@@ -25,8 +25,8 @@ class combinedAI(object):
         *'adaboost': implementation of http://en.wikipedia.org/wiki/Adaboost
                     *only works for 2-class systems
                     *predict_proba output is not too good (arxiv.org/pdf/1207.1403.pdf)
-        *'l2': uses LogisticRegression on the prediction matrix from list_of_AIs,
-               and makes final prediction from the l2(predictions)
+        *'lr': uses LogisticRegression on the prediction matrix from list_of_AIs,
+               and makes final prediction from the lr(predictions)
         *'svm': uses SVM on the prediction matrix from the list_of_AIs,
                 and makes the final prediciton from SVM(predictions)
         *'forest': uses sklearn.ensemble.RandomForestClassifier
@@ -34,7 +34,7 @@ class combinedAI(object):
         *'nn': uses a 1-layer, N/2-neuron classifier [N=len(list_of_AIs)]
         *'gbc': use sklearn.ensemble.GraidentBoostingClassifier 
         *'kitchensink': runs SVM, LR, tree, *and* NN on prediction matrix, 
-                        then takes majority vote or 'l2' for final classification
+                        then takes majority vote or 'lr' for final classification
 
         *if strategy='vote' and nvote=None, 
            determine best nvote value during self.fit (but this doesn't work good)
@@ -512,7 +512,8 @@ class adaboost(object):
             #if everything was poor, give equal weighting
             w = np.ones(npreds, dtype=float)/npreds 
         else:
-            w = np.zeros(npreds, dtype=float)
+            #we give everyone a vote, just really small sometimes (overwritten below)
+            w = np.ones(npreds, dtype=float)/sum(clfs.values())/npreds
         for k, v in clfs.iteritems():
             w[v] = alphas[k]
         self.weights = w
