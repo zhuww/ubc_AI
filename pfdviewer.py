@@ -90,6 +90,9 @@ class MainFrameGTK(Gtk.Window):
         self.aiview_win.set_deletable(False)
         self.aiview_win.connect('delete-event', lambda w, e: w.hide() or True)
         self.pmatchwin_tog = self.builder.get_object('pmatchwin_tog')
+        self.tmpAI_tog = self.builder.get_object('tmpAI_tog')
+        self.tmpAI = None 
+        self.tmpAI_lab = self.builder.get_object('tmpAI_lab')
         self.pmatch_win = self.builder.get_object('pmatch_win')
         self.pmatch_tree = self.builder.get_object('pmatch_tree')
         self.pmatch_store = self.builder.get_object('pmatch_store')
@@ -314,8 +317,16 @@ class MainFrameGTK(Gtk.Window):
 
         ncol = self.pfdstore.get_n_columns()
         if tmpiter != None:
-            
             fname = os.path.join(self.basedir, tmpstore.get_value(tmpiter, 0))
+
+#are we displaying the prediction from a tmpAI?            
+            if exists(fname) and fname.endswith('.pfd') and (self.tmpAI != None) and self.tmpAI_tog.get_active():
+                pfd = pfddata(fname)
+                pfd.dedisperse()
+                disp_apnd = '(tmpAI: %0.3f)' % (self.tmpAI.predict_proba(pfd)[...,1][0])
+            else:
+                disp_apnd = ''
+
 # find/create png file from input file
             fpng = self.create_png(fname)
 
@@ -329,18 +340,13 @@ class MainFrameGTK(Gtk.Window):
 
                 if fpng and exists(fpng):
                     self.image.set_from_file(fpng)
-                    self.image_disp.set_text('displaying : %s' % 
-                                             basename(fname))
+                    self.image_disp.set_text('displaying : %s %s' % 
+                                             (basename(fname), disp_apnd))
                 else:
                     note = "Failed to generate png file %s" % fname
                     print note
                     self.statusbar.push(0,note)
                     self.image.set_from_file('')
-
-#                l = fname
-#                for i in range(1,ncol):
-#                    l += ' %s ' % tmpstore.get_value(tmpiter, i)
-#                print "active row",l
 
             else:
 
@@ -355,19 +361,19 @@ class MainFrameGTK(Gtk.Window):
                         fpng = self.generate_AIviewfile(fname)
                     if fpng and exists(fpng):
                         self.image.set_from_file(fpng)
-                        self.image_disp.set_text('displaying : %s' % fname)
+                        self.image_disp.set_text('displaying : %s %s' % (fname, disp_apnd))
                     else:
                         note = "Failed to generate png file %s" % fname
                         print note
                         self.statusbar.push(0,note)
                         self.image.set_from_file('')
-                        self.image_disp.set_text('displaying : %s' % fname)
+                        self.image_disp.set_text('displaying : %s %s' % (fname, disp_apnd))
                 elif fname.endswith('.png'):
                     note = "Can't generate AIview from png files"
                     self.statusbar.push(0, note)
                     fpng = fname
                     self.image.set_from_file(fpng)
-                    self.image_disp.set_text('display: %s ' % fpng)
+                    self.image_disp.set_text('displaying: %s %s' % (fpng, disp_apnd))
             self.find_matches()
 
     def create_png(self, fname):
@@ -430,6 +436,11 @@ class MainFrameGTK(Gtk.Window):
         """
         if not exists(fname):
             print "Can't find %s" % fname
+            dlg = Gtk.MessageDialog(self, 0, Gtk.MessageType.INFO,
+                                    Gtk.ButtonsType.OK,
+                                    "Can't find %s.\n\n Please select a base path for this file" % fname)
+            response = dlg.run()
+            dlg.destroy()
             dialog = Gtk.FileChooserDialog("Choose base path for %s" % \
                                                os.path.splitext(fname)[0],
                                            self, Gtk.FileChooserAction.SELECT_FOLDER,
@@ -439,6 +450,8 @@ class MainFrameGTK(Gtk.Window):
             response = dialog.run()
             if response == Gtk.ResponseType.OK:
                 self.basedir = dialog.get_filename()
+                print "Setting basepath to %s" % self.basedir
+                self.statusbar.push(0, 'Setting basepath to %s' % self.basedir)
             else:
                 self.basedir = './'
             dialog.destroy()
@@ -677,11 +690,19 @@ class MainFrameGTK(Gtk.Window):
                     else:
                         fpng = ''
 
+#are we displaying the prediction from a tmpAI?            
+                    if exists(fname) and fname.endswith('.pfd') and (self.tmpAI != None) and self.tmpAI_tog.get_active():
+                        pfd = pfddata(fname)
+                        pfd.dedisperse()
+                        disp_apnd = '(tmpAI: %0.3f)' % (self.tmpAI.predict_proba(pfd)[...,1][0])
+                    else:
+                        disp_apnd = ''
+                        
     #                print "Showing image",fname
                     if fpng and exists(fpng):
                         self.image.set_from_file(fpng)
-                        self.image_disp.set_text('displaying : %s' % \
-                                                     basename(fname))
+                        self.image_disp.set_text('displaying : %s %s' % \
+                                                     (basename(fname), disp_apnd))
                         if basename(fname) == basename(candname):
                             disp = 'Possible matches to %s' % basename(candname)
                         else:
@@ -693,6 +714,39 @@ class MainFrameGTK(Gtk.Window):
                             disp = 'Possible matches to %s\n' % basename(candname)
                             disp += '               (displaying %s (%s))' % (basename(fname), vote)
                         self.pmatch_lab.set_text(disp)
+
+    def on_tmpAI_toggled(self, event):
+        """
+        if 'on', load a pickled classifier and display
+        its' prediction. 
+
+        Otherwise 'forget' the loaded classifier
+
+        """
+        if self.tmpAI_tog.get_active():
+            dialog = Gtk.FileChooserDialog("load a pickled classifier", self,
+                                           Gtk.FileChooserAction.OPEN,
+                                           (Gtk.STOCK_CANCEL,
+                                            Gtk.ResponseType.CANCEL,
+                                            Gtk.STOCK_OPEN, Gtk.ResponseType.OK))
+            response = dialog.run()
+            if response == Gtk.ResponseType.OK:
+                fname = dialog.get_filename()
+                try:
+                    self.tmpAI = cPickle.load(open(fname))
+                    self.tmpAI_lab.set_text(basename(fname))
+                except IOError:
+                    print "couldn't load %s" % fname
+                    self.statusbar.push(0,"couldn't load %s" % fname)
+                    self.tmpAI = None
+                    self.tmpAI_lab.set_text('')
+            else:
+                self.tmpAI = None
+                self.tmpAI_lab.set_text('')                
+            dialog.destroy()
+        else:
+            self.tmpAI = None
+        
 
     def on_aiview_toggled(self, event):
         """
@@ -896,7 +950,7 @@ class MainFrameGTK(Gtk.Window):
         
         
         dialog = Gtk.MessageDialog(self, 0, Gtk.MessageType.INFO,
-                                   Gtk.ButtonsType.OK, note)
+                                   Gtk.ButtonsType.OK_CANCEL, note)
         response = dialog.run()
         dialog.destroy()
         
@@ -1159,6 +1213,7 @@ class MainFrameGTK(Gtk.Window):
         if len(pathlist) > 0:
             path = pathlist[0]
             self.pfdtree.set_cursor(path)
+            self.statusbar.push(0, "")
         else:
             self.statusbar.push(0,"Please select a row")
                     
@@ -1175,6 +1230,7 @@ class MainFrameGTK(Gtk.Window):
             if npath:
                 nextpath = model.get_path(npath)
                 self.pfdtree.set_cursor(nextpath) 
+            self.statusbar.push(0, "")
         else:
             self.statusbar.push(0,"Please select a row")
 #        self.find_matches()
@@ -1192,6 +1248,7 @@ class MainFrameGTK(Gtk.Window):
             if prevn:
                 prevpath = model.get_path(prevn)
                 self.pfdtree.set_cursor(prevpath)
+            self.statusbar.push(0, "")
         else:
             self.statusbar.push(0,"Please select a row")
 #        self.find_matches()
@@ -1249,7 +1306,7 @@ def convert(fin):
     global show_pfd
     fout = ''
     if not exists(fin):
-        print "Convert: can't find file %s\n" % abspath(fin)
+        print "Convert: can't find file %s" % abspath(fin)
         return fout
 
     if fin.endswith('.pfd'):
