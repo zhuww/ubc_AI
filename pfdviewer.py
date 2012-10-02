@@ -90,9 +90,17 @@ class MainFrameGTK(Gtk.Window):
         self.aiview_win.set_deletable(False)
         self.aiview_win.connect('delete-event', lambda w, e: w.hide() or True)
         self.pmatchwin_tog = self.builder.get_object('pmatchwin_tog')
+        #tmpAI window 
+        self.tmpAI_win = self.builder.get_object('tmpAI_votemat')
+        self.tmpAI_overall = self.builder.get_object('overall_vote')
+        self.tmpAI_phasebins = self.builder.get_object('phasebins_vote')
+        self.tmpAI_intervals = self.builder.get_object('intervals_vote')
+        self.tmpAI_subbands = self.builder.get_object('subbands_vote')
+        self.tmpAI_DMbins = self.builder.get_object('DMbins_vote')
         self.tmpAI_tog = self.builder.get_object('tmpAI_tog')
-        self.tmpAI = None 
         self.tmpAI_lab = self.builder.get_object('tmpAI_lab')
+        self.tmpAI = None 
+        
         self.pmatch_win = self.builder.get_object('pmatch_win')
         self.pmatch_tree = self.builder.get_object('pmatch_tree')
         self.pmatch_store = self.builder.get_object('pmatch_store')
@@ -323,6 +331,8 @@ class MainFrameGTK(Gtk.Window):
             if exists(fname) and fname.endswith('.pfd') and (self.tmpAI != None) and self.tmpAI_tog.get_active():
                 pfd = pfddata(fname)
                 pfd.dedisperse()
+                avgs = feature_predict(self.tmpAI, pfd)
+                self.update_tmpAI_votemat(avgs)
                 disp_apnd = '(tmpAI: %0.3f)' % (self.tmpAI.predict_proba(pfd)[...,1][0])
             else:
                 disp_apnd = ''
@@ -694,6 +704,8 @@ class MainFrameGTK(Gtk.Window):
                     if exists(fname) and fname.endswith('.pfd') and (self.tmpAI != None) and self.tmpAI_tog.get_active():
                         pfd = pfddata(fname)
                         pfd.dedisperse()
+                        avgs = feature_predict(self.tmpAI, pfd)
+                        self.update_tmpAI_votemat(avgs)
                         disp_apnd = '(tmpAI: %0.3f)' % (self.tmpAI.predict_proba(pfd)[...,1][0])
                     else:
                         disp_apnd = ''
@@ -747,6 +759,41 @@ class MainFrameGTK(Gtk.Window):
         else:
             self.tmpAI = None
         
+        if self.tmpAI == None:
+            self.tmpAI_win.hide()
+        else:
+            self.tmpAI_win.show_all()
+
+    def update_tmpAI_votemat(self, avgs):
+        """
+        given a dictionary of performances for the various features,
+        update the tmpAI_vote window
+
+        """
+
+        if 'phasebins' in avgs:
+            self.tmpAI_phasebins.set_text('profile : %0.3f' % avgs['phasebins'])
+        else:
+            self.tmpAI_phasebins.set_text('profile : N/A')
+        if 'intervals' in avgs:
+            self.tmpAI_intervals.set_text('intervals : %0.3f' % avgs['intervals'])
+        else:
+            self.tmpAI_intervals.set_text('intervals : N/A')
+        if 'subbands' in avgs:
+            self.tmpAI_subbands.set_text('subbands : %0.3f' % avgs['subbands'])
+        else:
+            self.tmpAI_subbands.set_text('subbands : N/A')
+        if 'DMbins' in avgs:
+            self.tmpAI_DMbins.set_text('DMbins : %0.3f' % avgs['DMbins'])
+        else:
+            self.tmpAI_DMbins.set_text('DMbins : N/A')
+        
+        if 'overall' in avgs:
+            self.tmpAI_overall.set_text('overall voting performance: %0.4f' % avgs['overall'])
+        else:
+            self.tmpAI_overall.set_text('overall voting performance: N/A')
+
+                
 
     def on_aiview_toggled(self, event):
         """
@@ -1503,6 +1550,22 @@ def messagedialog(dialog_type, short, long=None, parent=None,
     response = d.run()
     d.destroy()
     return response
+
+def feature_predict(clf, pfd):
+    """
+    given a classifier and pfd file,
+    return the predict_proba for the individual features and overall performance.
+
+    Assumes 'pulsar' class in label '1'
+    """
+    features = ['phasebins', 'intervals', 'subbands', 'DMbins']
+    avgs = {}
+    for f in features:
+        avgs[f] = np.mean([c.predict_proba(pfd)[...,1][0] for c in clf.list_of_AIs \
+                              if f in c.feature])
+    avgs['overall'] = clf.predict_proba(pfd)[...,1][0]
+    #note, if feature isn't present np.mean([]) == nan
+    return avgs
 
 def harm_ratio(a,b):
     """
