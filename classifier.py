@@ -479,7 +479,6 @@ class adaboost(object):
                     break
         else:
             # we don't need train/test split
-            train_idx = index
             train_target = targets
             train_preds = preds
         
@@ -501,17 +500,18 @@ class adaboost(object):
         clfs = {}
         alphas = {}
         #Weight of each data point
-        D = np.ones(len(y))/len(y)
+        D = np.ones(len(y), dtype=np.float)/len(y)
         allclfs = set(range(npreds))
         for t in range(npreds):
             # find best remaining classifier
             idcs = list(allclfs - set(clfs.values()))
             W_e = np.dot(D,I) 
             best = np.argmax(np.abs(0.5-W_e[idcs])) #same as np.argmin(W_e[idcs])
-            h_t = np.where(W_e[idcs][best] == W_e)[0][0]
+            h_t = np.where(W_e == W_e[idcs][best])[0][0]
 
-            e_t = W_e[h_t]/W_e.sum()
-            if np.abs(0.5 - e_t) <= .3: break # we've done enough, error<17%ish
+            e_t = W_e[h_t] 
+#            print h_t, e_t, W_e
+            if np.abs(0.5 - e_t) <= .10: break # we've done enough, error<10%ish
                                                 # lowering threshold brings in more error
 
             clfs[t] = h_t
@@ -522,12 +522,11 @@ class adaboost(object):
             D = D*np.exp(-alpha_t*y*preds2[:,h_t])/Z_t
 
         #append the classifier weights (in order of list_of_AIs)
-        if len(clfs) == 0:
+        if len(clfs) <= 2:
             #if everything was poor, give equal weighting
             w = np.ones(npreds, dtype=float)/npreds 
         else:
-            #we give everyone a vote, just really small sometimes (overwritten below)
-            w = np.ones(npreds, dtype=float)/sum(clfs.values())/npreds
+            w = np.zeros(npreds, dtype=float)
         for k, v in clfs.iteritems():
             w[v] = alphas[k]
         self.weights = w
@@ -567,7 +566,7 @@ class adaboost(object):
         uniform weight to all other classes (which we largely ignore anyways)
 
         Args:
-        lops: the yes/no (1,0) or (1,-1) list of predictions
+        lops: the predict_proba's from the list_of_AIs
         
         Returns:
         array of [nsamples x nclasses]
@@ -581,6 +580,17 @@ class adaboost(object):
         """
         if isinstance(lops, list):
             lops = np.array(lops)
+
+        npreds = len(self.weights)
+        if lops.ndim == 2:
+            nclass = lops.shape[1] // npreds
+            nsamples = lops.shape[0]
+        else:
+            nclass = lops.shape[0] // npreds
+            nsamples = 1
+            lops = np.array([lops])
+
+       
         if 0:
         #this techniques doesn't do that well
             f = np.transpose([self.predict(lops)]) #[nsamples x 1] 
@@ -594,15 +604,20 @@ class adaboost(object):
             else:
                 nclass = lops.shape[0] // npreds
                 nsamples = 1
-                
+
+            # H(x) works on sign(sum_i w[i]h_i(x))
+            # so shift all class-1 predictions (0 < lops < 1) to (-1 < lops < 1)
+            lops[...,1::nclass] = 2.*lops[...,1::nclass]-1.
+
             #so repeat the weights nclass times
             #weights are only for 'class 1', so use uniform weight on non-'1' classes
-            w = np.ones((npreds,nclass),dtype=np.float)/float(nclass)
+            w = np.ones((npreds,nclass), dtype=np.float)/float(npreds)
             w[:,1] = self.weights
             
             f = np.transpose([np.dot( lops[:,c::nclass], v)\
                                   for c, v in enumerate(w.transpose())])
-            #AAR: hack to get predict_proba(class 1) in range 0<P<1
+
+            #AAR: shift predict_proba(class 1) back to range 0<P<1
             mx_psr = np.abs(self.weights).sum()
             f[...,1] = (f[...,1]+mx_psr)/mx_psr/2.
 
