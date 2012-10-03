@@ -280,7 +280,9 @@ class MainFrameGTK(Gtk.Window):
                 sgn = ''
                 name = 'J%s%s%s' % (''.join(pfd.rastr.split(':')[:2]), sgn,\
                                         ''.join(pfd.decstr.split(':')[:2]))
-            this_pulsar = KP.pulsar(fname, name, ra, dec, p0*1e-3, dm)
+#            this_pulsar = KP.pulsar(fname, name, ra, dec, p0*1e-3, dm)
+            this_pulsar = KP.pulsar(fname, name, ra, dec, p0, dm)
+                
             self.knownpulsars[fname] = this_pulsar
 
 
@@ -747,7 +749,7 @@ class MainFrameGTK(Gtk.Window):
                 try:
                     self.tmpAI = cPickle.load(open(fname))
                     self.tmpAI_lab.set_text(basename(fname))
-                except IOError:
+                except (IOError, EOFError):
                     print "couldn't load %s" % fname
                     self.statusbar.push(0,"couldn't load %s" % fname)
                     self.tmpAI = None
@@ -1179,7 +1181,8 @@ class MainFrameGTK(Gtk.Window):
                     sgn = '' 
                 name = 'J%s%s%s' % (''.join(pfd.rastr.split(':')[:2]), sgn,\
                                         ''.join(pfd.decstr.split(':')[:2]))
-                this_pulsar = KP.pulsar(fname, name, ra, dec, p0*1e-3, dm)
+#                this_pulsar = KP.pulsar(fname, name, ra, dec, p0*1e-3, dm)
+                this_pulsar = KP.pulsar(fname, name, ra, dec, p0, dm)
                 this_idx = self.data['fname'] == store_name
                 if len(this_idx[this_idx]) > 0:
                     this_vote = self.data[act_name][this_idx][0]
@@ -1561,8 +1564,19 @@ def feature_predict(clf, pfd):
     features = ['phasebins', 'intervals', 'subbands', 'DMbins']
     avgs = {}
     for f in features:
-        avgs[f] = np.mean([c.predict_proba(pfd)[...,1][0] for c in clf.list_of_AIs \
-                              if f in c.feature])
+        if clf.strategy != 'adaboost':
+            avgs[f] = np.mean([c.predict_proba(pfd)[...,1][0] for c in clf.list_of_AIs \
+                                   if f in c.feature])
+        else:
+            weights = clf.AIonAI.weights
+            avgs[f] = np.mean([c.predict_proba(pfd)[...,1][0]*weights[i]\
+                                   for i, c in enumerate(clf.list_of_AIs) if f in c.feature])
+            #note: H(x) = sign(sum_i w[i]*clf_i(x))
+            #this is a small hack to get predict_proba in range 0<P<1
+            max_psr = np.sum([np.abs(weights[i])\
+                                  for i, c in enumerate(clf.list_of_AIs) if f in c.feature])
+            avgs[f] = (avgs[f]+max_psr)/max_psr/2.
+            
     avgs['overall'] = clf.predict_proba(pfd)[...,1][0]
     #note, if feature isn't present np.mean([]) == nan
     return avgs

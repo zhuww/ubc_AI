@@ -425,15 +425,23 @@ class adaboost(object):
     of the ensemble to maximize overall performance.
 
     Notes:
-    It only works for 2-class systems, and expects labels of (0,1)
+    Works for multi-class systems, but weights are only calculated/applied
+    to class 1 objects.
 
     refer to http://en.wikipedia.org/wiki/Adaboost for more information
-   
+    
+    Optionally:
+    init with platt=True, for Platt initiationalizatoin (arxiv.org/pdf/1207.1403.pdf)
+    though this hasn't helped for the PFD files
+
     """
-    def __init__(self):
+    def __init__(self, platt=False):
         #use platt calibration to help get a predict_proba
         #arxiv.org/pdf/1207.1403.pdf
-        self.platt = linear_model.LogisticRegression(penalty='l2')
+        if platt:
+            self.platt = linear_model.LogisticRegression(penalty='l2')
+        else:
+            self.platt = None #doesn't work well in our case
 
     def fit(self, preds, targets):
         """
@@ -451,23 +459,29 @@ class adaboost(object):
         we accept labels (0,1), but process on (-1,1) labels
 
         """
+        if self.platt != None:
         #split the data into training and x-val (for predict_proba fit)
-        from random import shuffle
-        L = len(targets)
-        index = range(L)
-        cut = int(.8*L)  #80pct training, 20pct x-val
-        while 1:
-            shuffle(index)
-            train_idx = index[:cut]
-            train_target = targets[train_idx]
-            train_preds = preds[train_idx]
+            from random import shuffle
+            L = len(targets)
+            index = range(L)
+            cut = int(.8*L)  #80pct training, 20pct x-val
+            while 1:
+                shuffle(index)
+                train_idx = index[:cut]
+                train_target = targets[train_idx]
+                train_preds = preds[train_idx]
 
-            test_idx = index[cut:]
-            test_target = targets[test_idx]
-            test_preds = preds[test_idx]
+                test_idx = index[cut:]
+                test_target = targets[test_idx]
+                test_preds = preds[test_idx]
             
-            if len(np.unique(train_target)) == len(np.unique(test_target)):
-                break
+                if len(np.unique(train_target)) == len(np.unique(test_target)):
+                    break
+        else:
+            # we don't need train/test split
+            train_idx = index
+            train_target = targets
+            train_preds = preds
         
         if train_preds.ndim == 1:
             npreds = train_preds.shape[0]
@@ -497,7 +511,7 @@ class adaboost(object):
             h_t = np.where(W_e[idcs][best] == W_e)[0][0]
 
             e_t = W_e[h_t]/W_e.sum()
-            if np.abs(0.5 - e_t) <= .425: break # we've done enough, error<17%ish
+            if np.abs(0.5 - e_t) <= .3: break # we've done enough, error<17%ish
                                                 # lowering threshold brings in more error
 
             clfs[t] = h_t
@@ -521,9 +535,10 @@ class adaboost(object):
         self.alphas = alphas
 
         #finally, fit the platt calibration for predict_proba functionality
-        test_preds2 = np.where(test_preds != 1, -1,1)
-        this_preds = np.transpose([np.where(np.dot(test_preds2, self.weights) > 0, 1, 0)]) 
-        self.platt.fit( this_preds, test_target)
+        if self.platt != None:
+            test_preds2 = np.where(test_preds != 1, -1,1)
+            this_preds = np.transpose([np.where(np.dot(test_preds2, self.weights) > 0, 1, 0)]) 
+            self.platt.fit( this_preds, test_target)
 
     def predict(self, list_of_predictions):
         """
@@ -556,6 +571,13 @@ class adaboost(object):
         
         Returns:
         array of [nsamples x nclasses]
+
+        Notes:
+        The final classifier operates as H(x) = sign(\sum_i w[i] h_i(x))
+            where 'i' is over classifiers.
+        Here we simply return (\sum_i w[i] h_i(x)), **so this isn't really a prob. distribution**
+        negative probs. are possible (eg. if everyone was a "perfect liar")
+        
         """
         if isinstance(lops, list):
             lops = np.array(lops)
@@ -575,9 +597,13 @@ class adaboost(object):
                 
             #so repeat the weights nclass times
             #weights are only for 'class 1', so use uniform weight on non-'1' classes
-            w = np.ones((npreds,nclass))
+            w = np.ones((npreds,nclass),dtype=np.float)/float(nclass)
             w[:,1] = self.weights
-
-            f = np.transpose([np.dot( lops[:,c::nclass], v)/v.sum()\
+            
+            f = np.transpose([np.dot( lops[:,c::nclass], v)\
                                   for c, v in enumerate(w.transpose())])
+            #AAR: hack to get predict_proba(class 1) in range 0<P<1
+            mx_psr = np.abs(self.weights).sum()
+            f[...,1] = (f[...,1]+mx_psr)/mx_psr/2.
+
             return f
