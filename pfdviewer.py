@@ -1569,7 +1569,7 @@ def feature_predict(clf, pfd):
                                    if f in c.feature])
         else:
             weights = clf.AIonAI.weights
-            avgs[f] = np.mean([c.predict_proba(pfd)[...,1][0]*weights[i]\
+            avgs[f] = np.sum([(c.predict_proba(pfd)[...,1][0]*2.-1)*weights[i]\
                                    for i, c in enumerate(clf.list_of_AIs) if f in c.feature])
             #note: H(x) = sign(sum_i w[i]*clf_i(x))
             #this is a small hack to get predict_proba in range 0<P<1
