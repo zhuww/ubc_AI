@@ -2,7 +2,6 @@ import random
 import numpy as np
 from sklearn.decomposition import RandomizedPCA as PCA
 from sklearn import svm, linear_model, tree, ensemble
-from sklearn.ensemble import GradientBoostingClassifier as GBC
 
 from ubc_AI.training import split_data
 from ubc_AI import pulsar_nnetwork as pnn 
@@ -56,7 +55,8 @@ class combinedAI(object):
             #grid-search optimized
             self.AIonAI = svm.SVC(C=15, kernel='poly', degree=5, probability=True, **kwds)
         elif strategy == 'forest':
-            self.AIonAI = ensemble.RandomForestClassifier(**kwds)
+            nleafs = len(list_of_AIs)/2
+            self.AIonAI = ensemble.RandomForestClassifier(min_samples_leaf=nleafs, **kwds)
         elif strategy == 'tree':
             nleafs = len(list_of_AIs)/2
             self.AIonAI = tree.DecisionTreeClassifier(min_samples_leaf=nleafs,**kwds)
@@ -66,7 +66,7 @@ class combinedAI(object):
         elif strategy == 'adaboost':
             self.AIonAI = adaboost(**kwds)
         elif strategy == 'gbc':
-            self.AIonAI = GBC(**kwds)
+            self.AIonAI = ensemble.GradientBoostingClassifier(**kwds)
         elif strategy == 'kitchensink':
             lr = linear_model.LogisticRegression(C=0.5, penalty='l1') 
             nn = pnn.NeuralNetwork(design=[64], gamma=1.5, maxiter=200) #2-class, 9-vote optimized
@@ -417,6 +417,12 @@ class dtreeclf(classifier, tree.DecisionTreeClassifier):
     orig_class = tree.DecisionTreeClassifier
     pass
 
+class ranforclf(classifier, ensemble.RandomForestClassifier):
+    """ 
+    the mixed in class for DecisionTree
+    """
+    orig_class = ensemble.RandomForestClassifier
+    pass
 
 class adaboost(object):
     """
