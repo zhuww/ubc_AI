@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 #from pylab import *
 class pfddata(pfd):
 
+    extracted_feature = {}
+
     def getdata(self, phasebins=0, freqbins=0, timebins=0, DMbins=0, intervals=0, subbands=0, bandpass=0, ratings=None):
         """
         input: feature=feature_size
@@ -23,7 +25,6 @@ class pfddata(pfd):
         """
         self.dedisperse(DM=self.bestdm, doppler=1)
         profs = self.profs
-        self.extracted_feature = {}
 
         def getsumprofs(M):
             feature = '%s:%s' % ('phasebins', M)

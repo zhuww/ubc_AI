@@ -13,9 +13,17 @@ def singleclass_score(classifier, test_pfds, test_target, verbose=False):
     pulsar = set([])
     truepulsar = set([])
     pred = classifier.predict(test_pfds)
+    if not test_target.ndim == 1:
+        try:
+            feature_target = test_target[..., classifier.targetmap[classifier.feature.keys()[0]]]
+        except AttributeError:
+            feature_target = test_target[..., 0]
+    else:
+        feature_target = test_target
+
     for i,p in enumerate(pred):
         #print test_target[i], int(predict)
-        if int(test_target[i]) == 1:
+        if int(feature_target[i]) == 1:
             truepulsar.add(i)
         if  int(p) == 1:
             pulsar.add(i)
@@ -98,15 +106,18 @@ class dataloader(object):
         with open(filename, 'r') as fileobj:
             originaldata = cPickle.load(fileobj)
             self.pfds = originaldata['pfds']
-            self.orig_target = originaldata['target']
-            if classmap == None:
-                self.classmap = {0:[4,5], 1:[6,7]}
+            if type(originaldata['target']) in [list] or originaldata['target'].ndim == 1:
+                self.orig_target = originaldata['target']
+                if classmap == None:
+                    self.classmap = {0:[4,5], 1:[6,7]}
+                else:
+                    self.classmap = classmap
+                self.target = self.orig_target[:]
+                for k, v in self.classmap.iteritems():
+                    for val in v:
+                        self.target[self.orig_target == val] = k 
             else:
-                self.classmap = classmap
-            self.target = self.orig_target[:]
-            for k, v in self.classmap.iteritems():
-                for val in v:
-                    self.target[self.orig_target == val] = k 
+                self.target = originaldata['target']
 
     def update_classmap(self,classmap):
         """

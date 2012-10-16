@@ -50,6 +50,10 @@ class combinedAI(object):
         """
         args: [list of pfd instances], target
         """
+        if target.ndim == 1:
+            psrtarget = target
+        else:
+            psrtarget = target[...,0]
         train_preds = []
         for clf in self.list_of_AIs:
             clf.fit(pfds,target, **kwds)
@@ -65,7 +69,7 @@ class combinedAI(object):
                                    for clf in self.list_of_AIs]
 
             predictions = np.array(predictions).transpose() #nsamples x npred
-            self.AIonAI.fit(predictions, target)
+            self.AIonAI.fit(predictions, psrtarget)
             
 # choose 'nvote' that maximizes the trianing-set performance                
         if self.strategy == 'vote' and self.nvote == None:
@@ -74,7 +78,7 @@ class combinedAI(object):
             for i in range(len(self.list_of_AIs)):
                 pct = (i+1.)/len(self.list_of_AIs)
                 avepred = np.where(train_preds.sum(axis=1) > pct, 1, 0)
-                this_score = np.mean(np.where(avepred == target, 1, 0))
+                this_score = np.mean(np.where(avepred == psrtarget, 1, 0))
                 if this_score > score:
                     self.nvote = i + 1
                     score = this_score
@@ -154,6 +158,8 @@ class combinedAI(object):
         """
         return the mean of success array [1,0,0,1,...,1], where 1 is being right, and 0 is being wrong.
         """
+        if not target.ndim == 1:
+            target = target[...,0]#feature labeling
         predict = self.predict(pfds)
         if not F1:
             return np.mean(np.where(predict == target, 1, 0))
@@ -187,6 +193,7 @@ class classifier(object):
         self.feature = feature
         self.use_pca = use_pca
         self.n_components = n_comp
+        self.targetmap = {'phasebins':1, 'DMbins':2, 'intervals':3, 'subbands':4, }
         super(classifier, self).__init__( *args, **kwds)
 
     def fit(self, pfds, target):
@@ -213,14 +220,18 @@ class classifier(object):
         if self.use_pca:
             self.pca = PCA(n_components=self.n_components).fit(data)
             data = self.pca.transform(data)
-        results = self.fit( data, target)
+        if target.ndim == 1:
+            results = self.fit( data, target)
+        else:
+            #print 'feature label recongnized!', self.targetmap[self.feature.keys()[0]], target.shape
+            results = self.fit( data, target[...,self.targetmap[self.feature.keys()[0]]])
         self.__class__ = current_class
         return results
         #return self.orig_class.fit(self, data, target)
 
     def predict(self, pfds):
         """
-        args: pfds, target
+        args: pfds
         pfds: the testing pfds
         """
         data = np.array([pfd.getdata(**self.feature) for pfd in pfds])
@@ -272,6 +283,9 @@ predict_proba(self, pfds) classifier method
         pfds: the testing pfds
         target: the testing targets
         """
+        if not target.ndim == 1:
+            #print 'feature label recongnized!'
+            target = target[..., self.targetmap[self.feature.keys()[0]]]
         #if 'test_pfds' in self.__dict__ and np.array(self.test_pfds == pfds).all() and str(self.feature) == self.last_feature:
             #print 'in score, skipping extract'
             #data = self.data
