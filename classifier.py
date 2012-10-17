@@ -50,11 +50,9 @@ class combinedAI(object):
         if strategy != 'vote' and strategy not in self.AIonAIs:
             raise "strategy %s is not recognized" % strategy
         if strategy == 'lr':
-            #grid-search optimized
-            self.AIonAI = linear_model.LogisticRegression(C=0.5, penalty='l1', **kwds)
+            self.AIonAI = linear_model.LogisticRegression(**kwds)
         elif strategy == 'svm':
-            #grid-search optimized
-            self.AIonAI = svm.SVC(C=15, kernel='poly', degree=5, probability=True, **kwds)
+            self.AIonAI = svm.SVC(probability=True, **kwds)
         elif strategy == 'forest':
             nleafs = len(list_of_AIs)/2
             self.AIonAI = ensemble.RandomForestClassifier(**kwds)
