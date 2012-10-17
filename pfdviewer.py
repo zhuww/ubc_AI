@@ -90,6 +90,17 @@ class MainFrameGTK(Gtk.Window):
         self.aiview_win.set_deletable(False)
         self.aiview_win.connect('delete-event', lambda w, e: w.hide() or True)
         self.pmatchwin_tog = self.builder.get_object('pmatchwin_tog')
+        #tmpAI window 
+        self.tmpAI_win = self.builder.get_object('tmpAI_votemat')
+        self.tmpAI_overall = self.builder.get_object('overall_vote')
+        self.tmpAI_phasebins = self.builder.get_object('phasebins_vote')
+        self.tmpAI_intervals = self.builder.get_object('intervals_vote')
+        self.tmpAI_subbands = self.builder.get_object('subbands_vote')
+        self.tmpAI_DMbins = self.builder.get_object('DMbins_vote')
+        self.tmpAI_tog = self.builder.get_object('tmpAI_tog')
+        self.tmpAI_lab = self.builder.get_object('tmpAI_lab')
+        self.tmpAI = None 
+        
         self.pmatch_win = self.builder.get_object('pmatch_win')
         self.pmatch_tree = self.builder.get_object('pmatch_tree')
         self.pmatch_store = self.builder.get_object('pmatch_store')
@@ -131,7 +142,7 @@ class MainFrameGTK(Gtk.Window):
         self.knownpulsars = {}
         #ATNF and GBNCC list of known pulsars
         if exists('%s/known_pulsars.pkl' % bdir):
-            self.knownpulsars = cPickle.load(open('known_pulsars.pkl'))
+            self.knownpulsars = cPickle.load(open('%s/known_pulsars.pkl' % bdir))
         elif exists('known_pulsars.pkl'):
             self.knownpulsars = cPickle.load(open('known_pulsars.pkl'))
         else:
@@ -269,7 +280,9 @@ class MainFrameGTK(Gtk.Window):
                 sgn = ''
                 name = 'J%s%s%s' % (''.join(pfd.rastr.split(':')[:2]), sgn,\
                                         ''.join(pfd.decstr.split(':')[:2]))
-            this_pulsar = KP.pulsar(fname, name, ra, dec, p0*1e-3, dm)
+#            this_pulsar = KP.pulsar(fname, name, ra, dec, p0*1e-3, dm)
+            this_pulsar = KP.pulsar(fname, name, ra, dec, p0, dm)
+                
             self.knownpulsars[fname] = this_pulsar
 
 
@@ -314,10 +327,21 @@ class MainFrameGTK(Gtk.Window):
 
         ncol = self.pfdstore.get_n_columns()
         if tmpiter != None:
-            
             fname = os.path.join(self.basedir, tmpstore.get_value(tmpiter, 0))
+
+#are we displaying the prediction from a tmpAI?            
+            if exists(fname) and fname.endswith('.pfd') and (self.tmpAI != None) and self.tmpAI_tog.get_active():
+                pfd = pfddata(fname)
+                pfd.dedisperse()
+                avgs = feature_predict(self.tmpAI, pfd)
+                self.update_tmpAI_votemat(avgs)
+                disp_apnd = '(tmpAI: %0.3f)' % (self.tmpAI.predict_proba(pfd)[...,1][0])
+            else:
+                disp_apnd = ''
+
 # find/create png file from input file
             fpng = self.create_png(fname)
+
             #update the basedir if necessary 
             if not exists(fpng):
                 fname = self.find_file(fname)
@@ -328,18 +352,13 @@ class MainFrameGTK(Gtk.Window):
 
                 if fpng and exists(fpng):
                     self.image.set_from_file(fpng)
-                    self.image_disp.set_text('displaying : %s' % 
-                                             basename(fname))
+                    self.image_disp.set_text('displaying : %s %s' % 
+                                             (basename(fname), disp_apnd))
                 else:
                     note = "Failed to generate png file %s" % fname
-#                    print note
+                    print note
                     self.statusbar.push(0,note)
                     self.image.set_from_file('')
-
-#                l = fname
-#                for i in range(1,ncol):
-#                    l += ' %s ' % tmpstore.get_value(tmpiter, i)
-#                print "active row",l
 
             else:
 
@@ -352,22 +371,21 @@ class MainFrameGTK(Gtk.Window):
                     fpng = self.check_AIviewfile_match(fname)
                     if not fpng:
                         fpng = self.generate_AIviewfile(fname)
-
                     if fpng and exists(fpng):
                         self.image.set_from_file(fpng)
-                        self.image_disp.set_text('displaying : %s' % fname)
+                        self.image_disp.set_text('displaying : %s %s' % (fname, disp_apnd))
                     else:
                         note = "Failed to generate png file %s" % fname
                         print note
                         self.statusbar.push(0,note)
                         self.image.set_from_file('')
-                        self.image_disp.set_text('displaying : %s' % fname)
+                        self.image_disp.set_text('displaying : %s %s' % (fname, disp_apnd))
                 elif fname.endswith('.png'):
                     note = "Can't generate AIview from png files"
                     self.statusbar.push(0, note)
                     fpng = fname
                     self.image.set_from_file(fpng)
-                    self.image_disp.set_text('display: %s ' % fpng)
+                    self.image_disp.set_text('displaying: %s %s' % (fpng, disp_apnd))
             self.find_matches()
 
     def create_png(self, fname):
@@ -376,6 +394,7 @@ class MainFrameGTK(Gtk.Window):
         if it doesn't already exist
 
         """
+
         if fname.endswith('.ps'):
             fpng = fname.replace('.ps', '.png')
             if not exists(fpng):
@@ -411,9 +430,11 @@ class MainFrameGTK(Gtk.Window):
 
 
     #see if png exists locally already, otherwise generate it
+
         if not exists(fpng) and exists(fname):
             #convert to png (convert accepts .ps, or .pfd file)
             fpng = convert(fname)
+
         return fpng
 
     def find_file(self, fname):
@@ -427,6 +448,11 @@ class MainFrameGTK(Gtk.Window):
         """
         if not exists(fname):
             print "Can't find %s" % fname
+            dlg = Gtk.MessageDialog(self, 0, Gtk.MessageType.INFO,
+                                    Gtk.ButtonsType.OK,
+                                    "Can't find %s.\n\n Please select a base path for this file" % fname)
+            response = dlg.run()
+            dlg.destroy()
             dialog = Gtk.FileChooserDialog("Choose base path for %s" % \
                                                os.path.splitext(fname)[0],
                                            self, Gtk.FileChooserAction.SELECT_FOLDER,
@@ -436,6 +462,8 @@ class MainFrameGTK(Gtk.Window):
             response = dialog.run()
             if response == Gtk.ResponseType.OK:
                 self.basedir = dialog.get_filename()
+                print "Setting basepath to %s" % self.basedir
+                self.statusbar.push(0, 'Setting basepath to %s' % self.basedir)
             else:
                 self.basedir = './'
             dialog.destroy()
@@ -660,18 +688,35 @@ class MainFrameGTK(Gtk.Window):
 
                 if fname.endswith('.pfd'):
                     fname = os.path.join(self.basedir, fname)
-    # find/create png file from input file
-                    fpng = self.create_png(fname)
-                #update the basedir if necessary 
-                    if not exists(fpng):
-                        fname = self.find_file(fname)
+                    if not self.aiview.get_active():
+                        # find/create png file from input file
                         fpng = self.create_png(fname)
+                       #update the basedir if necessary 
+                        if not exists(fpng):
+                            fname = self.find_file(fname)
+                            fpng = self.create_png(fname)
+                    elif exists(fname):
+                        fpng = self.check_AIviewfile_match(fname)
+                        if not fpng:
+                            fpng = self.generate_AIviewfile(fname)
+                    else:
+                        fpng = ''
 
+#are we displaying the prediction from a tmpAI?            
+                    if exists(fname) and fname.endswith('.pfd') and (self.tmpAI != None) and self.tmpAI_tog.get_active():
+                        pfd = pfddata(fname)
+                        pfd.dedisperse()
+                        avgs = feature_predict(self.tmpAI, pfd)
+                        self.update_tmpAI_votemat(avgs)
+                        disp_apnd = '(tmpAI: %0.3f)' % (self.tmpAI.predict_proba(pfd)[...,1][0])
+                    else:
+                        disp_apnd = ''
+                        
     #                print "Showing image",fname
-                    if exists(fpng):
+                    if fpng and exists(fpng):
                         self.image.set_from_file(fpng)
-                        self.image_disp.set_text('displaying : %s' % \
-                                                     basename(fname))
+                        self.image_disp.set_text('displaying : %s %s' % \
+                                                     (basename(fname), disp_apnd))
                         if basename(fname) == basename(candname):
                             disp = 'Possible matches to %s' % basename(candname)
                         else:
@@ -683,6 +728,74 @@ class MainFrameGTK(Gtk.Window):
                             disp = 'Possible matches to %s\n' % basename(candname)
                             disp += '               (displaying %s (%s))' % (basename(fname), vote)
                         self.pmatch_lab.set_text(disp)
+
+    def on_tmpAI_toggled(self, event):
+        """
+        if 'on', load a pickled classifier and display
+        its' prediction. 
+
+        Otherwise 'forget' the loaded classifier
+
+        """
+        if self.tmpAI_tog.get_active():
+            dialog = Gtk.FileChooserDialog("load a pickled classifier", self,
+                                           Gtk.FileChooserAction.OPEN,
+                                           (Gtk.STOCK_CANCEL,
+                                            Gtk.ResponseType.CANCEL,
+                                            Gtk.STOCK_OPEN, Gtk.ResponseType.OK))
+            response = dialog.run()
+            if response == Gtk.ResponseType.OK:
+                fname = dialog.get_filename()
+                try:
+                    self.tmpAI = cPickle.load(open(fname))
+                    self.tmpAI_lab.set_text(basename(fname))
+                except (IOError, EOFError):
+                    print "couldn't load %s" % fname
+                    self.statusbar.push(0,"couldn't load %s" % fname)
+                    self.tmpAI = None
+                    self.tmpAI_lab.set_text('')
+            else:
+                self.tmpAI = None
+                self.tmpAI_lab.set_text('')                
+            dialog.destroy()
+        else:
+            self.tmpAI = None
+        
+        if self.tmpAI == None:
+            self.tmpAI_win.hide()
+        else:
+            self.tmpAI_win.show_all()
+
+    def update_tmpAI_votemat(self, avgs):
+        """
+        given a dictionary of performances for the various features,
+        update the tmpAI_vote window
+
+        """
+
+        if 'phasebins' in avgs:
+            self.tmpAI_phasebins.set_text('profile : %0.3f' % avgs['phasebins'])
+        else:
+            self.tmpAI_phasebins.set_text('profile : N/A')
+        if 'intervals' in avgs:
+            self.tmpAI_intervals.set_text('intervals : %0.3f' % avgs['intervals'])
+        else:
+            self.tmpAI_intervals.set_text('intervals : N/A')
+        if 'subbands' in avgs:
+            self.tmpAI_subbands.set_text('subbands : %0.3f' % avgs['subbands'])
+        else:
+            self.tmpAI_subbands.set_text('subbands : N/A')
+        if 'DMbins' in avgs:
+            self.tmpAI_DMbins.set_text('DMbins : %0.3f' % avgs['DMbins'])
+        else:
+            self.tmpAI_DMbins.set_text('DMbins : N/A')
+        
+        if 'overall' in avgs:
+            self.tmpAI_overall.set_text('overall voting performance: %0.4f' % avgs['overall'])
+        else:
+            self.tmpAI_overall.set_text('overall voting performance: N/A')
+
+                
 
     def on_aiview_toggled(self, event):
         """
@@ -886,7 +999,7 @@ class MainFrameGTK(Gtk.Window):
         
         
         dialog = Gtk.MessageDialog(self, 0, Gtk.MessageType.INFO,
-                                   Gtk.ButtonsType.OK, note)
+                                   Gtk.ButtonsType.OK_CANCEL, note)
         response = dialog.run()
         dialog.destroy()
         
@@ -1068,7 +1181,8 @@ class MainFrameGTK(Gtk.Window):
                     sgn = '' 
                 name = 'J%s%s%s' % (''.join(pfd.rastr.split(':')[:2]), sgn,\
                                         ''.join(pfd.decstr.split(':')[:2]))
-                this_pulsar = KP.pulsar(fname, name, ra, dec, p0*1e-3, dm)
+#                this_pulsar = KP.pulsar(fname, name, ra, dec, p0*1e-3, dm)
+                this_pulsar = KP.pulsar(fname, name, ra, dec, p0, dm)
                 this_idx = self.data['fname'] == store_name
                 if len(this_idx[this_idx]) > 0:
                     this_vote = self.data[act_name][this_idx][0]
@@ -1077,7 +1191,7 @@ class MainFrameGTK(Gtk.Window):
                 self.pmatch_tree.set_model(None)
                 self.pmatch_store.clear()
                 nm = 'This Candidate'
-                nm = basename(fname)
+                nm = fname #basename(fname)
                 self.pmatch_store.append([nm,str(np.round(this_pulsar.P0,5)),\
                                               this_pulsar.DM, this_pulsar.ra,\
                                               this_pulsar.dec, this_vote])
@@ -1149,6 +1263,7 @@ class MainFrameGTK(Gtk.Window):
         if len(pathlist) > 0:
             path = pathlist[0]
             self.pfdtree.set_cursor(path)
+            self.statusbar.push(0, "")
         else:
             self.statusbar.push(0,"Please select a row")
                     
@@ -1165,6 +1280,7 @@ class MainFrameGTK(Gtk.Window):
             if npath:
                 nextpath = model.get_path(npath)
                 self.pfdtree.set_cursor(nextpath) 
+            self.statusbar.push(0, "")
         else:
             self.statusbar.push(0,"Please select a row")
 #        self.find_matches()
@@ -1182,6 +1298,7 @@ class MainFrameGTK(Gtk.Window):
             if prevn:
                 prevpath = model.get_path(prevn)
                 self.pfdtree.set_cursor(prevpath)
+            self.statusbar.push(0, "")
         else:
             self.statusbar.push(0,"Please select a row")
 #        self.find_matches()
@@ -1237,9 +1354,9 @@ def convert(fin):
 
     """
     global show_pfd
-    fout = None
+    fout = ''
     if not exists(fin):
-        print "Can't find file %s" % abspath(fin)
+        print "Convert: can't find file %s" % abspath(fin)
         return fout
 
     if fin.endswith('.pfd'):
@@ -1275,7 +1392,7 @@ def convert(fin):
                     if fnew != abspath(fold):
                         os.remove(fnew)
                 else:
-                    if dirname(fnew) != abspath(pfddir):
+                    if dirname(fnew) != abspath(pfddir) and exists(fnew):
                         shutil.move(fnew, pfddir)
             # assign fin to ps file so it converts to png below
             fin = abspath(os.path.join(pfddir, "%s.ps" % pfdname))
@@ -1436,6 +1553,33 @@ def messagedialog(dialog_type, short, long=None, parent=None,
     response = d.run()
     d.destroy()
     return response
+
+def feature_predict(clf, pfd):
+    """
+    given a classifier and pfd file,
+    return the predict_proba for the individual features and overall performance.
+
+    Assumes 'pulsar' class in label '1'
+    """
+    features = ['phasebins', 'intervals', 'subbands', 'DMbins']
+    avgs = {}
+    for f in features:
+        if clf.strategy != 'adaboost':
+            avgs[f] = np.mean([c.predict_proba(pfd)[...,1][0] for c in clf.list_of_AIs \
+                                   if f in c.feature])
+        else:
+            weights = clf.AIonAI.weights
+            avgs[f] = np.sum([(c.predict_proba(pfd)[...,1][0]*2.-1)*weights[i]\
+                                   for i, c in enumerate(clf.list_of_AIs) if f in c.feature])
+            #note: H(x) = sign(sum_i w[i]*clf_i(x))
+            #this is a small hack to get predict_proba in range 0<P<1
+            max_psr = np.sum([np.abs(weights[i])\
+                                  for i, c in enumerate(clf.list_of_AIs) if f in c.feature])
+            avgs[f] = (avgs[f]+max_psr)/max_psr/2.
+            
+    avgs['overall'] = clf.predict_proba(pfd)[...,1][0]
+    #note, if feature isn't present np.mean([]) == nan
+    return avgs
 
 def harm_ratio(a,b):
     """
