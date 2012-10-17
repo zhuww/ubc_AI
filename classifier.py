@@ -83,7 +83,6 @@ class combinedAI(object):
 #            self.AIonAI = combinedAI([lr,nn,svc, dtree], strategy='lr')
             self.AIonAI = combinedAI([lr,nn,svc,dtree], strategy='adaboost')
 
->>>>>>> d63716071b139641a5bfa7ce2892917a729bbb15
         self.nvote = nvote
         self.nclasses = None #keep track of number of classes (determined in 'fit')
 
