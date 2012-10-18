@@ -1197,7 +1197,8 @@ class MainFrameGTK(Gtk.Window):
                                               this_pulsar.dec, this_vote])
                 matches = KP.matches(self.knownpulsars, this_pulsar)
                 for m in matches:
-                    num, den = harm_ratio(np.round(this_pulsar.P0,4), np.round(m.P0,4))
+                    num, den = harm_ratio(np.round(this_pulsar.P0,5), np.round(m.P0,5))
+                    if num == 0: continue #don't include if this isn't a harmonic match
                     idx = self.data['fname'] == m.name
                     if len(idx[idx]) > 0:
                         try:
@@ -1586,7 +1587,7 @@ def harm_ratio(a,b):
     given two numbers, find the harmonic ratio
 
     """
-    c = fractions.Fraction(a/b).limit_denominator(max_denominator=150)
+    c = fractions.Fraction(a/b).limit_denominator(max_denominator=50)
     return c.numerator, c.denominator
 
 if __name__ == '__main__':        
