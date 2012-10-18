@@ -96,9 +96,9 @@ class combinedAI(object):
         """
         #train the individual classifiers on a random subset of data
         for clf in self.list_of_AIs:
-            tr_data, tr_target, te_data, te_target = split_data(pfds, target, pct=0.75)
+            tr_pfds, tr_target, te_pfds, te_target = split_data(pfds, target, pct=0.75)
 #            clf.fit(pfds, target, **kwds)
-            clf.fit(tr_data, tr_target, **kwds)
+            clf.fit(tr_pfds, tr_target, **kwds)
 
         self.nclasses = len(np.unique(target))
         if self.nclasses > 2 and self.strategy == 'adaboost':
