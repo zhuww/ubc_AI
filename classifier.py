@@ -2,6 +2,7 @@ import random
 import numpy as np
 from sklearn.decomposition import RandomizedPCA as PCA
 from sklearn import svm, linear_model, tree, ensemble
+from sklearn.ensemble import GradientBoostingClassifier as GBC
 
 from ubc_AI.training import split_data
 from ubc_AI import pulsar_nnetwork as pnn 
@@ -49,24 +50,28 @@ class combinedAI(object):
         if strategy != 'vote' and strategy not in self.AIonAIs:
             raise "strategy %s is not recognized" % strategy
         if strategy == 'lr':
-            #grid-search optimized
-            self.AIonAI = linear_model.LogisticRegression(C=0.5, penalty='l1', **kwds)
+            self.AIonAI = linear_model.LogisticRegression(**kwds)
         elif strategy == 'svm':
-            #grid-search optimized
-            self.AIonAI = svm.SVC(C=15, kernel='poly', degree=5, probability=True, **kwds)
+            self.AIonAI = svm.SVC(probability=True, **kwds)
         elif strategy == 'forest':
             nleafs = len(list_of_AIs)/2
-            self.AIonAI = ensemble.RandomForestClassifier(min_samples_leaf=nleafs, **kwds)
+            self.AIonAI = ensemble.RandomForestClassifier(**kwds)
         elif strategy == 'tree':
             nleafs = len(list_of_AIs)/2
             self.AIonAI = tree.DecisionTreeClassifier(min_samples_leaf=nleafs,**kwds)
         elif strategy == 'nn':
+            if 'design' in kwds:
+                self.AIonAI = pnn.NeuralNetwork(**kwds)
+            else:
+                n = max(1,int(len(list_of_AIs)/2))
+                self.AIonAI = pnn.NeuralNetwork(design=[n,2], **kwds)
+                    
             #grid-search optimized (2class)
-            self.AIonAI = pnn.NeuralNetwork(gamma=15, design=[64], **kwds) 
+            #self.AIonAI = pnn.NeuralNetwork(gamma=15, design=[64], **kwds) 
         elif strategy == 'adaboost':
             self.AIonAI = adaboost(**kwds)
         elif strategy == 'gbc':
-            self.AIonAI = ensemble.GradientBoostingClassifier(**kwds)
+            self.AIonAI = GBC(**kwds)
         elif strategy == 'kitchensink':
             lr = linear_model.LogisticRegression(C=0.5, penalty='l1') 
             nn = pnn.NeuralNetwork(design=[64], gamma=1.5, maxiter=200) #2-class, 9-vote optimized
