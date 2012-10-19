@@ -100,9 +100,9 @@ class combinedAI(object):
             psrtarget = target[...,0]
         train_preds = []
         for clf in self.list_of_AIs:
-            tr_data, tr_target, te_data, te_target = split_data(pfds, target, pct=0.75)
+            tr_pfds, tr_target, te_pfds, te_target = split_data(pfds, target, pct=0.75)
 #            clf.fit(pfds, target, **kwds)
-            clf.fit(tr_data, tr_target, **kwds)
+            clf.fit(tr_pfds, tr_target, **kwds)
 
         self.nclasses = len(np.unique(target))
         if self.nclasses > 2 and self.strategy == 'adaboost':
@@ -299,15 +299,19 @@ class classifier(object):
             data = np.array([pfd.getdata(**self.feature) for pfd in pfds])
         current_class = self.__class__
         self.__class__ = self.orig_class
-        if self.use_pca:
-            self.pca = PCA(n_components=self.n_components).fit(data)
-            data = self.pca.transform(data)
-        if target.ndim == 1:
-            results = self.fit( data, target)
-        else:
-            #print 'feature label recongnized!', self.targetmap[self.feature.keys()[0]], target.shape
-            results = self.fit( data, target[...,self.targetmap[self.feature.keys()[0]]])
-        self.__class__ = current_class
+        try:
+            if self.use_pca:
+                self.pca = PCA(n_components=self.n_components).fit(data)
+                data = self.pca.transform(data)
+            if target.ndim == 1:
+                results = self.fit( data, target)
+            else:
+                #print 'feature label recongnized!', self.targetmap[self.feature.keys()[0]], target.shape
+                results = self.fit( data, target[...,self.targetmap[self.feature.keys()[0]]])
+        except KeyboardInterrupt as detail:
+            print sys.exc_info()[0], detail
+        finally:
+            self.__class__ = current_class
         return results
         #return self.orig_class.fit(self, data, target)
 
