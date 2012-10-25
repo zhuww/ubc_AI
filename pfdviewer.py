@@ -140,7 +140,7 @@ class MainFrameGTK(Gtk.Window):
         self.savefile = None
         self.loadfile = None 
         self.knownpulsars = {}
-        #ATNF and GBNCC list of known pulsars
+        #ATNF, PALFA and GBNCC list of known pulsars
         if exists('%s/known_pulsars.pkl' % bdir):
             self.knownpulsars = cPickle.load(open('%s/known_pulsars.pkl' % bdir))
         elif exists('known_pulsars.pkl'):
@@ -972,7 +972,7 @@ class MainFrameGTK(Gtk.Window):
         self.pfdtree.set_cursor(0)
 
         if self.knownpulsars == None:
-            self.statusbar.push(0,'Downloading ATNF and GBNCC list of known pulsars')
+            self.statusbar.push(0,'Downloading ATNF, PALFA and GBNCC list of known pulsars')
             self.knownpulsars = KP.get_allpulsars()
             self.statusbar.push(0,'Downloaded %s known pulsars for x-ref'\
                                 % len(self.knownpulsars))
@@ -1201,6 +1201,7 @@ class MainFrameGTK(Gtk.Window):
                     #don't include if this isn't a harmonic match
                     if num == 0: continue
                     #don't include pulsars with 50% difference in DM
+                    if m.DM == np.nan: continue
                     if (this_pulsar.DM - m.DM)/this_pulsar.DM > 0.5: continue 
                     idx = self.data['fname'] == m.name
                     if len(idx[idx]) > 0:

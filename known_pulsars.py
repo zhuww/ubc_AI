@@ -15,16 +15,23 @@ from BeautifulSoup import BeautifulSoup
 def get_allpulsars():
     """
     return dictionary of all pulsars found in 
-    ATNF and GBNCC databases
+    ATNF, PALFA and GBNCC databases
     """
     allpulsars = {}
     atnf = ATNF_pulsarlist()
     gbncc = GBNCC_pulsarlist()
+    palfa = PALFA_pulsarlist()
     for k, v in atnf.iteritems():
         allpulsars[k] = v
     for k, v in gbncc.iteritems():
         if k in allpulsars:
-            print "%s may be in ATNF database already" % k
+            print "GBNCC %s may be in ATNF database already" % k
+        allpulsars[k] = v
+    for k, v in palfa.iteritems():
+        if k in allpulsars:
+            if ('%4.3f' % allpulsars[k].P0) == ('%4.3f' % v.P0):
+                print "PALFA psr %s is already in ATNF database" % k
+                continue
         allpulsars[k] = v
     return allpulsars
 
@@ -87,6 +94,82 @@ def GBNCC_pulsarlist():
                                P0=p0, DM=dm, gbncc=True)
 
     return pulsars
+
+def PALFA_pulsarlist():
+    """
+    gather the pulsars listed on the palfa discover page
+
+    return:
+    dictionary of pulsars keyed by PSRJ
+    """
+    url = 'http://www.naic.edu/~palfa/newpulsars/'
+    sock = urllib.urlopen(url)
+    data = sock.read()
+    soup = BeautifulSoup(data)
+    sock.close()
+    table = soup.findAll('table')[0] #pulsars are in first table
+    rows = table.findAll('tr')[1:]
+    pinfo = PALFA_jodrell_extrainfo()
+    pulsars = {}
+    for row in rows:
+        cols = row.findAll('td')
+        name = cols[1].text
+        if name == 'J2010+31': continue #skip single-pulse 
+        try:
+            p0 = np.float(cols[2].text.strip('~'))/1000. #[ms]-->[s]
+        except:
+            p0 = np.nan
+        if pinfo.has_key(name):
+            if int(pinfo[name][0]*1000) == int(p0*1000):
+                dm = pinfo[name][1]
+            else:
+                dm = np.nan
+        else:
+            dm = np.nan 
+        coords = name.strip('J')
+        if '+' in coords:
+            raj = coords.split('+')[0]
+            raj = str('%s:%s' % (raj[0:2],raj[2:]))
+            decj = str('+%s:00' % coords.split('+')[1])
+        else:
+            raj = coords.split('')[0]
+            raj = str('%s:%s' % (raj[0:2],raj[2:]))
+            decj = str('-%s:00' % coords.split('-')[1])
+
+        pulsars[name] = pulsar(name=name, psrj=name,
+                               ra=raj, dec=decj,
+                               P0=p0, DM=dm, gbncc=True)
+
+    return pulsars
+
+def PALFA_jodrell_extrainfo():
+    """
+    return a dictionary keyed by the pulsar name, with values
+    (p0, DM). 
+    This is because http://www.naic.edu/~palfa/newpulsars/
+    doesn't list the DM, but 
+    http://www.jodrellbank.manchester.ac.uk/research/pulsar/PALFA/
+    does.
+
+    """
+    url = 'http://www.jodrellbank.manchester.ac.uk/research/pulsar/PALFA/'
+    sock = urllib.urlopen(url)
+    data = sock.read()
+    soup = BeautifulSoup(data)
+    sock.close()
+    table = soup.findAll('table')[0] #pulsars are in first table
+    rows = table.findAll('tr')[1:]
+    pulsars = {}
+    for row in rows:
+        cols = row.findAll('td')
+        name = 'J%s' % cols[0].text.strip('_jb.tim')
+        dm = np.float(cols[3].text)
+        p0 = np.float(cols[2].text)/1000. #[ms] --> [s]
+        coords = name.strip('J')
+        pulsars[name] = (p0, dm)
+    return pulsars
+
+
 #               
 #    ______  __ __|  |   ___________ _______ 
 #    \____ \|  |  \  |  /  ___/\__  \\_  __ \
