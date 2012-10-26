@@ -1176,8 +1176,11 @@ class MainFrameGTK(Gtk.Window):
 # see if this path exists, update self.basedir if necessary
 #            self.find_file(fname)
             if exists(fname) and fname.endswith('.pfd'):
-                pfd = pfddata(fname)
-                pfd.dedisperse()
+                try:
+                    pfd = pfddata(fname)
+                    pfd.dedisperse()
+                except ValueError:
+                    print "prepfold can't parse %s" % fname
                 dm = pfd.bestdm
                 ra = pfd.rastr 
                 dec = pfd.decstr 
@@ -1417,11 +1420,19 @@ def convert(fin):
                         shutil.move(pin, pout)
                 time.sleep(.05)
 
-
+#THIS one works, get rid of other ones
+                possible_name = pfd.pgdev.strip('.ps/CPS') 
+                for ext in ['ps', 'bestprof']:
+                    pin = '%s.%s' % (possible_name, ext)
+                    if os.path.exists(pin):
+                        pout = '%s.%s' % (pfdname, ext)
+                        shutil.move(pin, pout)
+                time.sleep(.05)
+                
 
                 b = os.path.splitext(pfd.filenm)[0]
                 possible_names = glob.glob('%s*' % b)
-                for pin in possible_names:
+                for pin in []:# possible_names:
                     if pin.endswith('.ps'):
                         pout = '%s.%s' % (pfdname, 'ps')
                         shutil.move(pin, pout)
