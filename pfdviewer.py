@@ -18,12 +18,14 @@ png: quick to display
 import atexit
 import cPickle
 import fractions
+import glob
 import numpy as np
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from os.path import abspath, basename, dirname, exists
 
 from gi.repository import Gtk, Gdk
@@ -51,6 +53,11 @@ for p in os.environ.get('PATH').split(':'):
 if not show_pfd:
     print "\tCouldn't find PRESTO's show_pfd executable"
     print "\t This will limit functionality"
+try:
+    from prepfold import pfd as PFD
+except(ImportError):
+    print "Consider adding PRESTO's modules to your python path"
+    PFD = None
 
 #iter on each "n". auto-save after every 10
 cand_vote = 0
@@ -1387,6 +1394,40 @@ def convert(fin):
             cmd = [show_pfd, '-noxwin', full_path]
             subprocess.call(cmd, shell=False,
                             stdout=open('/dev/null','w'))
+            time.sleep(.05) #let filesystem catch up
+            #sometimes the show_pfd file is named differently
+            #we preserve the filesystem name, not the name
+            #defined *in* the pfdfile
+            if not os.path.exists( '%s.ps' % pfdname) and (PFD != None):
+                pfd = PFD(full_path)
+                possible_name = pfd.filenm + '.pfd'
+
+                for ext in ['ps', 'bestprof']:
+                    pin = '%s.%s' %(possible_name, ext)
+                    if os.path.exists(pin):
+                        pout = '%s.%s' % (pfdname, ext)
+                        shutil.move(pin, pout)
+                        found = True
+
+                possible_name = pfdname.replace('_ACCEL_','')
+                for ext in ['ps', 'bestprof']:
+                    pin = '%s.%s' %(possible_name, ext)
+                    if os.path.exists(pin):
+                        pout = '%s.%s' % (pfdname, ext)
+                        shutil.move(pin, pout)
+                time.sleep(.05)
+
+                b = os.path.splitext(pfd.filenm)[0]
+                possible_names = glob.glob('%s*' % b)
+                for pin in possible_names:
+                    if pin.endswith('.ps'):
+                        pout = '%s.%s' % (pfdname, 'ps')
+                        shutil.move(pin, pout)
+                        print "moving %s to %s", pin, pout
+                    if pin.endswith('.bestprof'):
+                        pout = '%s.%s' % (pfdname, 'bestprof')
+                        shutil.move(pin, pout)
+
             #delete the newly generated files if they already exist
             #otherwise move them to same location as pfd file
             for ext in ['ps','bestprof']:
