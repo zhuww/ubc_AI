@@ -1420,7 +1420,7 @@ def convert(fin):
                 #show_pfd outputs to CWD
                 fnew = abspath('%s.%s' % (pfdname, ext))
                 fold = os.path.join(pfddir, '%s.%s' % (pfdname, ext))
-                print "\nMOVING %s to %s" %(fold, fnew)
+                print "\nMOVING %s to %s" %(fnew, pfddir)
                 if exists(fold):
                     if fnew != abspath(fold):
                         os.remove(fnew)
@@ -1433,7 +1433,7 @@ def convert(fin):
             #conversion failed
             fout = None
 
-    if fin.endswith('.ps'):
+    if fin.endswith('.ps') and os.path.exists(fin):
         bdir = dirname(abspath(fin))
         bname = basename(fin)
         fout = os.path.join(bdir, bname.replace('.ps','.png')) 
