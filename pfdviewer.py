@@ -1409,13 +1409,15 @@ def convert(fin):
                         shutil.move(pin, pout)
                         found = True
 
-                possible_name = pfdname.replace('_ACCEL_','')
+                possible_name = pfdname.replace('ACCEL_Cand', pfd.candnm)
                 for ext in ['ps', 'bestprof']:
                     pin = '%s.%s' %(possible_name, ext)
                     if os.path.exists(pin):
                         pout = '%s.%s' % (pfdname, ext)
                         shutil.move(pin, pout)
                 time.sleep(.05)
+
+
 
                 b = os.path.splitext(pfd.filenm)[0]
                 possible_names = glob.glob('%s*' % b)
