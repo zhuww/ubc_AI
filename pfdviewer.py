@@ -1213,6 +1213,7 @@ class MainFrameGTK(Gtk.Window):
                     if num == 0: continue
                     #don't include pulsars with 50% difference in DM
                     if m.DM == np.nan: continue
+                    if this_pulsar.DM == 0.: continue
                     if (this_pulsar.DM - m.DM)/this_pulsar.DM > 0.5: continue 
                     idx = self.data['fname'] == m.name
                     if len(idx[idx]) > 0:
@@ -1399,34 +1400,28 @@ def convert(fin):
             subprocess.call(cmd, shell=False,
                             stdout=open('/dev/null','w'))
 
-            #sometimes the show_pfd file is named differently
-            #we preserve the filesystem name, not the name
-            #defined *in* the pfdfile
-            if not os.path.exists( '%s.ps' % pfdname) and (PFD != None):
+            #show_pfd uses pfd.pgdev for the output filename
+            #move that to the 
+            if (PFD != None):
                 pfd = PFD(full_path)
-
-#THIS one works, get rid of other ones
-                possible_name = pfd.pgdev.strip('.ps/CPS') 
+                show_name = pfd.pgdev.strip('.ps/CPS') 
                 for ext in ['ps', 'bestprof']:
-                    pin = '%s.%s' % (possible_name, ext)
+                    pin = '%s.%s' % (show_name, ext)
+                    pout = os.path.join(pfddir, '%s.%s' %(pfdname, ext))
                     if os.path.exists(pin):
-                        pout = '%s.%s' % (pfdname, ext)
                         shutil.move(pin, pout)
-                        print "\nMoving %s to %s\n" %(pin,pout)
-
-            #delete the newly generated files if they already exist
-            #otherwise move them to same location as pfd file
-            for ext in ['ps','bestprof']:
+                        print "\nMoving %s to %s\n" %(pin, pout)
+            else:
+                #assume name was same as input filenameXXX
+                #move that to the pfddir
+                for ext in ['ps','bestprof']:
                 #show_pfd outputs to CWD
-                fnew = abspath('%s.%s' % (pfdname, ext))
-                fold = os.path.join(pfddir, '%s.%s' % (pfdname, ext))
-                print "\nMOVING %s to %s" %(fnew, pfddir)
-                if exists(fold):
-                    if fnew != abspath(fold):
-                        os.remove(fnew)
-                else:
-                    if dirname(fnew) != abspath(pfddir) and exists(fnew):
-                        shutil.move(fnew, pfddir)
+                    fnew = abspath('%s.%s' % (pfdname, ext))
+                    fold = os.path.join(pfddir, '%s.%s' % (pfdname, ext))
+                    print "\nMOVING %s to %s" %(fnew, fold)
+                    if os.path.exists(fnew):
+                        shutil.move(fnew, fold)
+
             # assign fin to ps file so it converts to png below
             fin = abspath(os.path.join(pfddir, "%s.ps" % pfdname))
         else:
