@@ -34,12 +34,18 @@ from training import pfddata
 from sklearn.decomposition import RandomizedPCA as PCA
 import known_pulsars as KP
 
+#check for ps --> png conversion utilities
 try:
     from PythonMagick import Image
     pyimage = True
 except ImportError:
-    print "\t Install PythonMagick or imagemagick if inputing postscript files"
     pyimage = False
+if not pyimage:
+    conv = subprocess.call(['which','convert'])
+    if conv == 1:
+        print "pfdviewer requires imagemagik's convert utility"
+        print "or, PythonMagick. Exiting..."
+        sys.exit()
 
 #PRESTO's show_pfd command:
 show_pfd = False
@@ -54,8 +60,11 @@ if not show_pfd:
 try:
     from prepfold import pfd as PFD
 except(ImportError):
-    print "Consider adding PRESTO's modules to your python path"
+    print "please add PRESTO's modules to your python path for more functionality"
     PFD = None
+
+
+
 
 #iter on each "n". auto-save after every 10
 cand_vote = 0
@@ -354,7 +363,6 @@ class MainFrameGTK(Gtk.Window):
             
             #we are not doing "AI view" of data
             if not self.aiview.get_active():
-
                 if fpng and exists(fpng):
                     self.image.set_from_file(fpng)
                     self.image_disp.set_text('displaying : %s %s' % 
@@ -1370,7 +1378,7 @@ def convert(fin):
     the name of the png file
 
     """
-    global show_pfd
+    global show_pfd, PFD, pyimage
     fout = ''
     if not exists(fin):
         print "Convert: can't find file %s" % abspath(fin)
@@ -1396,21 +1404,22 @@ def convert(fin):
             pfddir = dirname(abspath(fin))
             pfdname = basename(fin)
             full_path = abspath(fin)
+
             cmd = [show_pfd, '-noxwin', full_path]
             subprocess.call(cmd, shell=False,
                             stdout=open('/dev/null','w'))
 
             #show_pfd uses pfd.pgdev for the output filename
-            #move that to the 
+            #move that to filename.ps
             if (PFD != None):
                 pfd = PFD(full_path)
-                show_name = pfd.pgdev.strip('.ps/CPS') 
+                show_name = pfd.pgdev.replace('.ps/CPS', '') 
                 for ext in ['ps', 'bestprof']:
-                    pin = '%s.%s' % (show_name, ext)
+                    pin = '%s.%s' % (show_name, ext) 
                     pout = os.path.join(pfddir, '%s.%s' %(pfdname, ext))
                     if os.path.exists(pin):
                         shutil.move(pin, pout)
-                        print "\nMoving %s to %s\n" %(pin, pout)
+                        #print "\nMoving %s to %s\n" %(pin, pout)
             else:
                 #assume name was same as input filenameXXX
                 #move that to the pfddir
@@ -1418,7 +1427,6 @@ def convert(fin):
                 #show_pfd outputs to CWD
                     fnew = abspath('%s.%s' % (pfdname, ext))
                     fold = os.path.join(pfddir, '%s.%s' % (pfdname, ext))
-                    print "\nMOVING %s to %s" %(fnew, fold)
                     if os.path.exists(fnew):
                         shutil.move(fnew, fold)
 
