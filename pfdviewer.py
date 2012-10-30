@@ -1219,10 +1219,9 @@ class MainFrameGTK(Gtk.Window):
                     num, den = harm_ratio(np.round(this_pulsar.P0,5), np.round(m.P0,5))
                     #don't include if this isn't a harmonic match
                     if num == 0: continue
-                    #don't include pulsars with 50% difference in DM
-                    if m.DM == np.nan: continue
-                    if this_pulsar.DM == 0.: continue
-                    if (this_pulsar.DM - m.DM)/this_pulsar.DM > 0.5: continue 
+                    if (m.DM != np.nan) and (this_pulsar.DM != 0.):
+                        #don't include pulsars with 50% difference in DM
+                        if (this_pulsar.DM - m.DM)/this_pulsar.DM > 0.5: continue 
                     idx = self.data['fname'] == m.name
                     if len(idx[idx]) > 0:
                         try:
