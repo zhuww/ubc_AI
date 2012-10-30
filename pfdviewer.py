@@ -1307,11 +1307,14 @@ class MainFrameGTK(Gtk.Window):
                 matches = KP.matches(self.knownpulsars, this_pulsar)
                 for m in matches:
                     num, den = harm_ratio(np.round(this_pulsar.P0,5), np.round(m.P0,5))
+                    diff = abs( float(num)/float(den) - this_pulsar.P0/m.P0)
+                    pdiff = diff/m.P0*100.
                     #don't include if this isn't a harmonic match
-                    if num == 0: continue
+                    if pdiff > .05: continue
+
                     if (m.DM != np.nan) and (this_pulsar.DM != 0.):
-                        #don't include pulsars with 50% difference in DM
-                        if (this_pulsar.DM - m.DM)/this_pulsar.DM > 0.5: continue 
+                        #don't include pulsars with 25% difference in DM
+                        if (this_pulsar.DM - m.DM)/this_pulsar.DM > 0.25: continue 
                     idx = self.data['fname'] == m.name
                     if len(idx[idx]) > 0:
                         try:
@@ -1322,8 +1325,9 @@ class MainFrameGTK(Gtk.Window):
                         vote = np.nan
 #don't add the current candidate to the list of matches
                     if basename(m.name) != basename(nm):
-                        d = [m.name, "%s (%s/%s)" % (np.round(m.P0,5), num, den),\
-                                 m.DM, m.ra, m.dec, vote]
+                        txt = "%s (%s/%s) to %4.3f" % (np.round(m.P0,5), num, den, pdiff)
+                        txt += '%'
+                        d = [m.name, txt, m.DM, m.ra, m.dec, vote]
                         self.pmatch_store.append(d)
                 self.pmatch_tree.set_model(self.pmatch_store)
                 if len(matches) > 0:
