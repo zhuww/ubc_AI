@@ -63,7 +63,7 @@ def ATNF_pulsarlist():
         
         pulsars = {}
         for line in data:
-            p = pulsar(*line)
+            p = pulsar(*line,catalog='ATNF')
             pulsars[p.psrj] = p
 
         return pulsars
@@ -99,7 +99,8 @@ def GBNCC_pulsarlist():
 
         pulsars[name] = pulsar(name=name, psrj=name,
                                ra=raj, dec=decj,
-                               P0=p0, DM=dm, gbncc=True)
+                               P0=p0, DM=dm, gbncc=True,
+                               catalog=url)
 
     return pulsars
 
@@ -147,7 +148,8 @@ def PALFA_pulsarlist():
 
         pulsars[name] = pulsar(name=name, psrj=name,
                                ra=raj, dec=decj,
-                               P0=p0, DM=dm, gbncc=True)
+                               P0=p0, DM=dm, gbncc=True,
+                               catalog=url)
 
     return pulsars
 
@@ -206,7 +208,8 @@ def driftscan_pulsarlist():
             decj = str('-%s:00' % coords.split('-')[1])
         pulsars[name] =  pulsar(name=name, psrj=name,
                                ra=raj, dec=decj,
-                               P0=p0, DM=dm, gbncc=True)
+                               P0=p0, DM=dm, gbncc=True,
+                                catalog=url)
     return pulsars
 
 def ao327_pulsarlist():
@@ -237,7 +240,8 @@ def ao327_pulsarlist():
             decj = str('-%s:00' % coords.split('-')[1].strip('*'))
         pulsars[name] =  pulsar(name=name, psrj=name,
                                ra=raj, dec=decj,
-                               P0=p0, DM=dm, gbncc=True)
+                               P0=p0, DM=dm, gbncc=True,
+                                catalog=url)
     return pulsars
 
 def deepmb_pulsarlist():
@@ -265,7 +269,8 @@ def deepmb_pulsarlist():
             decj = str('-%s:00' % coords.split('-')[1])
         pulsars[name] =  pulsar(name=name, psrj=name,
                                ra=raj, dec=decj,
-                               P0=p0, DM=dm, gbncc=True)
+                               P0=p0, DM=dm, gbncc=True,
+                                catalog=url)
     return pulsars
 
 
@@ -276,6 +281,7 @@ def FERMI_pulsarlist():
 
     """
     import re
+    url = 'http://arxiv.org/pdf/1205.3089v1.pdf'
     lst = ["J0023+0923 GBT-350 1FGLJ0023.5+0930 3.05 14.3 0.7 0.14 0.017 BW, ",
            "J0101-6422 Parkes 1FGLJ0101.06423 2.57 12.0 0.6 1.78 0.16 ",
            "J0102+4839 GBT-350 1FGLJ0103.1+4840 2.96 53.5 2.3 1.67 0.18 ",
@@ -347,7 +353,8 @@ def FERMI_pulsarlist():
 
         pulsars[name] =  pulsar(name=name, psrj=name,
                                 ra=raj, dec=decj,
-                                P0=p0, DM=dm, gbncc=True)
+                                P0=p0, DM=dm, gbncc=True,
+                                catalog=url)
     return pulsars
         
         
@@ -357,6 +364,7 @@ def GBT350NGP_pulsarlist():
     http://arxiv.org/pdf/0710.1745v1.pdf
     name, P[ms], DM
     """
+    url = 'http://arxiv.org/pdf/0710.1745v1.pdf'
     lst =  ['J0033+57 315 76',
             'J0033+61 912 37',
             'J0054+66 1390 15',
@@ -407,7 +415,8 @@ def GBT350NGP_pulsarlist():
             decj = str('-%s:00' % coords.split('-')[1].strip('ABCDE'))
         pulsars[name] =  pulsar(name=name, psrj=name,
                                ra=raj, dec=decj,
-                               P0=p0, DM=dm, gbncc=True)
+                               P0=p0, DM=dm, gbncc=True,
+                                catalog=url)
     return pulsars
 
 #               
@@ -425,7 +434,7 @@ class pulsar():
    	ra/dec should be in HH:MM:SS or DD:MM:SS format
 
     """
-    def __init__(self, name, psrj, ra, dec, P0, DM, gbncc=False):
+    def __init__(self, name, psrj, ra, dec, P0, DM, gbncc=False, catalog=None):
         self.name = name
         self.psrj = psrj
         self.ra = ra 
@@ -441,6 +450,7 @@ class pulsar():
             self.DM = float(DM)
         except:
             self.DM = np.nan
+        self.catalog = catalog
 
 def hhmm2deg(hhmm):
     """

@@ -312,7 +312,7 @@ class MainFrameGTK(Gtk.Window):
                 name = 'J%s%s%s' % (''.join(pfd.rastr.split(':')[:2]), sgn,\
                                         ''.join(pfd.decstr.split(':')[:2]))
 #            this_pulsar = KP.pulsar(fname, name, ra, dec, p0*1e-3, dm)
-            this_pulsar = KP.pulsar(fname, name, ra, dec, p0, dm)
+            this_pulsar = KP.pulsar(fname, name, ra, dec, p0, dm, catalog='local')
                 
             self.knownpulsars[fname] = this_pulsar
 
@@ -714,6 +714,7 @@ class MainFrameGTK(Gtk.Window):
             path = pathlist[0]
             match_iter = model.get_iter(path)
             fname = self.pmatch_store[match_iter][0]
+
             
         # scroll through entire list of candidates until
         # we find the candidate, then switch to it
@@ -746,7 +747,6 @@ class MainFrameGTK(Gtk.Window):
 
         ncol = self.pfdstore.get_n_columns()
         if tmpiter != None:
-            
 #            candname = os.path.join(self.basedir, tmpstore.get_value(tmpiter, 0))
             candname = tmpstore.get_value(tmpiter, 0)
 
@@ -758,7 +758,16 @@ class MainFrameGTK(Gtk.Window):
                 tree_iter = model.get_iter(path)
     #update self.data (since dealing with TreeStore blows my mind)
                 fname, p0, dm, ra, dec, vote = self.pmatch_store[tree_iter]
-
+                if self.knownpulsars.has_key(fname):
+                    print "fname",fname
+                    cat = self.knownpulsars[fname].catalog
+                    self.statusbar.push(0,'Selected match found: %s' % cat)
+                else:
+                    z = [v.catalog for v in self.knownpulsars.values() if v.name == fname]
+                    if len(z) == 1:
+                        self.statusbar.push(0, 'Selected match found: %s' % z[0])
+                    else:
+                        self.statusbar.push(0, 'Selected match found: local')
                 if fname.endswith('.pfd'):
                     fname = os.path.join(self.basedir, fname)
                     if not self.aiview.get_active():
@@ -1501,7 +1510,7 @@ def convert(fin):
                         shutil.move(pin, pout)
                         #print "\nMoving %s to %s\n" %(pin, pout)
             else:
-                #assume name was same as input filenameXXX
+                #assume name was same as input filename
                 #move that to the pfddir
                 for ext in ['ps','bestprof']:
                 #show_pfd outputs to CWD
