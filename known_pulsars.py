@@ -33,8 +33,12 @@ def get_allpulsars():
     for survey, lst in two_join.iteritems():
         for k, v in lst.iteritems():
             if k in allpulsars:
-                print "pulsar %s from %s already in our database" % (k, survey)
-                continue
+                #add it in if P0 differ by 10ms
+                if int(100*allpulsars[k].P0) == int(100*v.P0):
+                    print "pulsar %s from %s already in our database" % (k, survey)
+                    continue
+                else:
+                    k += 'a'
             allpulsars[k] = v
 
     return allpulsars
@@ -226,11 +230,11 @@ def ao327_pulsarlist():
         if '+' in coords:
             raj = coords.split('+')[0]
             raj = str('%s:%s' % (raj[0:2],raj[2:]))
-            decj = str('+%s:00' % coords.split('+')[1])
+            decj = str('+%s:00' % coords.split('+')[1].strip('*'))
         else:
             raj = coords.split('-')[0]
             raj = str('%s:%s' % (raj[0:2],raj[2:]))
-            decj = str('-%s:00' % coords.split('-')[1])
+            decj = str('-%s:00' % coords.split('-')[1].strip('*'))
         pulsars[name] =  pulsar(name=name, psrj=name,
                                ra=raj, dec=decj,
                                P0=p0, DM=dm, gbncc=True)
@@ -396,11 +400,11 @@ def GBT350NGP_pulsarlist():
         if '+' in coords:
             raj = coords.split('+')[0]
             raj = str('%s:%s' % (raj[0:2],raj[2:]))
-            decj = str('+%s:00' % coords.split('+')[1])
+            decj = str('+%s:00' % coords.split('+')[1].strip('ABCDE'))
         else:
             raj = coords.split('-')[0]
             raj = str('%s:%s' % (raj[0:2],raj[2:]))
-            decj = str('-%s:00' % coords.split('-')[1])
+            decj = str('-%s:00' % coords.split('-')[1].strip('ABCDE'))
         pulsars[name] =  pulsar(name=name, psrj=name,
                                ra=raj, dec=decj,
                                P0=p0, DM=dm, gbncc=True)
@@ -425,7 +429,7 @@ class pulsar():
         self.name = name
         self.psrj = psrj
         self.ra = ra 
-        self.dec = dec 
+        self.dec = dec
         #keep track if this was listed on GBNCC page
         #since it only gives DEC to nearest degree (used in matching)
         self.gbncc = gbncc

@@ -104,6 +104,12 @@ class MainFrameGTK(Gtk.Window):
         self.aiview_win.set_deletable(False)
         self.aiview_win.connect('delete-event', lambda w, e: w.hide() or True)
         self.pmatchwin_tog = self.builder.get_object('pmatchwin_tog')
+        self.col_options = []
+        self.col1 = self.builder.get_object('col1')
+        self.col2 = self.builder.get_object('col2')
+        self.active_col1 = None
+        self.active_col2 = None
+
         #tmpAI window 
         self.tmpAI_win = self.builder.get_object('tmpAI_votemat')
         self.tmpAI_overall = self.builder.get_object('overall_vote')
@@ -128,7 +134,7 @@ class MainFrameGTK(Gtk.Window):
 #where are pfd/png/ps files stored
         self.basedir = '.'
 #AI prob is always 2nd col in GUI, use it to sort
-        for vi, v  in enumerate(['fname','AI prob', 'voter prob']):
+        for vi, v  in enumerate(['fname','col1_prob', 'col2_prob']):
             #only show two columns at a time
             cell = Gtk.CellRendererText()
             col = Gtk.TreeViewColumn(v, cell, text=vi)
@@ -141,7 +147,7 @@ class MainFrameGTK(Gtk.Window):
                 col.set_max_width(180)
             else:
                 col.set_expand(False)
-                col.set_max_width(60)
+                col.set_max_width(80)
             self.pfdtree.append_column(col)
         self.pfdtree.set_expander_column(expcol)
         self.pfdstore.set_sort_column_id(1,1)
@@ -169,9 +175,18 @@ class MainFrameGTK(Gtk.Window):
         # start with default and '<new>' voters
         if self.data != None:
             self.voters = list(self.data.dtype.names[1:])
+            for v in self.voters:
+                if v not in self.col_options:
+                    self.col_options.append(v)
+                    self.col1.append_text(v)
+                    self.col2.append_text(v)
+
             if 'AI' in self.voters:
                 AIi = self.voters.index('AI')
+                #start with AI as active, but it can never be active voter (so pop)
                 self.voters.pop(AIi)
+                self.active_col1 = self.col_options.index('AI')
+                self.col1.set_active(self.active_col1)
             if '<new>' not in self.voters:
                 self.voters.insert(0,'<new>')
             self.active_voter = 1
@@ -179,6 +194,8 @@ class MainFrameGTK(Gtk.Window):
             if len(self.voters) > 2:
                 self.active_voter = 1
                 self.voterbox.set_active(self.active_voter)
+                self.active_col2 = self.col_options.index(self.voters[self.active_voter]) #plus the AI vote
+                self.col2.set_active(self.active_col2)
             self.dataload_update()
         #put cursor on first col. if there is data
             self.pfdtree.set_cursor(0)
@@ -313,12 +330,49 @@ class MainFrameGTK(Gtk.Window):
             if self.data != None:
 #turn off the model first for speed-up
                 self.pfdtree.set_model(None)
-                self.pfdstore.clear()
-                for v in self.data[['fname','AI',act_name]]:
-                    self.pfdstore.append(v)
+                col1 = self.col1.get_active_text()
+                col2 = self.col2.get_active_text()
+                idx1 = self.col_options.index(col1)
+                idx2 = self.col_options.index(col2)
+                if (self.active_col1 != idx1) or (self.active_col2 != idx2):
+                    self.active_col1 = idx1
+                    self.active_col2 = idx2
+                    self.pfdstore.clear()
+                if idx1 != idx2:
+                    for v in self.data[['fname',col1,col2]]:
+                        self.pfdstore.append(v)
+                else:
+                    for v0, v1 in self.data[['fname',col1]]:
+                        self.pfdstore.append((v0,v1,v1))
 
                 self.pfdtree.set_model(self.pfdstore)
                 self.find_matches()
+
+    def on_col_changed(self, widget):
+        """
+        change the pfdstore whenever we change the column box
+
+        """
+        if self.data != None and self.active_col1 != None and\
+                self.active_col2 != None:
+            self.pfdtree.set_model(None)
+            col1 = self.col1.get_active_text()
+            col2 = self.col2.get_active_text()
+            idx1 = self.col_options.index(col1)
+            idx2 = self.col_options.index(col2)
+            if (self.active_col1 != idx1) or (self.active_col2 != idx2):
+                self.active_col1 = idx1
+                self.active_col2 = idx2
+                self.pfdstore.clear()
+                if idx1 != idx2:
+                    for v in self.data[['fname',col1,col2]]:
+                        self.pfdstore.append(v)
+                else:
+                    for v0,v1 in self.data[['fname',col1]]:
+                        self.pfdstore.append((v0,v1,v1))
+
+            self.pfdtree.set_model(self.pfdstore)
+            self.find_matches()
 
     def on_pfdtree_select_row(self, widget, event=None):#, data=None):
         """
@@ -631,11 +685,17 @@ class MainFrameGTK(Gtk.Window):
 
 #update self.data (since dealing with TreeStore blows my mind)
         fname, x, oval = self.pfdstore[tree_iter]
-        self.pfdstore[tree_iter][2] = value
+        col1 = self.col1.get_active_text()
+        col2 = self.col2.get_active_text()
+#        self.pfdstore[tree_iter][2] = value
         idx = self.data['fname'] == fname
         if self.active_voter:
             act_name = act_name = self.voters[self.active_voter]
             self.data[act_name][idx] = value
+            if col1 == act_name:
+                self.pfdstore[tree_iter][1] = value
+            if col2 == act_name:
+                self.pfdstore[tree_iter][2] = value
 
         if return_fname:
             return fname
@@ -878,6 +938,9 @@ class MainFrameGTK(Gtk.Window):
                     self.voters.append(d)
                     self.data = add_voter(d, self.data)
                     self.voterbox.append_text(d)
+                    if d not in self.col_options:
+                        self.col1.append_text(d)
+                        self.col2.append_text(d)
                     self.active_voter = len(self.voters) - 1
                 else:
                     note = 'User already exists. switching to it'
@@ -963,6 +1026,11 @@ class MainFrameGTK(Gtk.Window):
             self.data = load_data(fname)
             oldvoters = self.voters
             self.voters = list(self.data.dtype.names[1:]) #0=fnames
+            for v in self.voters:
+                if v not in self.col_options:
+                    self.col_options.append(v)
+                    self.col1.append_text(v)
+                    self.col2.append_text(v)
             AIi = self.voters.index('AI')
             self.voters.pop(AIi)
             if '<new>' not in self.voters:
@@ -980,6 +1048,19 @@ class MainFrameGTK(Gtk.Window):
                 self.active_voter = len(self.voters)
 
             self.voterbox.set_active(self.active_voter)
+            if self.active_col1:
+                print "AAR",self.active_col1, self.col_options
+                self.col1.set_active(self.active_col1)
+            else:
+                self.col1.set_active(0)
+                self.active_col1 = 0
+            if self.active_col2:
+                print "AAR2",self.active_col2, self.col_options
+                self.col2.set_active(self.active_col2)
+            else:
+                self.col2.set_active(1)
+                self.active_col2 = 1
+                
             self.statusbar.push(0,'Loaded %s candidates' % len(self.data))
         self.dataload_update()
         self.pfdtree.set_cursor(0)
