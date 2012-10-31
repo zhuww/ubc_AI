@@ -1384,9 +1384,13 @@ class MainFrameGTK(Gtk.Window):
                 for m in matches:
                     num, den = harm_ratio(np.round(this_pulsar.P0,5), np.round(m.P0,5))
                     diff = abs( float(num)/float(den) - this_pulsar.P0/m.P0)
-                    pdiff = diff/m.P0*100.
-                    #don't include if this isn't a harmonic match
-                    if pdiff > .05: continue
+                    pdiff = diff*100.
+
+                    #don't include if this isn't a harmonic match (bigger tolerance on old pulsars)
+                    if 'B' in m.name and pdiff > .1:
+                        continue
+                    elif pdiff > .05:
+                        continue
 
                     if (m.DM != np.nan) and (this_pulsar.DM != 0.):
                         #don't include pulsars with 25% difference in DM
@@ -1786,12 +1790,12 @@ def feature_predict(clf, pfd):
     #note, if feature isn't present np.mean([]) == nan
     return avgs
 
-def harm_ratio(a,b):
+def harm_ratio(a,b,max_denom=100):
     """
     given two numbers, find the harmonic ratio
 
     """
-    c = fractions.Fraction(a/b).limit_denominator(max_denominator=50)
+    c = fractions.Fraction(a/b).limit_denominator(max_denominator=max_denom)
     return c.numerator, c.denominator
 
 if __name__ == '__main__':        

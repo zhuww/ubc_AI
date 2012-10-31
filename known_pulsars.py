@@ -8,6 +8,7 @@ ATNF pulsar properties in self.props[key].
 """
 
 import numpy as np
+import re
 import urllib
 
 from BeautifulSoup import BeautifulSoup
@@ -87,15 +88,25 @@ def GBNCC_pulsarlist():
         name = cols[0].text
         p0 = float(cols[1].text)/1000. #ms --> [s]
         dm = cols[2].text
-        coords = name.strip('J')
+        coords = name.strip('J')   
         if '+' in coords:
             raj = coords.split('+')[0]
             raj = str('%s:%s' % (raj[0:2],raj[2:]))
-            decj = str('+%s:00' % coords.split('+')[1])
+            tmp = coords.split('+')[1]
+            match = re.match('\d+',tmp).group(0)
+            if len(match) == 2:
+                decj = str('+%s:00' % match)
+            else:
+                decj = str('+%s:%s' % (match[0:2],match[2:4]))
         else:
             raj = coords.split('')[0]
             raj = str('%s:%s' % (raj[0:2],raj[2:]))
-            decj = str('-%s:00' % coords.split('-')[1])
+            tmp = coords.split('-')[1]
+            match = re.match('\d+',tmp).group(0)
+            if len(match) == 2:
+                decj = str('-%s:00' % match)
+            else:
+                decj = str('-%s:%s' % (match[0:2],match[2:4]))
 
         pulsars[name] = pulsar(name=name, psrj=name,
                                ra=raj, dec=decj,
@@ -140,11 +151,22 @@ def PALFA_pulsarlist():
         if '+' in coords:
             raj = coords.split('+')[0]
             raj = str('%s:%s' % (raj[0:2],raj[2:]))
+            tmp = coords.split('+')[1]
+            match = re.match('\d+',tmp).group(0)
+            if len(match) == 2:
+                decj = str('+%s:00' % match)
+            else:
+                decj = str('+%s:%s' % (match[0:2],match[2:4]))
             decj = str('+%s:00' % coords.split('+')[1])
         else:
             raj = coords.split('')[0]
             raj = str('%s:%s' % (raj[0:2],raj[2:]))
-            decj = str('-%s:00' % coords.split('-')[1])
+            tmp = coords.split('-')[1]
+            match = re.match('\d+',tmp).group(0)
+            if len(match) == 2:
+                decj = str('-%s:00' % match)
+            else:
+                decj = str('-%s:%s' % (match[0:2],match[2:4]))
 
         pulsars[name] = pulsar(name=name, psrj=name,
                                ra=raj, dec=decj,
@@ -201,11 +223,22 @@ def driftscan_pulsarlist():
         if '+' in coords:
             raj = coords.split('+')[0]
             raj = str('%s:%s' % (raj[0:2],raj[2:]))
-            decj = str('+%s:00' % coords.split('+')[1])
+            tmp = coords.split('+')[1]
+            match = re.match('\d+',tmp).group(0)
+            if len(match) == 2:
+                decj = str('+%s:00' % match)
+            else:
+                decj = str('+%s:%s' % (match[0:2],match[2:4]))
         else:
             raj = coords.split('-')[0]
             raj = str('%s:%s' % (raj[0:2],raj[2:]))
-            decj = str('-%s:00' % coords.split('-')[1])
+            tmp = coords.split('-')[1]
+            match = re.match('\d+',tmp).group(0)
+            if len(match) == 2:
+                decj = str('-%s:00' % match)
+            else:
+                decj = str('-%s:%s' % (match[0:2],match[2:4]))
+
         pulsars[name] =  pulsar(name=name, psrj=name,
                                ra=raj, dec=decj,
                                P0=p0, DM=dm, gbncc=True,
@@ -233,11 +266,22 @@ def ao327_pulsarlist():
         if '+' in coords:
             raj = coords.split('+')[0]
             raj = str('%s:%s' % (raj[0:2],raj[2:]))
-            decj = str('+%s:00' % coords.split('+')[1].strip('*'))
+            tmp = coords.split('+')[1]
+            match = re.match('\d+',tmp).group(0)
+            if len(match) == 2:
+                decj = str('+%s:00' % match)
+            else:
+                decj = str('+%s:%s' % (match[0:2],match[2:4]))
         else:
             raj = coords.split('-')[0]
             raj = str('%s:%s' % (raj[0:2],raj[2:]))
-            decj = str('-%s:00' % coords.split('-')[1].strip('*'))
+            tmp = coords.split('-')[1]
+            match = re.match('\d+',tmp).group(0)
+            if len(match) == 2:
+                decj = str('-%s:00' % match)
+            else:
+                decj = str('-%s:%s' % (match[0:2],match[2:4]))
+
         pulsars[name] =  pulsar(name=name, psrj=name,
                                ra=raj, dec=decj,
                                P0=p0, DM=dm, gbncc=True,
@@ -262,11 +306,21 @@ def deepmb_pulsarlist():
         if '+' in coords:
             raj = coords.split('+')[0]
             raj = str('%s:%s' % (raj[0:2],raj[2:]))
-            decj = str('+%s:00' % coords.split('+')[1])
+            tmp = coords.split('+')[1]
+            match = re.match('\d+',tmp).group(0)
+            if len(match) == 2:
+                decj = str('+%s:00' % match)
+            else:
+                decj = str('+%s:%s' % (match[0:2],match[2:4]))
         else:
             raj = coords.split('-r')[0]
             raj = str('%s:%s' % (raj[0:2],raj[2:]))
-            decj = str('-%s:00' % coords.split('-')[1])
+            tmp = coords.split('-')[1]
+            match = re.match('\d+',tmp).group(0)
+            if len(match) == 2:
+                decj = str('-%s:00' % match)
+            else:
+                decj = str('-%s:%s' % (match[0:2],match[2:4]))
         pulsars[name] =  pulsar(name=name, psrj=name,
                                ra=raj, dec=decj,
                                P0=p0, DM=dm, gbncc=True,
@@ -280,7 +334,6 @@ def FERMI_pulsarlist():
     http://arxiv.org/pdf/1205.3089v1.pdf
 
     """
-    import re
     url = 'http://arxiv.org/pdf/1205.3089v1.pdf'
     lst = ["J0023+0923 GBT-350 1FGLJ0023.5+0930 3.05 14.3 0.7 0.14 0.017 BW, ",
            "J0101-6422 Parkes 1FGLJ0101.06423 2.57 12.0 0.6 1.78 0.16 ",
@@ -408,11 +461,21 @@ def GBT350NGP_pulsarlist():
         if '+' in coords:
             raj = coords.split('+')[0]
             raj = str('%s:%s' % (raj[0:2],raj[2:]))
-            decj = str('+%s:00' % coords.split('+')[1].strip('ABCDE'))
+            tmp = coords.split('+')[1]
+            match = re.match('\d+',tmp).group(0)
+            if len(match) == 2:
+                decj = str('+%s:00' % match)
+            else:
+                decj = str('+%s:%s' % (match[0:2],match[2:4]))
         else:
             raj = coords.split('-')[0]
             raj = str('%s:%s' % (raj[0:2],raj[2:]))
-            decj = str('-%s:00' % coords.split('-')[1].strip('ABCDE'))
+            tmp = coords.split('-')[1]
+            match = re.match('\d+',tmp).group(0)
+            if len(match) == 2:
+                decj = str('-%s:00' % match)
+            else:
+                decj = str('-%s:%s' % (match[0:2],match[2:4]))
         pulsars[name] =  pulsar(name=name, psrj=name,
                                ra=raj, dec=decj,
                                P0=p0, DM=dm, gbncc=True,
