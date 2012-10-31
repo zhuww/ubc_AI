@@ -109,6 +109,7 @@ class MainFrameGTK(Gtk.Window):
         self.col2 = self.builder.get_object('col2')
         self.active_col1 = None
         self.active_col2 = None
+        self.view_limit = self.builder.get_object('view_limit')
 
         #tmpAI window 
         self.tmpAI_win = self.builder.get_object('tmpAI_votemat')
@@ -211,6 +212,46 @@ class MainFrameGTK(Gtk.Window):
 
 ############################
 ## data-manipulation actions
+
+    def on_view_limit_changed(self, widget):
+        """
+        change what is displayed when the view limit is changed
+
+        """
+        col1 = self.col1.get_active_text()
+        col2 = self.col2.get_active_text()
+        idx1 = self.col_options.index(col1)
+        idx2 = self.col_options.index(col2)
+        lim = self.view_limit.get_value()
+        limidx = self.data[col1] >= lim
+
+#turn off the model first for speed-up
+        self.pfdtree.set_model(None)
+        self.pfdstore.clear()
+
+        if idx1 != idx2:
+            data = self.data[['fname',col1,col2]]
+            if np.any(limidx):
+                data = data[limidx]
+                self.statusbar.push(0,'Showing %s/%s candidates above %s' %
+                                    (limidx.sum(),len(limidx),lim))
+            else:
+                self.statusbar.push(0,'No %s candidates > %s. Showing all' % (col1, lim))
+            for v in data:
+                self.pfdstore.append(v)
+        else:
+            data = self.data[['fname',col1]]
+            if np.any(limidx):
+                data = data[limidx]
+                self.statusbar.push(0,'Showing %s/%s candidates above %s' %
+                                    (limidx.sum(),len(limidx),lim))
+            else:
+                self.statusbar.push(0,'No %s candidates > %s. Showing all' % (col1, lim))
+            for v0, v1 in data:
+                self.pfdstore.append((v0,v1,v1))
+                    
+        self.pfdtree.set_model(self.pfdstore)
+        self.find_matches()
 
     def on_pfdwin_key_press_event(self, widget, event):
         """
@@ -328,23 +369,41 @@ class MainFrameGTK(Gtk.Window):
             act_name = self.voters[self.active_voter]
 #update the Treeview... 
             if self.data != None:
-#turn off the model first for speed-up
-                self.pfdtree.set_model(None)
+
                 col1 = self.col1.get_active_text()
                 col2 = self.col2.get_active_text()
                 idx1 = self.col_options.index(col1)
                 idx2 = self.col_options.index(col2)
-                if (self.active_col1 != idx1) or (self.active_col2 != idx2):
-                    self.active_col1 = idx1
-                    self.active_col2 = idx2
-                    self.pfdstore.clear()
+                lim = self.view_limit.get_value()
+                limidx = self.data[col1] >= lim
+
+#turn off the model first for speed-up
+                self.pfdtree.set_model(None)
+                self.pfdstore.clear()
+
+                self.active_col1 = idx1
+                self.active_col2 = idx2
                 if idx1 != idx2:
-                    for v in self.data[['fname',col1,col2]]:
+                    data = self.data[['fname',col1,col2]]
+                    if np.any(limidx):
+                        data = data[limidx]
+                        self.statusbar.push(0,'Showing %s/%s candidates above %s' %
+                                            (limidx.sum(),len(limidx),lim))
+                    else:
+                        self.statusbar.push(0,'No %s candidates > %s. Showing All.' % (col1, lim))
+                    for v in data:
                         self.pfdstore.append(v)
                 else:
-                    for v0, v1 in self.data[['fname',col1]]:
+                    data = self.data[['fname',col1]]
+                    if np.any(limidx):
+                        data = data[limidx]
+                        self.statusbar.push(0,'Showing %s/%s candidates above %s' %
+                                            (limidx.sum(),len(limidx),lim))
+                    else:
+                        self.statusbar.push(0,'No %s candidates > %s. Showing all.' % (col1, lim))
+                    for v0, v1 in data:
                         self.pfdstore.append((v0,v1,v1))
-
+                        
                 self.pfdtree.set_model(self.pfdstore)
                 self.find_matches()
 
@@ -353,26 +412,43 @@ class MainFrameGTK(Gtk.Window):
         change the pfdstore whenever we change the column box
 
         """
-        if self.data != None and self.active_col1 != None and\
-                self.active_col2 != None:
-            self.pfdtree.set_model(None)
+        if self.data != None and self.active_col1 != None and self.active_col2 != None:
+
             col1 = self.col1.get_active_text()
             col2 = self.col2.get_active_text()
             idx1 = self.col_options.index(col1)
             idx2 = self.col_options.index(col2)
             if (self.active_col1 != idx1) or (self.active_col2 != idx2):
+                
+                self.pfdtree.set_model(None)
+                self.pfdstore.clear()
                 self.active_col1 = idx1
                 self.active_col2 = idx2
-                self.pfdstore.clear()
+                lim = self.view_limit.get_value()
+                limidx = self.data[col1] >= lim
                 if idx1 != idx2:
-                    for v in self.data[['fname',col1,col2]]:
+                    data = self.data[['fname',col1,col2]]
+                    if np.any(limidx):
+                        data = data[limidx]
+                        self.statusbar.push(0,'Showing %s/%s candidates above %s' %
+                                             (limidx.sum(),len(limidx),lim))
+                    else:
+                        self.statusbar.push(0,'No %s candidates > %s' % (col1, lim))
+                    for v in data:
                         self.pfdstore.append(v)
                 else:
-                    for v0,v1 in self.data[['fname',col1]]:
+                    data = self.data[['fname',col1]]
+                    if np.any(limidx):
+                        data = data[limidx]
+                        self.statusbar.push(0,'Showing %s/%s candidates above %s' %
+                                            (limidx.sum(),len(limidx),lim))
+                    else:
+                        self.statusbar.push(0,'No %s candidates > %s' % (col1, lim))
+                    for v0, v1 in data:
                         self.pfdstore.append((v0,v1,v1))
 
-            self.pfdtree.set_model(self.pfdstore)
-            self.find_matches()
+                self.pfdtree.set_model(self.pfdstore)
+                self.find_matches()
 
     def on_pfdtree_select_row(self, widget, event=None):#, data=None):
         """
@@ -1314,7 +1390,7 @@ class MainFrameGTK(Gtk.Window):
 
                     if (m.DM != np.nan) and (this_pulsar.DM != 0.):
                         #don't include pulsars with 25% difference in DM
-                        if (this_pulsar.DM - m.DM)/this_pulsar.DM > 0.25: continue 
+                        if abs(this_pulsar.DM - m.DM)/this_pulsar.DM > 0.25: continue 
                     idx = self.data['fname'] == m.name
                     if len(idx[idx]) > 0:
                         try:
