@@ -41,7 +41,7 @@ try:
 except ImportError:
     pyimage = False
 if not pyimage:
-    conv = subprocess.call(['which','convert'])
+    conv = subprocess.call(['which','convert'], stdout=open('/dev/null','w'))
     if conv == 1:
         print "pfdviewer requires imagemagik's convert utility"
         print "or, PythonMagick. Exiting..."
@@ -1381,20 +1381,24 @@ class MainFrameGTK(Gtk.Window):
                                               this_pulsar.DM, this_pulsar.ra,\
                                               this_pulsar.dec, this_vote])
                 matches = KP.matches(self.knownpulsars, this_pulsar)
+                print "\n"
                 for m in matches:
                     num, den = harm_ratio(np.round(this_pulsar.P0,5), np.round(m.P0,5))
                     diff = abs( float(num)/float(den) - this_pulsar.P0/m.P0)
                     pdiff = diff*100.
 
-                    #don't include if this isn't a harmonic match (bigger tolerance on old pulsars)
-                    if 'B' in m.name and pdiff > .1:
+
+#                    print "MATCH",m.name, m.P0, this_pulsar.P0,pdiff, m.DM,this_pulsar.DM                    
+                   #don't include if this isn't a harmonic match
+                   # (bigger tolerance on old pulsars)
+                    if m.name.startswith('B') and pdiff > .1:
                         continue
-                    elif pdiff > .05:
+                    elif not m.name.startswith('B') and pdiff > .05:
                         continue
 
                     if (m.DM != np.nan) and (this_pulsar.DM != 0.):
                         #don't include pulsars with 25% difference in DM
-                        if abs(this_pulsar.DM - m.DM)/this_pulsar.DM > 0.25: continue 
+                        if abs(this_pulsar.DM - m.DM)/m.DM > 0.75: continue 
                     idx = self.data['fname'] == m.name
                     if len(idx[idx]) > 0:
                         try:
@@ -1722,6 +1726,9 @@ def inputbox(title='Input Box', label='Please input the value',
     lbl.show()
     dlg.vbox.pack_start(lbl, False, False, 0)
     entry = Gtk.Entry()
+    entry.connect("activate", 
+                      lambda ent, dlg, resp: dlg.response(resp), 
+                      dlg, Gtk.ResponseType.OK)
     if text: entry.set_text(text)
     entry.show()
     dlg.vbox.pack_start(entry, False, True, 0)

@@ -594,7 +594,7 @@ def matches(allpulsars, pulsar, sep=.5):
         dec = ddmm2deg(v.dec)
         if pulsar.gbncc:
             if abs(ra - pra) <= sep and \
-                    abs(dec - pdec) <= 1:
+                    abs(dec - pdec) <= 1.2:
                 matches[k] = v
         elif abs(ra - pra) <= sep and \
                 abs(dec - pdec) <= sep:
