@@ -307,7 +307,10 @@ class MainFrameGTK(Gtk.Window):
                     self.pfdstore_set_value(float(key))
                     self.pfdtree_next()
                 else:
-                    self.statusbar.push(0,'Note: AI not editable')
+                    note = 'Note: AI voter is not editable. Change active voter'
+                    print note
+                    self.statusbar.push(0,note)
+                    self.pfdtree_next()
             elif key == '1' or key == 'p':
                 if key == 'p':
                     key = 1
@@ -316,7 +319,10 @@ class MainFrameGTK(Gtk.Window):
                     self.add_candidate_to_knownpulsars(fname)
                     self.pfdtree_next()
                 else:
-                    self.statusbar.push(0,'Note: AI not editable')
+                    note = 'Note: AI voter is not editable. Change active voter'
+                    print note
+                    self.statusbar.push(0,note)
+                    self.pfdtree_next()
             elif key == 'm' or key == '5':
                 # marginal candidate. sets voter prob to 0.5
                 self.pfdstore_set_value(.5)
@@ -1406,20 +1412,22 @@ class MainFrameGTK(Gtk.Window):
                 matches = KP.matches(self.knownpulsars, this_pulsar)
 
                 for m in matches:
-                    num, den = harm_ratio(np.round(this_pulsar.P0,5), np.round(m.P0,5))
-                    diff = abs( float(num)/float(den) - this_pulsar.P0/m.P0)
-                    pdiff = diff*100.
-
+                    max_denom = 100
+                    num, den = harm_ratio(np.round(this_pulsar.P0,5), np.round(m.P0,5), max_denom=max_denom)
+                    
+                    if num == 0: 
+                        num = 1
+                        den = max_denom
+                    pdiff = abs(1. - float(den)/float(num) *this_pulsar.P0/m.P0)
                    #don't include if this isn't a harmonic match
-                   # (bigger tolerance on old pulsars)
-                    if m.name.startswith('B') and pdiff > .1:
-                        continue
-                    elif not m.name.startswith('B') and pdiff > .05:
-                        continue
+                    if pdiff > 0.5: continue
 
                     if (m.DM != np.nan) and (this_pulsar.DM != 0.):
                         #don't include pulsars with 25% difference in DM
-                        if abs(this_pulsar.DM - m.DM)/m.DM > 0.75: continue 
+                        cut = 0.7*(pfd.dms.max() - pfd.dms.min())/2.
+#                        print "AAR",this_pulsar.DM, cut, pdiff,m.name,m.DM
+                        if (m.DM < this_pulsar.DM - cut) or (m.DM > this_pulsar.DM + cut):
+                            continue
                     idx = self.data['fname'] == m.name
                     if len(idx[idx]) > 0:
                         try:
