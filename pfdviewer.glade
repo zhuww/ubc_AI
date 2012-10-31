@@ -966,10 +966,17 @@
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <child>
-              <object class="GtkLabel" id="label4">
+              <object class="GtkCheckButton" id="limit_toggle">
+                <property name="label" translatable="yes">limit list to col1 Proba &gt;=</property>
+                <property name="use_action_appearance">False</property>
                 <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="label" translatable="yes">limit list to col1 Proba &gt;= </property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">False</property>
+                <property name="use_action_appearance">False</property>
+                <property name="xalign">0</property>
+                <property name="active">True</property>
+                <property name="draw_indicator">True</property>
+                <signal name="toggled" handler="on_viewlimit_toggled" swapped="no"/>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -982,6 +989,7 @@
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="invisible_char">•</property>
+                <property name="invisible_char_set">True</property>
                 <property name="adjustment">adjustment1</property>
                 <property name="digits">6</property>
                 <property name="snap_to_ticks">True</property>
@@ -1018,6 +1026,22 @@
       <!-- column-name col1_prob -->
       <column type="gdouble"/>
       <!-- column-name col2_prob -->
+      <column type="gdouble"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="pmatch_store">
+    <columns>
+      <!-- column-name name -->
+      <column type="gchararray"/>
+      <!-- column-name P0 -->
+      <column type="gchararray"/>
+      <!-- column-name DM -->
+      <column type="gdouble"/>
+      <!-- column-name RA -->
+      <column type="gchararray"/>
+      <!-- column-name DEC -->
+      <column type="gchararray"/>
+      <!-- column-name vote -->
       <column type="gdouble"/>
     </columns>
   </object>
@@ -1194,22 +1218,6 @@
         </child>
       </object>
     </child>
-  </object>
-  <object class="GtkListStore" id="pmatch_store">
-    <columns>
-      <!-- column-name name -->
-      <column type="gchararray"/>
-      <!-- column-name P0 -->
-      <column type="gchararray"/>
-      <!-- column-name DM -->
-      <column type="gdouble"/>
-      <!-- column-name RA -->
-      <column type="gchararray"/>
-      <!-- column-name DEC -->
-      <column type="gchararray"/>
-      <!-- column-name vote -->
-      <column type="gdouble"/>
-    </columns>
   </object>
   <object class="GtkWindow" id="pmatch_win">
     <property name="can_focus">False</property>

@@ -110,6 +110,7 @@ class MainFrameGTK(Gtk.Window):
         self.active_col1 = None
         self.active_col2 = None
         self.view_limit = self.builder.get_object('view_limit')
+        self.limit_toggle = self.builder.get_object('limit_toggle')
 
         #tmpAI window 
         self.tmpAI_win = self.builder.get_object('tmpAI_votemat')
@@ -175,28 +176,35 @@ class MainFrameGTK(Gtk.Window):
             self.data = None
         # start with default and '<new>' voters
         if self.data != None:
-            self.voters = list(self.data.dtype.names[1:])
+            self.voters = list(self.data.dtype.names[1:]) #strip off 'fname'
             for v in self.voters:
                 if v not in self.col_options:
                     self.col_options.append(v)
                     self.col1.append_text(v)
                     self.col2.append_text(v)
-
-            if 'AI' in self.voters:
-                AIi = self.voters.index('AI')
-                #start with AI as active, but it can never be active voter (so pop)
-                self.voters.pop(AIi)
-                self.active_col1 = self.col_options.index('AI')
-                self.col1.set_active(self.active_col1)
+    #<new> is a special case used to add new voters
             if '<new>' not in self.voters:
                 self.voters.insert(0,'<new>')
-            self.active_voter = 1
 
-            if len(self.voters) > 2:
+            #display first voter column from input data, making it "active"
+            self.active_col1 = self.col_options.index(self.voters[1])
+            self.col1.set_active(self.active_col1)
+            #make active vote the first non-"AI" column
+            av = np.where(np.array(self.data.dtype.names[1:] != 'AI'))[0]
+            if len(av) == 0:
                 self.active_voter = 1
+                self.statusbar.push(0, 'Warning, voting overwrites AI votes')
+            else:
+                idx = self.voters.index(self.data.dtype.names[1:][av[0]])
+                self.active_voter = idx
+
+#set up the second column if there are multiple "voters"
+            if len(self.voters) > 2:
+#                self.active_voter = 1
                 self.voterbox.set_active(self.active_voter)
-                self.active_col2 = self.col_options.index(self.voters[self.active_voter]) #plus the AI vote
+                self.active_col2 = self.col_options.index(self.voters[self.active_voter]) 
                 self.col2.set_active(self.active_col2)
+
             self.dataload_update()
         #put cursor on first col. if there is data
             self.pfdtree.set_cursor(0)
@@ -212,6 +220,8 @@ class MainFrameGTK(Gtk.Window):
 
 ############################
 ## data-manipulation actions
+    def on_viewlimit_toggled(self, widget):
+        self.on_view_limit_changed( widget)
 
     def on_view_limit_changed(self, widget):
         """
@@ -221,7 +231,11 @@ class MainFrameGTK(Gtk.Window):
         col1 = self.col1.get_active_text()
         col2 = self.col2.get_active_text()
         idx1 = self.col_options.index(col1)
+        if col2 == None:
+            col2 = col1
+            self.col2.set_active(idx1)
         idx2 = self.col_options.index(col2)
+        limtog = self.limit_toggle.get_active()
         lim = self.view_limit.get_value()
         limidx = self.data[col1] >= lim
 
@@ -231,7 +245,7 @@ class MainFrameGTK(Gtk.Window):
 
         if idx1 != idx2:
             data = self.data[['fname',col1,col2]]
-            if np.any(limidx):
+            if np.any(limidx) and limtog:
                 data = data[limidx]
                 self.statusbar.push(0,'Showing %s/%s candidates above %s' %
                                     (limidx.sum(),len(limidx),lim))
@@ -241,7 +255,7 @@ class MainFrameGTK(Gtk.Window):
                 self.pfdstore.append(v)
         else:
             data = self.data[['fname',col1]]
-            if np.any(limidx):
+            if np.any(limidx) and limtog:
                 data = data[limidx]
                 self.statusbar.push(0,'Showing %s/%s candidates above %s' %
                                     (limidx.sum(),len(limidx),lim))
@@ -373,7 +387,13 @@ class MainFrameGTK(Gtk.Window):
                 col1 = self.col1.get_active_text()
                 col2 = self.col2.get_active_text()
                 idx1 = self.col_options.index(col1)
+                if col2 == None:
+                    col2 = col1
+                    self.col2.set_active(idx1)
                 idx2 = self.col_options.index(col2)
+
+                
+                limtog = self.limit_toggle.get_active()
                 lim = self.view_limit.get_value()
                 limidx = self.data[col1] >= lim
 
@@ -385,7 +405,7 @@ class MainFrameGTK(Gtk.Window):
                 self.active_col2 = idx2
                 if idx1 != idx2:
                     data = self.data[['fname',col1,col2]]
-                    if np.any(limidx):
+                    if np.any(limidx) and limtog:
                         data = data[limidx]
                         self.statusbar.push(0,'Showing %s/%s candidates above %s' %
                                             (limidx.sum(),len(limidx),lim))
@@ -395,7 +415,7 @@ class MainFrameGTK(Gtk.Window):
                         self.pfdstore.append(v)
                 else:
                     data = self.data[['fname',col1]]
-                    if np.any(limidx):
+                    if np.any(limidx) and limtog:
                         data = data[limidx]
                         self.statusbar.push(0,'Showing %s/%s candidates above %s' %
                                             (limidx.sum(),len(limidx),lim))
@@ -417,18 +437,23 @@ class MainFrameGTK(Gtk.Window):
             col1 = self.col1.get_active_text()
             col2 = self.col2.get_active_text()
             idx1 = self.col_options.index(col1)
+            if col2 == None:
+                col2 = col1
+                self.col2.set_active(idx1)
             idx2 = self.col_options.index(col2)
+
             if (self.active_col1 != idx1) or (self.active_col2 != idx2):
-                
                 self.pfdtree.set_model(None)
                 self.pfdstore.clear()
                 self.active_col1 = idx1
                 self.active_col2 = idx2
+                
+                limtog = self.limit_toggle.get_active()
                 lim = self.view_limit.get_value()
                 limidx = self.data[col1] >= lim
                 if idx1 != idx2:
                     data = self.data[['fname',col1,col2]]
-                    if np.any(limidx):
+                    if np.any(limidx) and limtog:
                         data = data[limidx]
                         self.statusbar.push(0,'Showing %s/%s candidates above %s' %
                                              (limidx.sum(),len(limidx),lim))
@@ -438,7 +463,7 @@ class MainFrameGTK(Gtk.Window):
                         self.pfdstore.append(v)
                 else:
                     data = self.data[['fname',col1]]
-                    if np.any(limidx):
+                    if np.any(limidx) and limtog:
                         data = data[limidx]
                         self.statusbar.push(0,'Showing %s/%s candidates above %s' %
                                             (limidx.sum(),len(limidx),lim))
@@ -835,7 +860,6 @@ class MainFrameGTK(Gtk.Window):
     #update self.data (since dealing with TreeStore blows my mind)
                 fname, p0, dm, ra, dec, vote = self.pmatch_store[tree_iter]
                 if self.knownpulsars.has_key(fname):
-                    print "fname",fname
                     cat = self.knownpulsars[fname].catalog
                     self.statusbar.push(0,'Selected match found: %s' % cat)
                 else:
@@ -1026,6 +1050,7 @@ class MainFrameGTK(Gtk.Window):
                     if d not in self.col_options:
                         self.col1.append_text(d)
                         self.col2.append_text(d)
+                        self.col_options.append(d)
                     self.active_voter = len(self.voters) - 1
                 else:
                     note = 'User already exists. switching to it'
@@ -1100,7 +1125,7 @@ class MainFrameGTK(Gtk.Window):
                 fname = dialog.get_filename()
 #                print "File selected: " + fname
             elif response == Gtk.ResponseType.CANCEL:
-                print "<Cancel clicked"
+                print "Cancel clicked"
                 fname = None
             dialog.destroy()
         else:
@@ -1116,10 +1141,11 @@ class MainFrameGTK(Gtk.Window):
                     self.col_options.append(v)
                     self.col1.append_text(v)
                     self.col2.append_text(v)
-            AIi = self.voters.index('AI')
-            self.voters.pop(AIi)
+
+#<new> is a special case used to add new voters
             if '<new>' not in self.voters:
                 self.voters.insert(0,'<new>')
+
             self.active_voter = 1
 
             #add new voters to the voterbox
@@ -1134,18 +1160,15 @@ class MainFrameGTK(Gtk.Window):
 
             self.voterbox.set_active(self.active_voter)
             if self.active_col1:
-                print "AAR",self.active_col1, self.col_options
                 self.col1.set_active(self.active_col1)
             else:
                 self.col1.set_active(0)
                 self.active_col1 = 0
             if self.active_col2:
-                print "AAR2",self.active_col2, self.col_options
                 self.col2.set_active(self.active_col2)
             else:
                 self.col2.set_active(1)
                 self.active_col2 = 1
-                
             self.statusbar.push(0,'Loaded %s candidates' % len(self.data))
         self.dataload_update()
         self.pfdtree.set_cursor(0)
@@ -1381,14 +1404,12 @@ class MainFrameGTK(Gtk.Window):
                                               this_pulsar.DM, this_pulsar.ra,\
                                               this_pulsar.dec, this_vote])
                 matches = KP.matches(self.knownpulsars, this_pulsar)
-                print "\n"
+
                 for m in matches:
                     num, den = harm_ratio(np.round(this_pulsar.P0,5), np.round(m.P0,5))
                     diff = abs( float(num)/float(den) - this_pulsar.P0/m.P0)
                     pdiff = diff*100.
 
-
-#                    print "MATCH",m.name, m.P0, this_pulsar.P0,pdiff, m.DM,this_pulsar.DM                    
                    #don't include if this isn't a harmonic match
                    # (bigger tolerance on old pulsars)
                     if m.name.startswith('B') and pdiff > .1:
@@ -1674,11 +1695,8 @@ def load_data(fname):
 
         data = np.recfromtxt(fname, dtype={'names':colnames,'formats':coltypes})
 
-# add in a dummy AI vote if it doesn't already exist
-    if 'AI' not in data.dtype.names:
-        data = add_voter('AI', data)
-    if len(data.dtype.names) < 3: #fname, AI
-#        dialog = Gtk.MessageDialog(None, 
+    while len(data.dtype.names) == 1: #fname
+        #data should have two columns.
         name = inputbox('Voter chooser',\
                             'No user voters found in %s. Add your voting name' % fname)
         data = add_voter(name, data)
