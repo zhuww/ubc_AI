@@ -1420,7 +1420,7 @@ class MainFrameGTK(Gtk.Window):
                         den = max_denom
                     pdiff = abs(1. - float(den)/float(num) *this_pulsar.P0/m.P0)
                    #don't include if this isn't a harmonic match
-                    if pdiff > 0.5: continue
+                    if pdiff > 1.: continue
 
                     if (m.DM != np.nan) and (this_pulsar.DM != 0.):
                         #don't include pulsars with 25% difference in DM
