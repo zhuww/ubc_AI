@@ -1186,7 +1186,7 @@ class MainFrameGTK(Gtk.Window):
                                 % len(self.knownpulsars))
 
 #add all the candidates ranked as pulsars to the list of known_pulsars
-        for v in self.data.dtype.names[2:]:
+        for v in self.data.dtype.names[1:]:
             cand_pulsar = self.data[v] == 1.
             for fname in self.data['fname'][cand_pulsar]:
                 self.add_candidate_to_knownpulsars(fname)
@@ -1424,9 +1424,9 @@ class MainFrameGTK(Gtk.Window):
 
                     if (m.DM != np.nan) and (this_pulsar.DM != 0.):
                         #don't include pulsars with 25% difference in DM
-                        cut = 0.7*(pfd.dms.max() - pfd.dms.min())/2.
-#                        print "AAR",this_pulsar.DM, cut, pdiff,m.name,m.DM
-                        if (m.DM < this_pulsar.DM - cut) or (m.DM > this_pulsar.DM + cut):
+#                        cut = 0.7*(pfd.dms.max() - pfd.dms.min())/2.
+#                        if (m.DM < this_pulsar.DM - cut) or (m.DM > this_pulsar.DM + cut):
+                        if abs(m.DM - this_pulsar.DM) > .2*this_pulsar.DM):
                             continue
                     idx = self.data['fname'] == m.name
                     if len(idx[idx]) > 0:
