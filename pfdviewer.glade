@@ -1016,6 +1016,41 @@
             <property name="position">8</property>
           </packing>
         </child>
+        <child>
+          <object class="GtkBox" id="box19">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <child>
+              <object class="GtkCheckButton" id="verbose_match">
+                <property name="label" translatable="yes">print verbose pulsar matching</property>
+                <property name="use_action_appearance">False</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">False</property>
+                <property name="use_action_appearance">False</property>
+                <property name="xalign">0</property>
+                <property name="draw_indicator">True</property>
+                <signal name="toggled" handler="on_verbose_match" swapped="no"/>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <placeholder/>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">9</property>
+          </packing>
+        </child>
+        <child>
+          <placeholder/>
+        </child>
       </object>
     </child>
   </object>
@@ -1049,8 +1084,8 @@
     <property name="visible">True</property>
     <property name="can_focus">False</property>
     <property name="vexpand">True</property>
-    <property name="default_width">900</property>
-    <property name="default_height">750</property>
+    <property name="default_width">1050</property>
+    <property name="default_height">880</property>
     <property name="destroy_with_parent">True</property>
     <property name="gravity">east</property>
     <signal name="key-release-event" handler="on_pfdwin_key_release_event" swapped="no"/>

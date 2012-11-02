@@ -111,6 +111,7 @@ class MainFrameGTK(Gtk.Window):
         self.active_col2 = None
         self.view_limit = self.builder.get_object('view_limit')
         self.limit_toggle = self.builder.get_object('limit_toggle')
+        self.verbose_match = self.builder.get_object('verbose_match')
 
         #tmpAI window 
         self.tmpAI_win = self.builder.get_object('tmpAI_votemat')
@@ -223,6 +224,8 @@ class MainFrameGTK(Gtk.Window):
     def on_viewlimit_toggled(self, widget):
         self.on_view_limit_changed( widget)
 
+    def on_verbose_match(self, widget):
+        self.find_matches()
     def on_view_limit_changed(self, widget):
         """
         change what is displayed when the view limit is changed
@@ -325,7 +328,8 @@ class MainFrameGTK(Gtk.Window):
                     self.pfdtree_next()
             elif key == 'm' or key == '5':
                 # marginal candidate. sets voter prob to 0.5
-                self.pfdstore_set_value(.5)
+                fname = self.pfdstore_set_value(.5, return_name=True)
+                self.add_candidate_to_knownpulsars(fname)
                 self.pfdtree_next()
             elif key == 'k':
                 # known pulsar, sets voter prob to 2.
@@ -333,7 +337,8 @@ class MainFrameGTK(Gtk.Window):
                 self.pfdtree_next()
             elif key == 'h':
                 # harmonic of known pulsar, sets voter prob to 3
-                self.pfdstore_set_value(3.)
+                fname = self.pfdstore_set_value(3., return_name=True)
+                self.add_candidate_to_knownpulsars(fname)   
                 self.pfdtree_next()
             elif key == 'c':
                 # cycle between ranked candidates
@@ -794,7 +799,7 @@ class MainFrameGTK(Gtk.Window):
         fname, x, oval = self.pfdstore[tree_iter]
         col1 = self.col1.get_active_text()
         col2 = self.col2.get_active_text()
-#        self.pfdstore[tree_iter][2] = value
+
         idx = self.data['fname'] == fname
         if self.active_voter:
             act_name = act_name = self.voters[self.active_voter]
@@ -1187,9 +1192,11 @@ class MainFrameGTK(Gtk.Window):
 
 #add all the candidates ranked as pulsars to the list of known_pulsars
         for v in self.data.dtype.names[1:]:
-            cand_pulsar = self.data[v] == 1.
-            for fname in self.data['fname'][cand_pulsar]:
-                self.add_candidate_to_knownpulsars(fname)
+            #add 1(=pulsar), 3(=harmonic), .5(=maybe a pulsar) to list of matches
+            for vote in [1., 3., 0.5]:
+                cand_pulsar = self.data[v] == vote
+                for fname in self.data['fname'][cand_pulsar]:
+                    self.add_candidate_to_knownpulsars(fname)
                 
 
     def on_help(self, widget, event=None):
@@ -1410,7 +1417,12 @@ class MainFrameGTK(Gtk.Window):
                                               this_pulsar.DM, this_pulsar.ra,\
                                               this_pulsar.dec, this_vote])
                 matches = KP.matches(self.knownpulsars, this_pulsar)
-
+                
+                verbose = self.verbose_match.get_active()
+                if verbose:
+                    print "\n--- candidate %s (ra,dec,DM)=(%s,%s, %s) ---" %\
+                        (nm, this_pulsar.ra, this_pulsar.dec, this_pulsar.DM)
+                    
                 for m in matches:
                     max_denom = 100
                     num, den = harm_ratio(np.round(this_pulsar.P0,5), np.round(m.P0,5), max_denom=max_denom)
@@ -1419,14 +1431,24 @@ class MainFrameGTK(Gtk.Window):
                         num = 1
                         den = max_denom
                     pdiff = abs(1. - float(den)/float(num) *this_pulsar.P0/m.P0)
+                    if verbose:
+                        print "position match (name, ra, dec, DM): (%s, %s, %s, %s)"\
+                            % (m.name, m.ra, m.dec, m.DM)
+                        
                    #don't include if this isn't a harmonic match
-                    if pdiff > 1.: continue
+                    if pdiff > 1.:
+                        if verbose:
+                            print "  rejecting %s since pdiff = " % (m.name, pdiff)
+                        continue
 
                     if (m.DM != np.nan) and (this_pulsar.DM != 0.):
                         #don't include pulsars with 25% difference in DM
 #                        cut = 0.7*(pfd.dms.max() - pfd.dms.min())/2.
 #                        if (m.DM < this_pulsar.DM - cut) or (m.DM > this_pulsar.DM + cut):
-                        if abs(m.DM - this_pulsar.DM) > .2*this_pulsar.DM:
+                        dDM = abs(m.DM - this_pulsar.DM)/this_pulsar.DM
+                        if  dDM> .75:
+                            if verbose:
+                                print "  rejecting %s since Delta DM/DM = %s" % (m.name, dDM)
                             continue
                     idx = self.data['fname'] == m.name
                     if len(idx[idx]) > 0:
