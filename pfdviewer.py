@@ -328,7 +328,7 @@ class MainFrameGTK(Gtk.Window):
                     self.pfdtree_next()
             elif key == 'm' or key == '5':
                 # marginal candidate. sets voter prob to 0.5
-                fname = self.pfdstore_set_value(.5, return_name=True)
+                fname = self.pfdstore_set_value(.5, return_fname=True)
                 self.add_candidate_to_knownpulsars(fname)
                 self.pfdtree_next()
             elif key == 'k':
@@ -337,7 +337,7 @@ class MainFrameGTK(Gtk.Window):
                 self.pfdtree_next()
             elif key == 'h':
                 # harmonic of known pulsar, sets voter prob to 3
-                fname = self.pfdstore_set_value(3., return_name=True)
+                fname = self.pfdstore_set_value(3., return_fname=True)
                 self.add_candidate_to_knownpulsars(fname)   
                 self.pfdtree_next()
             elif key == 'c':
