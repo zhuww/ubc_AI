@@ -1426,7 +1426,7 @@ class MainFrameGTK(Gtk.Window):
                         #don't include pulsars with 25% difference in DM
 #                        cut = 0.7*(pfd.dms.max() - pfd.dms.min())/2.
 #                        if (m.DM < this_pulsar.DM - cut) or (m.DM > this_pulsar.DM + cut):
-                        if abs(m.DM - this_pulsar.DM) > .2*this_pulsar.DM):
+                        if abs(m.DM - this_pulsar.DM) > .2*this_pulsar.DM:
                             continue
                     idx = self.data['fname'] == m.name
                     if len(idx[idx]) > 0:
