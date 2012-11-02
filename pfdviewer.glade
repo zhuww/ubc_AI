@@ -1049,8 +1049,8 @@
     <property name="visible">True</property>
     <property name="can_focus">False</property>
     <property name="vexpand">True</property>
-    <property name="default_width">840</property>
-    <property name="default_height">680</property>
+    <property name="default_width">900</property>
+    <property name="default_height">750</property>
     <property name="destroy_with_parent">True</property>
     <property name="gravity">east</property>
     <signal name="key-release-event" handler="on_pfdwin_key_release_event" swapped="no"/>
