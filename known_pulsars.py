@@ -526,17 +526,17 @@ def hhmm2deg(hhmm):
         if ncomp == 1:
             deg = float(s[0])*360./24.
         elif ncomp == 2:
-            deg = float(s[0])*360./24. + float(s[1])/60.
+            deg = (float(s[0]) + float(s[1])/60.))*360./24.
         elif ncomp >= 3:
-            deg = float(s[0])*360./24. + float(s[1])/60. + float(s[2])/3600.
+            deg = (float(s[0]) + float(s[1])/60. + float(s[2])/3600.)*360./24.
     else:
         if len(hhmm) == 2:
             deg = float(hhmm)*360./24.
         elif len(hhmm) == 4:
-            deg = float(hhmm[0:2])*360./24. + float(hhmm[2:4])/60.
+            deg = (float(hhmm[0:2]) + float(hhmm[2:4])/60.) *360./24.
         elif len(hhmm) >= 6:
-            deg = float(hhmm[0:2])*360./24. + float(hhmm[2:4])/60.\
-                + float(hhmm[4:6])/3600.
+            deg = (float(hhmm[0:2]) + float(hhmm[2:4])/60.\
+                + float(hhmm[4:6])/3600.)*360./24.
     return deg
 
 def ddmm2deg(ddmm):
@@ -591,7 +591,7 @@ def matches(allpulsars, pulsar, sep=.5):
     for k, v in allpulsars.iteritems():
         ra = hhmm2deg(v.ra)
         dec = ddmm2deg(v.dec)
-        if pulsar.gbncc:
+        if v.gbncc or pulsar.gbncc:
             if abs(ra - pra) <= sep and \
                     abs(dec - pdec) <= 1.2:
                 matches[k] = v
