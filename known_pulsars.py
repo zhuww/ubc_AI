@@ -526,7 +526,7 @@ def hhmm2deg(hhmm):
         if ncomp == 1:
             deg = float(s[0])*360./24.
         elif ncomp == 2:
-            deg = (float(s[0]) + float(s[1])/60.))*360./24.
+            deg = (float(s[0]) + float(s[1])/60.)*360./24.
         elif ncomp >= 3:
             deg = (float(s[0]) + float(s[1])/60. + float(s[2])/3600.)*360./24.
     else:
