@@ -157,7 +157,6 @@ def PALFA_pulsarlist():
                 decj = str('+%s:00' % match)
             else:
                 decj = str('+%s:%s' % (match[0:2],match[2:4]))
-            decj = str('+%s:00' % coords.split('+')[1])
         else:
             raj = coords.split('')[0]
             raj = str('%s:%s' % (raj[0:2],raj[2:]))
