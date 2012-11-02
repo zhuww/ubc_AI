@@ -196,15 +196,22 @@ class MainFrameGTK(Gtk.Window):
                 self.active_voter = 1
                 self.statusbar.push(0, 'Warning, voting overwrites AI votes')
             else:
-                idx = self.voters.index(self.data.dtype.names[1:][av[0]])
-                self.active_voter = idx
+                idx = self.voters.index(self.data.dtype.names[1:][av[0]]) 
+                if 'AI' in self.voters: 
+                    idx += 1
+                self.active_voter = idx 
+                self.voterbox.set_active(idx)
 
 #set up the second column if there are multiple "voters"
             if len(self.voters) > 2:
 #                self.active_voter = 1
-                self.voterbox.set_active(self.active_voter)
-                self.active_col2 = self.col_options.index(self.voters[self.active_voter]) 
-                self.col2.set_active(self.active_col2)
+#                self.voterbox.set_active(self.active_voter)
+                if 'AI' in self.voters:
+                    self.active_col2 = self.col_options.index(self.voters[self.active_voter]) 
+                    self.col2.set_active(self.active_col2)
+                else:
+                    self.active_col2 = self.col_options.index(self.voters[self.active_voter+1]) 
+                    self.col2.set_active(self.active_col2)
 
             self.dataload_update()
         #put cursor on first col. if there is data
@@ -305,53 +312,49 @@ class MainFrameGTK(Gtk.Window):
 
         #data-related (needs to be loaded)
         if self.data != None:
+            if act_name == 'AI':
+                note = 'Note: AI voter is not editable. Change active voter'
+                print note
+                self.statusbar.push(0, note)
+                return 
+
             if key == '0':
-                if act_name != 'AI':
-                    self.pfdstore_set_value(float(key))
-                    self.pfdtree_next()
-                else:
-                    note = 'Note: AI voter is not editable. Change active voter'
-                    print note
-                    self.statusbar.push(0,note)
-                    self.pfdtree_next()
+                self.pfdstore_set_value(0.)
+                self.pfdtree_next()
+
             elif key == '1' or key == 'p':
-                if key == 'p':
-                    key = 1
-                if act_name != 'AI':
-                    fname = self.pfdstore_set_value(float(key), return_fname=True)
-                    self.add_candidate_to_knownpulsars(fname)
-                    self.pfdtree_next()
-                else:
-                    note = 'Note: AI voter is not editable. Change active voter'
-                    print note
-                    self.statusbar.push(0,note)
-                    self.pfdtree_next()
+                fname = self.pfdstore_set_value(1., return_fname=True)
+                self.add_candidate_to_knownpulsars(fname)
+                self.pfdtree_next()
+
             elif key == 'm' or key == '5':
                 # marginal candidate. sets voter prob to 0.5
                 fname = self.pfdstore_set_value(.5, return_fname=True)
                 self.add_candidate_to_knownpulsars(fname)
                 self.pfdtree_next()
+
             elif key == 'k':
                 # known pulsar, sets voter prob to 2.
                 self.pfdstore_set_value(2.)
                 self.pfdtree_next()
+
             elif key == 'h':
                 # harmonic of known pulsar, sets voter prob to 3
                 fname = self.pfdstore_set_value(3., return_fname=True)
                 self.add_candidate_to_knownpulsars(fname)   
                 self.pfdtree_next()
+
             elif key == 'c':
                 # cycle between ranked candidates
                 self.pmatchtree_next()
 
 
-            if key == '0' or key == '1':
-                cand_vote += 1
-                if cand_vote//10 == 1:
-                    if self.autosave.get_active():
-                        self.on_save()
-                    else:
-                        self.statusbar.push(0,'Remember to save your output')
+            cand_vote += 1
+            if cand_vote//10 == 1:
+                if self.autosave.get_active():
+                    self.on_save()
+                else:
+                    self.statusbar.push(0,'Remember to save your output')
 
     def add_candidate_to_knownpulsars(self, fname):
         """
@@ -1725,6 +1728,11 @@ def load_data(fname):
 
         data = np.recfromtxt(fname, dtype={'names':colnames,'formats':coltypes})
 
+        if len(data.dtype.names[1:]) == 1 and data.dtype.names[1]  == 'AI':
+            #can't have data file of only 'AI'... we must be able to vote
+            name = inputbox('Voter chooser',\
+                                'No user voters found in %s. Add your voting name' % fname)
+            data = add_voter(name, data)
     while len(data.dtype.names) == 1: #fname
         #data should have two columns.
         name = inputbox('Voter chooser',\
