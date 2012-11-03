@@ -517,6 +517,18 @@
     <property name="can_focus">False</property>
     <property name="stock">gtk-quit</property>
   </object>
+  <object class="GtkListStore" id="pfdstore">
+    <columns>
+      <!-- column-name n -->
+      <column type="gint"/>
+      <!-- column-name fname -->
+      <column type="gchararray"/>
+      <!-- column-name col1_prob -->
+      <column type="gdouble"/>
+      <!-- column-name col2_prob -->
+      <column type="gdouble"/>
+    </columns>
+  </object>
   <object class="GtkWindow" id="listwin">
     <property name="can_focus">False</property>
     <property name="margin_left">3</property>
@@ -527,7 +539,6 @@
     <property name="default_width">380</property>
     <property name="default_height">650</property>
     <property name="destroy_with_parent">True</property>
-    <property name="deletable">False</property>
     <signal name="destroy" handler="on_delete_win" swapped="no"/>
     <signal name="key-release-event" handler="on_pfdwin_key_release_event" swapped="no"/>
     <signal name="key-press-event" handler="on_pfdwin_key_press_event" swapped="no"/>
@@ -640,7 +651,7 @@
                 <property name="use_action_appearance">False</property>
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="label" translatable="yes">_Help</property>
+                <property name="label" translatable="yes">_KeyCodes</property>
                 <property name="use_underline">True</property>
                 <child type="submenu">
                   <object class="GtkMenu" id="menu3">
@@ -991,10 +1002,10 @@
                 <property name="invisible_char">•</property>
                 <property name="invisible_char_set">True</property>
                 <property name="adjustment">adjustment1</property>
-                <property name="digits">6</property>
+                <property name="climb_rate">0.050000000223517416</property>
+                <property name="digits">2</property>
                 <property name="snap_to_ticks">True</property>
                 <property name="numeric">True</property>
-                <property name="wrap">True</property>
                 <signal name="change-value" handler="on_view_limit_changed" swapped="no"/>
                 <signal name="changed" handler="on_view_limit_changed" swapped="no"/>
                 <signal name="value-changed" handler="on_view_limit_changed" swapped="no"/>
@@ -1053,16 +1064,6 @@
         </child>
       </object>
     </child>
-  </object>
-  <object class="GtkListStore" id="pfdstore">
-    <columns>
-      <!-- column-name fname -->
-      <column type="gchararray"/>
-      <!-- column-name col1_prob -->
-      <column type="gdouble"/>
-      <!-- column-name col2_prob -->
-      <column type="gdouble"/>
-    </columns>
   </object>
   <object class="GtkListStore" id="pmatch_store">
     <columns>

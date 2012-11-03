@@ -73,6 +73,7 @@ tempdir = tempfile.mkdtemp(prefix='AIview_')
 atexit.register(lambda: shutil.rmtree(tempdir))
 bdir = '/'.join(__file__.split('/')[:-1])
 
+
 class MainFrameGTK(Gtk.Window):
     """This is the Main Frame for the GTK application"""
     
@@ -137,7 +138,7 @@ class MainFrameGTK(Gtk.Window):
 #where are pfd/png/ps files stored
         self.basedir = '.'
 #AI prob is always 2nd col in GUI, use it to sort
-        for vi, v  in enumerate(['fname','col1_prob', 'col2_prob']):
+        for vi, v  in enumerate(['n','fname','col1_prob', 'col2_prob']):
             #only show two columns at a time
             cell = Gtk.CellRendererText()
             col = Gtk.TreeViewColumn(v, cell, text=vi)
@@ -148,12 +149,16 @@ class MainFrameGTK(Gtk.Window):
                 expcol = col
                 col.set_expand(True)
                 col.set_max_width(180)
+            elif v == 'n':
+                col.set_expand(False)
+                col.set_max_width(42)
+                col.set_sort_indicator(False)
             else:
                 col.set_expand(False)
                 col.set_max_width(80)
             self.pfdtree.append_column(col)
         self.pfdtree.set_expander_column(expcol)
-        self.pfdstore.set_sort_column_id(1,1)
+        self.pfdstore.set_sort_column_id(2,1)#arg1=col, arg2=sort/revsort
 
 # set up the matching-pulsar tree
         self.pmatch_tree_init()
@@ -247,7 +252,6 @@ class MainFrameGTK(Gtk.Window):
         idx2 = self.col_options.index(col2)
         limtog = self.limit_toggle.get_active()
         lim = self.view_limit.get_value()
-        limidx = self.data[col1] >= lim
 
 #turn off the model first for speed-up
         self.pfdtree.set_model(None)
@@ -255,24 +259,30 @@ class MainFrameGTK(Gtk.Window):
 
         if idx1 != idx2:
             data = self.data[['fname',col1,col2]]
+            data.sort(order=[col1,'fname'])
+            limidx = data[col1] >= lim
             if np.any(limidx) and limtog:
                 data = data[limidx]
                 self.statusbar.push(0,'Showing %s/%s candidates above %s' %
                                     (limidx.sum(),len(limidx),lim))
             else:
                 self.statusbar.push(0,'No %s candidates > %s. Showing all' % (col1, lim))
-            for v in data:
-                self.pfdstore.append(v)
+            for vi, v in enumerate(data[::-1]):
+                d = (vi,) + v.tolist()
+                self.pfdstore.append(d)
         else:
             data = self.data[['fname',col1]]
+            data.sort(order=[col1,'fname'])
+            limidx = data[col1] >= lim
             if np.any(limidx) and limtog:
                 data = data[limidx]
                 self.statusbar.push(0,'Showing %s/%s candidates above %s' %
                                     (limidx.sum(),len(limidx),lim))
             else:
                 self.statusbar.push(0,'No %s candidates > %s. Showing all' % (col1, lim))
-            for v0, v1 in data:
-                self.pfdstore.append((v0,v1,v1))
+            for vi, v in enumerate(data[::-1]):
+                v0, v1 = v
+                self.pfdstore.append((vi,v0,v1,v1))
                     
         self.pfdtree.set_model(self.pfdstore)
         self.find_matches()
@@ -291,6 +301,19 @@ class MainFrameGTK(Gtk.Window):
         else:
             act_name = 'AI'
 
+            
+        (model, pathlist) = self.pfdtree.get_selection().get_selected_rows()
+#only use first selected object
+        if len(pathlist) == 0:
+            #nothing selected, so go back to first
+            path = None
+            this_iter = None
+            next_path = None
+        else:
+            path = pathlist[0]
+            this_iter = model.get_iter(path)
+            next_iter = model.iter_next(this_iter)
+
         #keep modifier keys until they are released
         if key in ['Control_L','Control_R','Alt_L','Alt_R']:
             self.modifier = key
@@ -306,43 +329,48 @@ class MainFrameGTK(Gtk.Window):
             self.on_open()
 
         elif key == 'n':           
-            self.pfdtree_next()
+            self.pfdtree_next(model, next_iter)
         elif key == 'b':
             self.pfdtree_prev()
 
         #data-related (needs to be loaded)
         if self.data != None:
-            if act_name == 'AI':
+            if act_name == 'AI' and key not in ['c', 'n', 'b']:
                 note = 'Note: AI voter is not editable. Change active voter'
                 print note
                 self.statusbar.push(0, note)
                 return 
 
             if key == '0':
-                self.pfdstore_set_value(0.)
-                self.pfdtree_next()
+                self.pfdtree_next(model, next_iter)
+                fname = self.pfdstore_set_value(0., this_iter=this_iter, return_fname=True)
+            #                print "KEY!",fname
+            elif key == 'r':
+                self.pfdtree_next(model, next_iter)
+                self.pfdstore_set_value(np.nan, this_iter=this_iter)
 
             elif key == '1' or key == 'p':
-                fname = self.pfdstore_set_value(1., return_fname=True)
+                self.pfdtree_next(model, next_iter)
+                fname = self.pfdstore_set_value(1., this_iter=this_iter, return_fname=True)
+#                print "KEY!",fname
                 self.add_candidate_to_knownpulsars(fname)
-                self.pfdtree_next()
 
             elif key == 'm' or key == '5':
                 # marginal candidate. sets voter prob to 0.5
-                fname = self.pfdstore_set_value(.5, return_fname=True)
+                self.pfdtree_next(model, next_iter)
+                fname = self.pfdstore_set_value(.5, this_iter=this_iter, return_fname=True)
                 self.add_candidate_to_knownpulsars(fname)
-                self.pfdtree_next()
 
             elif key == 'k':
                 # known pulsar, sets voter prob to 2.
-                self.pfdstore_set_value(2.)
-                self.pfdtree_next()
+                self.pfdstore_set_value(2., this_iter=this_iter)
+                self.pfdtree_next(model, next_iter)
 
             elif key == 'h':
                 # harmonic of known pulsar, sets voter prob to 3
-                fname = self.pfdstore_set_value(3., return_fname=True)
+                self.pfdtree_next(model, next_iter)
+                fname = self.pfdstore_set_value(3., this_iter=this_iter, return_fname=True)
                 self.add_candidate_to_knownpulsars(fname)   
-                self.pfdtree_next()
 
             elif key == 'c':
                 # cycle between ranked candidates
@@ -409,7 +437,6 @@ class MainFrameGTK(Gtk.Window):
                 
                 limtog = self.limit_toggle.get_active()
                 lim = self.view_limit.get_value()
-                limidx = self.data[col1] >= lim
 
 #turn off the model first for speed-up
                 self.pfdtree.set_model(None)
@@ -419,24 +446,30 @@ class MainFrameGTK(Gtk.Window):
                 self.active_col2 = idx2
                 if idx1 != idx2:
                     data = self.data[['fname',col1,col2]]
+                    data.sort(order=[col1,'fname'])
+                    limidx = data[col1] >= lim
                     if np.any(limidx) and limtog:
                         data = data[limidx]
                         self.statusbar.push(0,'Showing %s/%s candidates above %s' %
                                             (limidx.sum(),len(limidx),lim))
                     else:
                         self.statusbar.push(0,'No %s candidates > %s. Showing All.' % (col1, lim))
-                    for v in data:
-                        self.pfdstore.append(v)
+                    for vi, v in enumerate(data[::-1]):
+                        d = (vi,) + v.tolist()
+                        self.pfdstore.append(d)
                 else:
                     data = self.data[['fname',col1]]
+                    data.sort(order=[col1,'fname'])
+                    limidx = data[col1] >= lim
                     if np.any(limidx) and limtog:
                         data = data[limidx]
                         self.statusbar.push(0,'Showing %s/%s candidates above %s' %
                                             (limidx.sum(),len(limidx),lim))
                     else:
                         self.statusbar.push(0,'No %s candidates > %s. Showing all.' % (col1, lim))
-                    for v0, v1 in data:
-                        self.pfdstore.append((v0,v1,v1))
+                    for vi, v in enumerate(data[::-1]):
+                        v0, v1 = v
+                        self.pfdstore.append((vi,v0,v1,v1))
                         
                 self.pfdtree.set_model(self.pfdstore)
                 self.find_matches()
@@ -464,27 +497,32 @@ class MainFrameGTK(Gtk.Window):
                 
                 limtog = self.limit_toggle.get_active()
                 lim = self.view_limit.get_value()
-                limidx = self.data[col1] >= lim
                 if idx1 != idx2:
                     data = self.data[['fname',col1,col2]]
+                    data.sort(order=[col1,'fname'])
+                    limidx = data[col1] >= lim
                     if np.any(limidx) and limtog:
                         data = data[limidx]
                         self.statusbar.push(0,'Showing %s/%s candidates above %s' %
                                              (limidx.sum(),len(limidx),lim))
                     else:
                         self.statusbar.push(0,'No %s candidates > %s' % (col1, lim))
-                    for v in data:
-                        self.pfdstore.append(v)
+                    for vi, v in enumerate(data[::-1]):
+                        d = (vi,) + v.tolist()
+                        self.pfdstore.append(d)
                 else:
                     data = self.data[['fname',col1]]
+                    data.sort(order=[col1,'fname'])
+                    limidx = data[col1] >= lim
                     if np.any(limidx) and limtog:
                         data = data[limidx]
                         self.statusbar.push(0,'Showing %s/%s candidates above %s' %
                                             (limidx.sum(),len(limidx),lim))
                     else:
                         self.statusbar.push(0,'No %s candidates > %s' % (col1, lim))
-                    for v0, v1 in data:
-                        self.pfdstore.append((v0,v1,v1))
+                    for vi, v in enumerate(data[::-1]):
+                        v0, v1 = v
+                        self.pfdstore.append((vi, v0, v1, v1))
 
                 self.pfdtree.set_model(self.pfdstore)
                 self.find_matches()
@@ -510,7 +548,7 @@ class MainFrameGTK(Gtk.Window):
 
         ncol = self.pfdstore.get_n_columns()
         if tmpiter != None:
-            fname = os.path.join(self.basedir, tmpstore.get_value(tmpiter, 0))
+            fname = os.path.join(self.basedir, tmpstore.get_value(tmpiter, 1))
 
 #are we displaying the prediction from a tmpAI?            
             if exists(fname) and fname.endswith('.pfd') and (self.tmpAI != None) and self.tmpAI_tog.get_active():
@@ -781,41 +819,34 @@ class MainFrameGTK(Gtk.Window):
         return fpng
 
         
-    def pfdstore_set_value(self, value, return_fname=False):
+    def pfdstore_set_value(self, value, this_iter=None, return_fname=False):
         """
-        update the pfdstore value for the active user
+        update the pfdstore value for the given path
         
         Args:
         Value: the voter prob (ranking) to assign
         return_fname: return the filename of the pfd file
         """
-        (model, pathlist) = self.pfdtree.get_selection().get_selected_rows()
-#only use first selected object
-        if len(pathlist) == 0:
-            #nothing selected, so go back to first
-            self.pfdtree.set_cursor(0)
-            (model, pathlist) = self.pfdtree.get_selection().get_selected_rows()
-        path = pathlist[0]
-        tree_iter = model.get_iter(path)
+        if this_iter != None:
 
 #update self.data (since dealing with TreeStore blows my mind)
-        fname, x, oval = self.pfdstore[tree_iter]
-        col1 = self.col1.get_active_text()
-        col2 = self.col2.get_active_text()
+            n, fname, x, oval = self.pfdstore[this_iter]
+            col1 = self.col1.get_active_text()
+            col2 = self.col2.get_active_text()
 
-        idx = self.data['fname'] == fname
-        if self.active_voter:
-            act_name = act_name = self.voters[self.active_voter]
-            self.data[act_name][idx] = value
-            if col1 == act_name:
-                self.pfdstore[tree_iter][1] = value
-            if col2 == act_name:
-                self.pfdstore[tree_iter][2] = value
+            idx = self.data['fname'] == fname
+            if self.active_voter:
+                act_name = act_name = self.voters[self.active_voter]
+                self.data[act_name][idx] = value
+                if col1 == act_name:
+                    self.pfdstore[this_iter][2] = value
+                if col2 == act_name:
+                    self.pfdstore[this_iter][3] = value
 
-        if return_fname:
-            return fname
-        else:
-            return None
+            if return_fname:
+                return fname
+            else:
+                return None
 
     def on_pmatch_row_activated(self, widget, event, data=None):
         """
@@ -836,7 +867,7 @@ class MainFrameGTK(Gtk.Window):
         pfd_iter = self.pfdstore.get_iter_first()
         found = False
         while pfd_iter is not None:
-            candname = self.pfdstore[pfd_iter][0]
+            candname = self.pfdstore[pfd_iter][1]
             if basename(candname) == basename(fname):
                 found = True
                 break
@@ -863,7 +894,7 @@ class MainFrameGTK(Gtk.Window):
         ncol = self.pfdstore.get_n_columns()
         if tmpiter != None:
 #            candname = os.path.join(self.basedir, tmpstore.get_value(tmpiter, 0))
-            candname = tmpstore.get_value(tmpiter, 0)
+            candname = tmpstore.get_value(tmpiter, 1)
 
             (model, pathlist) = self.pmatch_tree.get_selection().get_selected_rows()
     #only use first selected object
@@ -1213,8 +1244,8 @@ class MainFrameGTK(Gtk.Window):
         note += "\tKey : h  -- rank candidate as harmonic (prob = 3.)\n"
         note += "\tKey : k  -- rank candidate as known pulsar (prob = 2.)\n"        
         note += "\tKey : b/n  -- display the previous/next candidate\n"
-        note += "\tKey : c  -- cycle through possible matches"
-        
+        note += "\tKey : c  -- cycle through possible matches\n"
+        note += "\tKey : r -- reset the vote to np.nan\n"
         
         dialog = Gtk.MessageDialog(self, 0, Gtk.MessageType.INFO,
                                    Gtk.ButtonsType.OK_CANCEL, note)
@@ -1382,8 +1413,8 @@ class MainFrameGTK(Gtk.Window):
             tmpiter = None
 
         if tmpiter != None:
-            fname = '%s/%s' % (self.basedir,tmpstore.get_value(tmpiter, 0))
-            store_name = tmpstore.get_value(tmpiter, 0)
+            fname = '%s/%s' % (self.basedir,tmpstore.get_value(tmpiter, 1))
+            store_name = tmpstore.get_value(tmpiter, 1)
 # see if this path exists, update self.basedir if necessary
 #            self.find_file(fname)
             try:
@@ -1523,19 +1554,13 @@ class MainFrameGTK(Gtk.Window):
         else:
             self.statusbar.push(0,"Please select a row")
                     
-    def pfdtree_next(self):
+    def pfdtree_next(self, model, next_iter):
         """
         select next row in pfdtree
         """
-        (model, pathlist) = self.pfdtree.get_selection().get_selected_rows()
-#only use first selected object
-        if len(pathlist) > 0:
-            path = pathlist[0]
-            tree_iter = model.get_iter(path)
-            npath = model.iter_next(tree_iter)
-            if npath:
-                nextpath = model.get_path(npath)
-                self.pfdtree.set_cursor(nextpath) 
+        if next_iter:
+            next_path = model.get_path(next_iter)
+            self.pfdtree.set_cursor(next_path) 
             self.statusbar.push(0, "")
         else:
             self.statusbar.push(0,"Please select a row")

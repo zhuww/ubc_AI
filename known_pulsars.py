@@ -581,9 +581,11 @@ def matches(allpulsars, pulsar, sep=1.):
 
 
     Notes:
-    because GBNCC only gives Dec to nearest degree, we consider
+    *because GBNCC only gives Dec to nearest degree, we consider
     things close if they are separated by less than a degree in dec,
     and 'sep' in RA
+    *if the known pulsar is a 'B' pulsar, we use a sep of max(sep, 5degrees)
+     
     """
     matches = {}
     pra = hhmm2deg(pulsar.ra)
@@ -591,6 +593,8 @@ def matches(allpulsars, pulsar, sep=1.):
     for k, v in allpulsars.iteritems():
         ra = hhmm2deg(v.ra)
         dec = ddmm2deg(v.dec)
+        if v.name.startswith('B'):
+            sep = max(sep, 5)
         if v.gbncc or pulsar.gbncc:
             if abs(ra - pra) <= sep and \
                     abs(dec - pdec) <= max(1.2,1.2*sep):
