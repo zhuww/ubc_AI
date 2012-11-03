@@ -63,7 +63,8 @@ except(ImportError):
     print "please add PRESTO's modules to your python path for more functionality"
     PFD = None
 
-
+#do not allow active voter = sort column. warn once
+have_warned = False
 
 
 #iter on each "n". auto-save after every 10
@@ -292,7 +293,18 @@ class MainFrameGTK(Gtk.Window):
         controls keypresses on over-all window
 
         """
-        global cand_vote
+        global cand_vote, have_warned
+        
+#key codes which change the voting data
+        votes = {'1':1., 'p':1,    #pulsar
+                 'r': np.nan,      #reset to np.nan
+                 '5':.5, 'm':.5,   #50/50 pulsar/rfi
+                 'k':2.,           #known pulsar
+                 'h':3.,           #harmonic of known
+                 '0':0.            #rfi (not a pulsar)
+                 }
+                 
+
         key = Gdk.keyval_name(event.keyval)
         ctrl = event.state &\
             Gdk.ModifierType.CONTROL_MASK
@@ -302,6 +314,42 @@ class MainFrameGTK(Gtk.Window):
             act_name = 'AI'
 
             
+#don't allow voting/actions if sort_column = active voter
+        col1 = self.col1.get_active_text()
+        col2 = self.col2.get_active_text()
+        sort_id = self.pfdstore.get_sort_column_id()[0]
+        #0=number, 1=fname, 2=col1, 3=col2
+        if (sort_id == 2) and (act_name == col1) and key in votes:
+            note = "Note. Voting disabled when active voter = sort column"
+            if not have_warned:
+                dlg = Gtk.MessageDialog(self, 0, Gtk.MessageType.INFO,
+                                        Gtk.ButtonsType.OK, note)
+                response = dlg.run()
+                dlg.destroy()
+                have_warned = True
+                self.statusbar.push(0, 'Vote not recorded. voter = sort column')
+            else:
+                self.statusbar.push(0, note)
+            return
+        elif (sort_id == 3) and (act_name == col2) and key in votes:
+            note = "Note. Voting disabled when active voter = sort column"
+            if not have_warned:
+                dlg = Gtk.MessageDialog(self, 0, Gtk.MessageType.INFO,
+                                        Gtk.ButtonsType.OK,note)
+                response = dlg.run()
+                dlg.destroy()
+                have_warned = True
+                self.statusbar.push(0, 'Vote not recorded. voter = sort column')
+            else:
+                self.statusbar.push(0, note)
+            return
+        elif act_name == 'AI' and key  in votes:
+            note = 'Note: AI voter is not editable. Change active voter'
+            print note
+            self.statusbar.push(0, note)
+            return 
+
+
         (model, pathlist) = self.pfdtree.get_selection().get_selected_rows()
 #only use first selected object
         if len(pathlist) == 0:
@@ -335,42 +383,15 @@ class MainFrameGTK(Gtk.Window):
 
         #data-related (needs to be loaded)
         if self.data != None:
-            if act_name == 'AI' and key not in ['c', 'n', 'b']:
-                note = 'Note: AI voter is not editable. Change active voter'
-                print note
-                self.statusbar.push(0, note)
-                return 
 
-            if key == '0':
+            if key in votes:
+                value = votes[key]
                 self.pfdtree_next(model, next_iter)
-                fname = self.pfdstore_set_value(0., this_iter=this_iter, return_fname=True)
-            #                print "KEY!",fname
-            elif key == 'r':
-                self.pfdtree_next(model, next_iter)
-                self.pfdstore_set_value(np.nan, this_iter=this_iter)
-
-            elif key == '1' or key == 'p':
-                self.pfdtree_next(model, next_iter)
-                fname = self.pfdstore_set_value(1., this_iter=this_iter, return_fname=True)
-#                print "KEY!",fname
-                self.add_candidate_to_knownpulsars(fname)
-
-            elif key == 'm' or key == '5':
-                # marginal candidate. sets voter prob to 0.5
-                self.pfdtree_next(model, next_iter)
-                fname = self.pfdstore_set_value(.5, this_iter=this_iter, return_fname=True)
-                self.add_candidate_to_knownpulsars(fname)
-
-            elif key == 'k':
-                # known pulsar, sets voter prob to 2.
-                self.pfdstore_set_value(2., this_iter=this_iter)
-                self.pfdtree_next(model, next_iter)
-
-            elif key == 'h':
-                # harmonic of known pulsar, sets voter prob to 3
-                self.pfdtree_next(model, next_iter)
-                fname = self.pfdstore_set_value(3., this_iter=this_iter, return_fname=True)
-                self.add_candidate_to_knownpulsars(fname)   
+                fname = self.pfdstore_set_value(value, this_iter=this_iter, \
+                                                    return_fname=True)
+                
+                if key in ['1', 'p', 'm', '5', 'h']:
+                    self.add_candidate_to_knownpulsars(fname)
 
             elif key == 'c':
                 # cycle between ranked candidates
