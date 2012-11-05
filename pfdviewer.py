@@ -114,6 +114,7 @@ class MainFrameGTK(Gtk.Window):
         self.view_limit = self.builder.get_object('view_limit')
         self.limit_toggle = self.builder.get_object('limit_toggle')
         self.verbose_match = self.builder.get_object('verbose_match')
+        self.matchsep = self.builder.get_object('matchsep')
 
         #tmpAI window 
         self.tmpAI_win = self.builder.get_object('tmpAI_votemat')
@@ -234,6 +235,12 @@ class MainFrameGTK(Gtk.Window):
 
 ############################
 ## data-manipulation actions
+    def on_sep_change(self, widget):
+        """
+        respond to changes in the pulsar matching separation
+        """
+        self.find_matches()
+
     def on_viewlimit_toggled(self, widget):
         self.on_view_limit_changed( widget)
 
@@ -1004,7 +1011,8 @@ class MainFrameGTK(Gtk.Window):
                     self.tmpAI_lab.set_text('')
             else:
                 self.tmpAI = None
-                self.tmpAI_lab.set_text('')                
+                self.tmpAI_lab.set_text('')
+                self.tmpAI_tog.set_active(0)
             dialog.destroy()
         else:
             self.tmpAI = None
@@ -1471,7 +1479,9 @@ class MainFrameGTK(Gtk.Window):
                 self.pmatch_store.append([nm,str(np.round(this_pulsar.P0,5)),\
                                               this_pulsar.DM, this_pulsar.ra,\
                                               this_pulsar.dec, this_vote])
-                matches = KP.matches(self.knownpulsars, this_pulsar)
+
+                sep = self.matchsep.get_value()
+                matches = KP.matches(self.knownpulsars, this_pulsar, sep=sep)
                 
                 verbose = self.verbose_match.get_active()
                 if verbose:
@@ -1501,7 +1511,7 @@ class MainFrameGTK(Gtk.Window):
 #                        cut = 0.7*(pfd.dms.max() - pfd.dms.min())/2.
 #                        if (m.DM < this_pulsar.DM - cut) or (m.DM > this_pulsar.DM + cut):
                         dDM = abs(m.DM - this_pulsar.DM)/this_pulsar.DM
-                        if  dDM> .75:
+                        if  dDM > .15:
                             if verbose:
                                 print "  rejecting %s since Delta DM/DM = %s" % (m.name, dDM)
                             continue

@@ -96,8 +96,10 @@ def GBNCC_pulsarlist():
             match = re.match('\d+',tmp).group(0)
             if len(match) == 2:
                 decj = str('+%s:00' % match)
+                gbncc = True
             else:
                 decj = str('+%s:%s' % (match[0:2],match[2:4]))
+                gbncc = False
         else:
             raj = coords.split('')[0]
             raj = str('%s:%s' % (raj[0:2],raj[2:]))
@@ -105,12 +107,14 @@ def GBNCC_pulsarlist():
             match = re.match('\d+',tmp).group(0)
             if len(match) == 2:
                 decj = str('-%s:00' % match)
+                gbncc = True
             else:
                 decj = str('-%s:%s' % (match[0:2],match[2:4]))
+                gbncc = False
 
         pulsars[name] = pulsar(name=name, psrj=name,
                                ra=raj, dec=decj,
-                               P0=p0, DM=dm, gbncc=True,
+                               P0=p0, DM=dm, gbncc=gbncc,
                                catalog=url)
 
     return pulsars
@@ -155,8 +159,10 @@ def PALFA_pulsarlist():
             match = re.match('\d+',tmp).group(0)
             if len(match) == 2:
                 decj = str('+%s:00' % match)
+                gbncc = True
             else:
                 decj = str('+%s:%s' % (match[0:2],match[2:4]))
+                gbncc = False
         else:
             raj = coords.split('')[0]
             raj = str('%s:%s' % (raj[0:2],raj[2:]))
@@ -164,12 +170,14 @@ def PALFA_pulsarlist():
             match = re.match('\d+',tmp).group(0)
             if len(match) == 2:
                 decj = str('-%s:00' % match)
+                gbncc = True
             else:
                 decj = str('-%s:%s' % (match[0:2],match[2:4]))
+                gbncc = False
 
         pulsars[name] = pulsar(name=name, psrj=name,
                                ra=raj, dec=decj,
-                               P0=p0, DM=dm, gbncc=True,
+                               P0=p0, DM=dm, gbncc=gbncc,
                                catalog=url)
 
     return pulsars
@@ -226,8 +234,10 @@ def driftscan_pulsarlist():
             match = re.match('\d+',tmp).group(0)
             if len(match) == 2:
                 decj = str('+%s:00' % match)
+                gbncc = True
             else:
                 decj = str('+%s:%s' % (match[0:2],match[2:4]))
+                gbncc = False
         else:
             raj = coords.split('-')[0]
             raj = str('%s:%s' % (raj[0:2],raj[2:]))
@@ -235,12 +245,14 @@ def driftscan_pulsarlist():
             match = re.match('\d+',tmp).group(0)
             if len(match) == 2:
                 decj = str('-%s:00' % match)
+                gbncc = True
             else:
                 decj = str('-%s:%s' % (match[0:2],match[2:4]))
+                gbncc = False
 
         pulsars[name] =  pulsar(name=name, psrj=name,
                                ra=raj, dec=decj,
-                               P0=p0, DM=dm, gbncc=True,
+                               P0=p0, DM=dm, gbncc=gbncc,
                                 catalog=url)
     return pulsars
 
@@ -269,8 +281,10 @@ def ao327_pulsarlist():
             match = re.match('\d+',tmp).group(0)
             if len(match) == 2:
                 decj = str('+%s:00' % match)
+                gbncc = True
             else:
                 decj = str('+%s:%s' % (match[0:2],match[2:4]))
+                gbncc = False
         else:
             raj = coords.split('-')[0]
             raj = str('%s:%s' % (raj[0:2],raj[2:]))
@@ -278,12 +292,14 @@ def ao327_pulsarlist():
             match = re.match('\d+',tmp).group(0)
             if len(match) == 2:
                 decj = str('-%s:00' % match)
+                gbncc = True
             else:
                 decj = str('-%s:%s' % (match[0:2],match[2:4]))
+                gbncc = False
 
         pulsars[name] =  pulsar(name=name, psrj=name,
                                ra=raj, dec=decj,
-                               P0=p0, DM=dm, gbncc=True,
+                               P0=p0, DM=dm, gbncc=gbncc,
                                 catalog=url)
     return pulsars
 
@@ -299,6 +315,8 @@ def deepmb_pulsarlist():
     for row in rows:
         cols = row.findAll('td')
         name = str(cols[0].text)
+        if not name.startswith('J'):
+            name = 'J%s' % name
         p0 = np.float(cols[1].text)/1000. #[ms] --> [s]
         dm = np.float(cols[2].text.strip('~'))
         coords = name.strip('J')
@@ -309,8 +327,10 @@ def deepmb_pulsarlist():
             match = re.match('\d+',tmp).group(0)
             if len(match) == 2:
                 decj = str('+%s:00' % match)
+                gbncc = True
             else:
                 decj = str('+%s:%s' % (match[0:2],match[2:4]))
+                gbncc = False
         else:
             raj = coords.split('-r')[0]
             raj = str('%s:%s' % (raj[0:2],raj[2:]))
@@ -318,11 +338,13 @@ def deepmb_pulsarlist():
             match = re.match('\d+',tmp).group(0)
             if len(match) == 2:
                 decj = str('-%s:00' % match)
+                gbncc = True
             else:
                 decj = str('-%s:%s' % (match[0:2],match[2:4]))
+                gbncc = False
         pulsars[name] =  pulsar(name=name, psrj=name,
                                ra=raj, dec=decj,
-                               P0=p0, DM=dm, gbncc=True,
+                               P0=p0, DM=dm, gbncc=gbncc,
                                 catalog=url)
     return pulsars
 
@@ -391,8 +413,10 @@ def FERMI_pulsarlist():
             match = re.match('\d+',tmp).group(0)
             if len(match) == 2:
                 decj = str('+%s:00' % match)
+                gbncc = True
             else:
                 decj = str('+%s:%s' % (match[0:2],match[2:4]))
+                gbncc = False
         else:
             raj = coords.split('-')[0]
             raj = str('%s:%s' % (raj[0:2],raj[2:]))
@@ -400,12 +424,14 @@ def FERMI_pulsarlist():
             match = re.match('\d+',tmp).group(0)
             if len(match) == 2:
                 decj = str('-%s:00' % match)
+                gbncc = True
             else:
                 decj = str('-%s:%s' % (match[0:2],match[2:4]))
+                gbncc = False
 
         pulsars[name] =  pulsar(name=name, psrj=name,
                                 ra=raj, dec=decj,
-                                P0=p0, DM=dm, gbncc=True,
+                                P0=p0, DM=dm, gbncc=gbncc,
                                 catalog=url)
     return pulsars
         
@@ -464,8 +490,10 @@ def GBT350NGP_pulsarlist():
             match = re.match('\d+',tmp).group(0)
             if len(match) == 2:
                 decj = str('+%s:00' % match)
+                gbncc = True
             else:
                 decj = str('+%s:%s' % (match[0:2],match[2:4]))
+                gbncc = False
         else:
             raj = coords.split('-')[0]
             raj = str('%s:%s' % (raj[0:2],raj[2:]))
@@ -473,11 +501,13 @@ def GBT350NGP_pulsarlist():
             match = re.match('\d+',tmp).group(0)
             if len(match) == 2:
                 decj = str('-%s:00' % match)
+                gbncc = True
             else:
                 decj = str('-%s:%s' % (match[0:2],match[2:4]))
+                gbncc = False
         pulsars[name] =  pulsar(name=name, psrj=name,
                                ra=raj, dec=decj,
-                               P0=p0, DM=dm, gbncc=True,
+                               P0=p0, DM=dm, gbncc=gbncc,
                                 catalog=url)
     return pulsars
 
@@ -569,7 +599,7 @@ def ddmm2deg(ddmm):
                 + float(ddmm[4:6])/3600.
     return deg*sgn
     
-def matches(allpulsars, pulsar, sep=1.):
+def matches(allpulsars, pulsar, sep=.5):
     """
     given a dictionary of all pulsars, return
     the objects within 'sep' degrees of the pulsar.
@@ -577,7 +607,7 @@ def matches(allpulsars, pulsar, sep=1.):
     args:
     allpulsars : dictionary of allpulsars
     pulsar : object of interest
-    sep : degrees of separation [default 30'=.5deg]
+    sep : degrees of separation [default .5 deg]
 
 
     Notes:
@@ -590,18 +620,24 @@ def matches(allpulsars, pulsar, sep=1.):
     matches = {}
     pra = hhmm2deg(pulsar.ra)
     pdec = ddmm2deg(pulsar.dec)
+    orig_sep = sep
     for k, v in allpulsars.iteritems():
         ra = hhmm2deg(v.ra)
         dec = ddmm2deg(v.dec)
+        #use very wide "beam" for bright pulsars (the "B" pulsars)
         if v.name.startswith('B'):
-            sep = max(sep, 5)
+            sep = max(orig_sep, 2.5)
+        else:
+            sep = orig_sep
+
+        dra = abs(ra - pra)
+        ddec = abs(dec - pdec)
         if v.gbncc or pulsar.gbncc:
-            if abs(ra - pra) <= sep and \
-                    abs(dec - pdec) <= max(1.2,1.2*sep):
-                matches[k] = v
-        elif abs(ra - pra) <= sep and \
-                abs(dec - pdec) <= sep:
-            matches[k] = v
+            #make sure dec is at least one degree
+            if dra <= sep and ddec <= max(1.2,sep):
+                matches[v.name] = v
+        elif dra <= sep and ddec <= sep:
+            matches[v.name] = v
     return sorted(matches.values(), key=lambda x: x.name, reverse=True) #gives a sorted list
     
         

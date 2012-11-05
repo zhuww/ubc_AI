@@ -517,28 +517,30 @@
     <property name="can_focus">False</property>
     <property name="stock">gtk-quit</property>
   </object>
-  <object class="GtkListStore" id="pfdstore">
-    <columns>
-      <!-- column-name n -->
-      <column type="gint"/>
-      <!-- column-name fname -->
-      <column type="gchararray"/>
-      <!-- column-name col1_prob -->
-      <column type="gdouble"/>
-      <!-- column-name col2_prob -->
-      <column type="gdouble"/>
-    </columns>
+  <object class="GtkAdjustment" id="match_sep_adj">
+    <property name="lower">0.050000000000000003</property>
+    <property name="upper">10</property>
+    <property name="value">0.5</property>
+    <property name="step_increment">0.14999999999999999</property>
+    <property name="page_increment">0.25</property>
   </object>
   <object class="GtkWindow" id="listwin">
+    <property name="width_request">380</property>
+    <property name="height_request">650</property>
     <property name="can_focus">False</property>
     <property name="margin_left">3</property>
     <property name="margin_right">3</property>
     <property name="margin_top">3</property>
     <property name="margin_bottom">3</property>
+    <property name="hexpand">True</property>
+    <property name="vexpand">True</property>
+    <property name="border_width">2</property>
     <property name="window_position">center-on-parent</property>
     <property name="default_width">380</property>
     <property name="default_height">650</property>
     <property name="destroy_with_parent">True</property>
+    <property name="accept_focus">False</property>
+    <property name="focus_on_map">False</property>
     <signal name="destroy" handler="on_delete_win" swapped="no"/>
     <signal name="key-release-event" handler="on_pfdwin_key_release_event" swapped="no"/>
     <signal name="key-press-event" handler="on_pfdwin_key_press_event" swapped="no"/>
@@ -835,20 +837,178 @@
           </packing>
         </child>
         <child>
-          <object class="GtkBox" id="box5">
+          <object class="GtkBox" id="box20">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <child>
-              <object class="GtkCheckButton" id="autosave">
-                <property name="label" translatable="yes">auto-save (every 10 votes)</property>
-                <property name="use_action_appearance">False</property>
+              <object class="GtkBox" id="box21">
                 <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="receives_default">False</property>
-                <property name="use_action_appearance">False</property>
-                <property name="xalign">0</property>
-                <property name="draw_indicator">True</property>
-                <signal name="toggled" handler="on_autosave_toggled" swapped="no"/>
+                <property name="can_focus">False</property>
+                <property name="orientation">vertical</property>
+                <child>
+                  <object class="GtkBox" id="box18">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <child>
+                      <object class="GtkCheckButton" id="limit_toggle">
+                        <property name="label" translatable="yes">limit list to col1 Proba &gt;=</property>
+                        <property name="use_action_appearance">False</property>
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="receives_default">False</property>
+                        <property name="use_action_appearance">False</property>
+                        <property name="xalign">0</property>
+                        <property name="active">True</property>
+                        <property name="draw_indicator">True</property>
+                        <signal name="toggled" handler="on_viewlimit_toggled" swapped="no"/>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkSpinButton" id="view_limit">
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="invisible_char">•</property>
+                        <property name="invisible_char_set">True</property>
+                        <property name="adjustment">adjustment1</property>
+                        <property name="climb_rate">0.050000000223517416</property>
+                        <property name="digits">2</property>
+                        <property name="snap_to_ticks">True</property>
+                        <property name="numeric">True</property>
+                        <signal name="change-value" handler="on_view_limit_changed" swapped="no"/>
+                        <signal name="changed" handler="on_view_limit_changed" swapped="no"/>
+                        <signal name="value-changed" handler="on_view_limit_changed" swapped="no"/>
+                        <signal name="editing-done" handler="on_view_limit_changed" swapped="no"/>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <placeholder/>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkBox" id="box13">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <child>
+                      <object class="GtkCheckButton" id="pmatchwin_tog">
+                        <property name="label" translatable="yes">list matches in separate window</property>
+                        <property name="use_action_appearance">False</property>
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="receives_default">False</property>
+                        <property name="use_action_appearance">False</property>
+                        <property name="xalign">0</property>
+                        <property name="draw_indicator">True</property>
+                        <signal name="toggled" handler="on_pmatchwin_toggled" swapped="no"/>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <placeholder/>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkBox" id="box15">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <child>
+                      <object class="GtkCheckButton" id="tmpAI_tog">
+                        <property name="label" translatable="yes">show tmp. AI predict_proba</property>
+                        <property name="use_action_appearance">False</property>
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="receives_default">False</property>
+                        <property name="use_action_appearance">False</property>
+                        <property name="xalign">0</property>
+                        <property name="draw_indicator">True</property>
+                        <signal name="toggled" handler="on_tmpAI_toggled" swapped="no"/>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="tmpAI_lab">
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                        <property name="margin_left">14</property>
+                        <property name="justify">right</property>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">2</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkBox" id="box19">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <child>
+                      <object class="GtkCheckButton" id="verbose_match">
+                        <property name="label" translatable="yes">verbose pulsar matching</property>
+                        <property name="use_action_appearance">False</property>
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="receives_default">False</property>
+                        <property name="use_action_appearance">False</property>
+                        <property name="xalign">0</property>
+                        <property name="draw_indicator">True</property>
+                        <signal name="toggled" handler="on_verbose_match" swapped="no"/>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <placeholder/>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">3</property>
+                  </packing>
+                </child>
+                <child>
+                  <placeholder/>
+                </child>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -857,7 +1017,143 @@
               </packing>
             </child>
             <child>
-              <placeholder/>
+              <object class="GtkSeparator" id="separator1">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="padding">7</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkBox" id="box22">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="orientation">vertical</property>
+                <child>
+                  <object class="GtkBox" id="box5">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <child>
+                      <object class="GtkCheckButton" id="autosave">
+                        <property name="label" translatable="yes">  auto-save
+ (every 10 votes)    </property>
+                        <property name="use_action_appearance">False</property>
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="receives_default">False</property>
+                        <property name="halign">start</property>
+                        <property name="valign">center</property>
+                        <property name="use_action_appearance">False</property>
+                        <property name="xalign">0</property>
+                        <property name="draw_indicator">True</property>
+                        <signal name="toggled" handler="on_autosave_toggled" swapped="no"/>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <placeholder/>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkBox" id="box6">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <child>
+                      <object class="GtkCheckButton" id="aiview">
+                        <property name="label" translatable="yes">AI view</property>
+                        <property name="use_action_appearance">False</property>
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="receives_default">False</property>
+                        <property name="use_action_appearance">False</property>
+                        <property name="xalign">0</property>
+                        <property name="draw_indicator">True</property>
+                        <signal name="toggled" handler="on_aiview_toggled" swapped="no"/>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <placeholder/>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkBox" id="box23">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <child>
+                      <object class="GtkSpinButton" id="matchsep">
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="invisible_char">•</property>
+                        <property name="adjustment">match_sep_adj</property>
+                        <property name="digits">2</property>
+                        <signal name="value-changed" handler="on_sep_change" swapped="no"/>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="label4">
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                        <property name="halign">start</property>
+                        <property name="valign">center</property>
+                        <property name="label" translatable="yes">match separation
+ (degrees)   </property>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="padding">4</property>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">2</property>
+                  </packing>
+                </child>
+                <child>
+                  <placeholder/>
+                </child>
+                <child>
+                  <placeholder/>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">2</property>
+              </packing>
             </child>
           </object>
           <packing>
@@ -867,203 +1163,40 @@
           </packing>
         </child>
         <child>
-          <object class="GtkBox" id="box6">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <child>
-              <object class="GtkCheckButton" id="aiview">
-                <property name="label" translatable="yes">AI view</property>
-                <property name="use_action_appearance">False</property>
-                <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="receives_default">False</property>
-                <property name="use_action_appearance">False</property>
-                <property name="xalign">0</property>
-                <property name="draw_indicator">True</property>
-                <signal name="toggled" handler="on_aiview_toggled" swapped="no"/>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">0</property>
-              </packing>
-            </child>
-            <child>
-              <placeholder/>
-            </child>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">5</property>
-          </packing>
+          <placeholder/>
         </child>
         <child>
-          <object class="GtkBox" id="box13">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <child>
-              <object class="GtkCheckButton" id="pmatchwin_tog">
-                <property name="label" translatable="yes">list matches in separate window</property>
-                <property name="use_action_appearance">False</property>
-                <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="receives_default">False</property>
-                <property name="use_action_appearance">False</property>
-                <property name="xalign">0</property>
-                <property name="draw_indicator">True</property>
-                <signal name="toggled" handler="on_pmatchwin_toggled" swapped="no"/>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">0</property>
-              </packing>
-            </child>
-            <child>
-              <placeholder/>
-            </child>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">6</property>
-          </packing>
+          <placeholder/>
         </child>
         <child>
-          <object class="GtkBox" id="box15">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <child>
-              <object class="GtkCheckButton" id="tmpAI_tog">
-                <property name="label" translatable="yes">show tmp. AI predict_proba:</property>
-                <property name="use_action_appearance">False</property>
-                <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="receives_default">False</property>
-                <property name="use_action_appearance">False</property>
-                <property name="xalign">0</property>
-                <property name="draw_indicator">True</property>
-                <signal name="toggled" handler="on_tmpAI_toggled" swapped="no"/>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">0</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkLabel" id="tmpAI_lab">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="margin_left">14</property>
-                <property name="justify">right</property>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">1</property>
-              </packing>
-            </child>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">7</property>
-          </packing>
+          <placeholder/>
         </child>
         <child>
-          <object class="GtkBox" id="box18">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <child>
-              <object class="GtkCheckButton" id="limit_toggle">
-                <property name="label" translatable="yes">limit list to col1 Proba &gt;=</property>
-                <property name="use_action_appearance">False</property>
-                <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="receives_default">False</property>
-                <property name="use_action_appearance">False</property>
-                <property name="xalign">0</property>
-                <property name="active">True</property>
-                <property name="draw_indicator">True</property>
-                <signal name="toggled" handler="on_viewlimit_toggled" swapped="no"/>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">0</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkSpinButton" id="view_limit">
-                <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="invisible_char">•</property>
-                <property name="invisible_char_set">True</property>
-                <property name="adjustment">adjustment1</property>
-                <property name="climb_rate">0.050000000223517416</property>
-                <property name="digits">2</property>
-                <property name="snap_to_ticks">True</property>
-                <property name="numeric">True</property>
-                <signal name="change-value" handler="on_view_limit_changed" swapped="no"/>
-                <signal name="changed" handler="on_view_limit_changed" swapped="no"/>
-                <signal name="value-changed" handler="on_view_limit_changed" swapped="no"/>
-                <signal name="editing-done" handler="on_view_limit_changed" swapped="no"/>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">1</property>
-              </packing>
-            </child>
-            <child>
-              <placeholder/>
-            </child>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">8</property>
-          </packing>
+          <placeholder/>
         </child>
         <child>
-          <object class="GtkBox" id="box19">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <child>
-              <object class="GtkCheckButton" id="verbose_match">
-                <property name="label" translatable="yes">print verbose pulsar matching</property>
-                <property name="use_action_appearance">False</property>
-                <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="receives_default">False</property>
-                <property name="use_action_appearance">False</property>
-                <property name="xalign">0</property>
-                <property name="draw_indicator">True</property>
-                <signal name="toggled" handler="on_verbose_match" swapped="no"/>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">0</property>
-              </packing>
-            </child>
-            <child>
-              <placeholder/>
-            </child>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">9</property>
-          </packing>
+          <placeholder/>
+        </child>
+        <child>
+          <placeholder/>
         </child>
         <child>
           <placeholder/>
         </child>
       </object>
     </child>
+  </object>
+  <object class="GtkListStore" id="pfdstore">
+    <columns>
+      <!-- column-name n -->
+      <column type="gint"/>
+      <!-- column-name fname -->
+      <column type="gchararray"/>
+      <!-- column-name col1_prob -->
+      <column type="gdouble"/>
+      <!-- column-name col2_prob -->
+      <column type="gdouble"/>
+    </columns>
   </object>
   <object class="GtkListStore" id="pmatch_store">
     <columns>
