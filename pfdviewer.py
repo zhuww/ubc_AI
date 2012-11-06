@@ -372,13 +372,13 @@ class MainFrameGTK(Gtk.Window):
             this_iter = model.get_iter(path)
             next_iter = model.iter_next(this_iter)
             advance = self.advance_next.get_active()
-            adv_col = int(self.advance_col.get_value()) + 2 #plus 'number' and 'fname'
+            adv_col = int(self.advance_col.get_value()) + 1 #plus 'number' and 'fname'
             if advance:
                 data = self.pfdstore[next_iter]
                 while not np.isnan(data[adv_col]):
                     next_iter = model.iter_next(next_iter)
                     if next_iter == None:
-                        self.statusbar.push(0,'No unranked candidates. You are Done!')
+                        self.statusbar.push(0,'No unranked candidates in voter col %i. You are Done!' % adv_col)
 
                         break
                     else:
