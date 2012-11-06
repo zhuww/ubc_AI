@@ -115,6 +115,8 @@ class MainFrameGTK(Gtk.Window):
         self.limit_toggle = self.builder.get_object('limit_toggle')
         self.verbose_match = self.builder.get_object('verbose_match')
         self.matchsep = self.builder.get_object('matchsep')
+        self.advance_next = self.builder.get_object('advance_next')
+        self.advance_col = self.builder.get_object('advance_col')
 
         #tmpAI window 
         self.tmpAI_win = self.builder.get_object('tmpAI_votemat')
@@ -139,7 +141,8 @@ class MainFrameGTK(Gtk.Window):
         self.modifier = None
 #where are pfd/png/ps files stored
         self.basedir = '.'
-#AI prob is always 2nd col in GUI, use it to sort
+
+#define the list columns
         for vi, v  in enumerate(['n','fname','col1_prob', 'col2_prob']):
             #only show two columns at a time
             cell = Gtk.CellRendererText()
@@ -268,7 +271,7 @@ class MainFrameGTK(Gtk.Window):
         if idx1 != idx2:
             data = self.data[['fname',col1,col2]]
             data.sort(order=[col1,'fname'])
-            limidx = data[col1] >= lim
+            limidx = data[col1] >= lim - 1e-5
             if np.any(limidx) and limtog:
                 data = data[limidx]
                 self.statusbar.push(0,'Showing %s/%s candidates above %s' %
@@ -281,7 +284,7 @@ class MainFrameGTK(Gtk.Window):
         else:
             data = self.data[['fname',col1]]
             data.sort(order=[col1,'fname'])
-            limidx = data[col1] >= lim
+            limidx = data[col1] >= lim - 1e-5
             if np.any(limidx) and limtog:
                 data = data[limidx]
                 self.statusbar.push(0,'Showing %s/%s candidates above %s' %
@@ -368,7 +371,18 @@ class MainFrameGTK(Gtk.Window):
             path = pathlist[0]
             this_iter = model.get_iter(path)
             next_iter = model.iter_next(this_iter)
+            advance = self.advance_next.get_active()
+            adv_col = int(self.advance_col.get_value()) + 2 #plus 'number' and 'fname'
+            if advance:
+                data = self.pfdstore[next_iter]
+                while not np.isnan(data[adv_col]):
+                    next_iter = model.iter_next(next_iter)
+                    if next_iter == None:
+                        self.statusbar.push(0,'No unranked candidates. You are Done!')
 
+                        break
+                    else:
+                        data = self.pfdstore[next_iter]
         #keep modifier keys until they are released
         if key in ['Control_L','Control_R','Alt_L','Alt_R']:
             self.modifier = key
@@ -475,7 +489,7 @@ class MainFrameGTK(Gtk.Window):
                 if idx1 != idx2:
                     data = self.data[['fname',col1,col2]]
                     data.sort(order=[col1,'fname'])
-                    limidx = data[col1] >= lim
+                    limidx = data[col1] >= lim - 1e-5
                     if np.any(limidx) and limtog:
                         data = data[limidx]
                         self.statusbar.push(0,'Showing %s/%s candidates above %s' %
@@ -488,7 +502,7 @@ class MainFrameGTK(Gtk.Window):
                 else:
                     data = self.data[['fname',col1]]
                     data.sort(order=[col1,'fname'])
-                    limidx = data[col1] >= lim
+                    limidx = data[col1] >= lim - 1e-5
                     if np.any(limidx) and limtog:
                         data = data[limidx]
                         self.statusbar.push(0,'Showing %s/%s candidates above %s' %
@@ -528,7 +542,7 @@ class MainFrameGTK(Gtk.Window):
                 if idx1 != idx2:
                     data = self.data[['fname',col1,col2]]
                     data.sort(order=[col1,'fname'])
-                    limidx = data[col1] >= lim
+                    limidx = data[col1] >= lim - 1e-5
                     if np.any(limidx) and limtog:
                         data = data[limidx]
                         self.statusbar.push(0,'Showing %s/%s candidates above %s' %
@@ -541,7 +555,7 @@ class MainFrameGTK(Gtk.Window):
                 else:
                     data = self.data[['fname',col1]]
                     data.sort(order=[col1,'fname'])
-                    limidx = data[col1] >= lim
+                    limidx = data[col1] >= lim - 1e-5
                     if np.any(limidx) and limtog:
                         data = data[limidx]
                         self.statusbar.push(0,'Showing %s/%s candidates above %s' %
@@ -1301,8 +1315,8 @@ class MainFrameGTK(Gtk.Window):
             filter.add_pattern("*.npy")
             dialog.add_filter(filter)
             filter = Gtk.FileFilter()
-            filter.set_name("text file (.dat)")
-            filter.add_pattern("*.dat")
+            filter.set_name("text file (.txt)")
+            filter.add_pattern("*.txt")
             dialog.add_filter(filter)
             filter = Gtk.FileFilter()
             filter.set_name("All *")
@@ -1593,8 +1607,8 @@ class MainFrameGTK(Gtk.Window):
             next_path = model.get_path(next_iter)
             self.pfdtree.set_cursor(next_path) 
             self.statusbar.push(0, "")
-        else:
-            self.statusbar.push(0,"Please select a row")
+#        else:
+#            self.statusbar.push(0,"Please select a row")
 #        self.find_matches()
 
     def pfdtree_prev(self):

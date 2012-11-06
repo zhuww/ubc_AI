@@ -9,6 +9,12 @@
     <signal name="changed" handler="on_view_limit_changed" swapped="no"/>
     <signal name="value-changed" handler="on_view_limit_changed" swapped="no"/>
   </object>
+  <object class="GtkAdjustment" id="advance_val">
+    <property name="upper">2</property>
+    <property name="value">1</property>
+    <property name="step_increment">1</property>
+    <property name="page_increment">1</property>
+  </object>
   <object class="GtkWindow" id="aiview_win">
     <property name="can_focus">False</property>
     <property name="margin_left">5</property>
@@ -876,6 +882,7 @@
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="invisible_char">•</property>
+                        <property name="xalign">0.5</property>
                         <property name="invisible_char_set">True</property>
                         <property name="adjustment">adjustment1</property>
                         <property name="climb_rate">0.050000000223517416</property>
@@ -1011,7 +1018,53 @@
                   </packing>
                 </child>
                 <child>
-                  <placeholder/>
+                  <object class="GtkBox" id="box24">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <child>
+                      <object class="GtkCheckButton" id="advance_next">
+                        <property name="label" translatable="yes">advance to next non-
+ranked item in column :</property>
+                        <property name="use_action_appearance">False</property>
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="receives_default">False</property>
+                        <property name="use_action_appearance">False</property>
+                        <property name="focus_on_click">False</property>
+                        <property name="xalign">0</property>
+                        <property name="draw_indicator">True</property>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkSpinButton" id="advance_col">
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                        <property name="invisible_char">•</property>
+                        <property name="xalign">0.5</property>
+                        <property name="adjustment">advance_val</property>
+                        <property name="numeric">True</property>
+                        <property name="update_policy">if-valid</property>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <placeholder/>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">4</property>
+                  </packing>
                 </child>
               </object>
               <packing>
@@ -1028,7 +1081,7 @@
               <packing>
                 <property name="expand">False</property>
                 <property name="fill">True</property>
-                <property name="padding">7</property>
+                <property name="padding">9</property>
                 <property name="position">1</property>
               </packing>
             </child>
@@ -1113,6 +1166,7 @@
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="invisible_char">•</property>
+                        <property name="xalign">0.5</property>
                         <property name="adjustment">match_sep_adj</property>
                         <property name="digits">2</property>
                         <property name="numeric">True</property>
@@ -1203,22 +1257,6 @@
       <!-- column-name col1_prob -->
       <column type="gdouble"/>
       <!-- column-name col2_prob -->
-      <column type="gdouble"/>
-    </columns>
-  </object>
-  <object class="GtkListStore" id="pmatch_store">
-    <columns>
-      <!-- column-name name -->
-      <column type="gchararray"/>
-      <!-- column-name P0 -->
-      <column type="gchararray"/>
-      <!-- column-name DM -->
-      <column type="gdouble"/>
-      <!-- column-name RA -->
-      <column type="gchararray"/>
-      <!-- column-name DEC -->
-      <column type="gchararray"/>
-      <!-- column-name vote -->
       <column type="gdouble"/>
     </columns>
   </object>
@@ -1395,6 +1433,22 @@
         </child>
       </object>
     </child>
+  </object>
+  <object class="GtkListStore" id="pmatch_store">
+    <columns>
+      <!-- column-name name -->
+      <column type="gchararray"/>
+      <!-- column-name P0 -->
+      <column type="gchararray"/>
+      <!-- column-name DM -->
+      <column type="gdouble"/>
+      <!-- column-name RA -->
+      <column type="gchararray"/>
+      <!-- column-name DEC -->
+      <column type="gchararray"/>
+      <!-- column-name vote -->
+      <column type="gdouble"/>
+    </columns>
   </object>
   <object class="GtkWindow" id="pmatch_win">
     <property name="can_focus">False</property>
