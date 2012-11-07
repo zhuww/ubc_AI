@@ -1018,7 +1018,7 @@ class MainFrameGTK(Gtk.Window):
                 try:
                     self.tmpAI = cPickle.load(open(fname))
                     self.tmpAI_lab.set_text(basename(fname))
-                except (IOError, EOFError):
+                except (IOError, EOFError, AttributeError):
                     print "couldn't load %s" % fname
                     self.statusbar.push(0,"couldn't load %s" % fname)
                     self.tmpAI = None

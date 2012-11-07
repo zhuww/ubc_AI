@@ -599,7 +599,7 @@ def ddmm2deg(ddmm):
                 + float(ddmm[4:6])/3600.
     return deg*sgn
     
-def matches(allpulsars, pulsar, sep=.5):
+def matches(allpulsars, pulsar, sep=.6):
     """
     given a dictionary of all pulsars, return
     the objects within 'sep' degrees of the pulsar.
@@ -630,7 +630,7 @@ def matches(allpulsars, pulsar, sep=.5):
         else:
             sep = orig_sep
 
-        dra = abs(ra - pra)
+        dra = abs(ra - pra)*np.cos(pdec*np.pi/180.)
         ddec = abs(dec - pdec)
         if v.gbncc or pulsar.gbncc:
             #make sure dec is at least one degree
