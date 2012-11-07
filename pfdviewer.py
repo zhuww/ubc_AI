@@ -306,7 +306,7 @@ class MainFrameGTK(Gtk.Window):
         global cand_vote, have_warned
         
 #key codes which change the voting data
-        votes = {'1':1., 'p':1,    #pulsar
+        votes = {'1':1., 'p':1.,    #pulsar
                  'r': np.nan,      #reset to np.nan
                  '5':.5, 'm':.5,   #50/50 pulsar/rfi
                  'k':2.,           #known pulsar
