@@ -169,3 +169,74 @@ def cut_performance(AIs, target, nbins=25, plot=True, norm=True):
         plt.show()
 
     return pcts, performance, pct_recovered
+
+
+def plot_neuralactivity(nn, data, cls=1, std=1, imshow=False):
+    """
+    Given a neural network (assumed 1 hidden layer) and input data,
+    plot the activation of the hidden neurons.
+   
+    Args:
+    nn : a neural network
+    data : a ubc_AI.training.pfddata object, 
+           or the input data array 
+           *Note, NN is trained with data.mean()=0, data.std() = 1.
+
+    Optionally:
+    cls = 1: use weights for this output class. Default=1
+    std = 1.: only show neurons contributing more than 1-sigma of the 
+             final sigmoid activation
+    imshow: False (default), plot 1d 
+            True, plot 2d
+    """
+
+    theta1 = nn.layers[0].theta #nfeatures+bias x nneurons
+    theta2 = nn.layers[1].theta #nneurons+bias x nclass
+    if not isinstance(data, type(np.array([]))):
+        #assume this is pfddata object
+        data = data.getdata(**nn.feature)
+        
+    #hidden layer output
+    z1, a1 = nn.forward_propagate(data, nl=1) #nneurons, nneurons+bias
+    
+    #final output
+    z2, a2 = nn.forward_propagate(data,nl=2) #nclass
+    
+    #hidden layer values, weighted by output activation for class=cls
+    wall = theta2[:,cls] * a1
+    #Note: P(cls) = 1/(1+exp(-wall.sum())), so wall>0 contribute to class,
+    #                                          wall<0 mean you aren't in class.
+
+    w = wall[1:] #stip off bias term
+
+    #loop over all neurons, plotting from most-important to least, and setting
+    #the mean of the neuron to the "weight" in the final activation classification
+    worder = w.argsort()[::-1]
+
+#collect all the neurons in order of importance
+#(weighted by contribution to final decision)
+    a = []
+    for wi in worder:
+        weight = w[wi]
+        neuron = theta1[:,wi]
+        #shift the neural-pattern to have neuron.mean() = weight... 
+        #so plot can indicate the significance
+        neuron = neuron + (weight - neuron.mean())
+        a.append(neuron)
+    a = np.array(a)
+        
+#plot all neurons with > std-sigma contribution
+    plt.clf()
+    if imshow:
+        plt.imshow(a)
+    else:
+        astd = a.std()
+        amean = a.mean()
+        for wi, wv in enumerate(worder):
+            n = a[wi]
+        #skip non-extreme neurons
+            if abs(n.mean() - amean) >= std*astd: 
+                plt.plot(n)
+    plt.show()
+    
+    
