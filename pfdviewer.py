@@ -425,16 +425,27 @@ class MainFrameGTK(Gtk.Window):
                     self.on_save()
                 else:
                     self.statusbar.push(0,'Remember to save your output')
-                r = cand_vote // 30
-                d = cand_vote % (r*30)
-                if d == 0:
-                    note = 'Congratulations  %s. You are a level %s classifier\n' % (act_name, r)
-                    note += 'Only %s votes to the next level, and possibly a free coffee from Aaron and Weiwei' % ((r+1)*30)
+
+            awards = [30, 75, 150, 250, 400, 600, 1000]
+            if (cand_vote in awards) | ( (cand_vote > max(awards)) & (cand_vote%500 == 0) ):
+                try:
+                    idx = awards.index(cand_vote) 
+                    level = idx + 1
+                except(ValueError):
+                    level = cand_vote//500 + len(awards) - max(awards)//500
+                note = 'Congratulations  %s. You are a level %s classifier!\n' % (act_name, level)
+                
+                if level < len(awards):
+                    nl = awards[level] - awards[idx]
+                else:
+                    nl = 500
+                note += 'Only %s votes to the next level, and possibly a free coffee from Aaron and Weiwei.\n' % nl
+                note += 'Save a screenshot of this window for proof.' 
                     
-                    dlg = Gtk.MessageDialog(self, 0, Gtk.MessageType.INFO,
+                dlg = Gtk.MessageDialog(self, 0, Gtk.MessageType.INFO,
                                         Gtk.ButtonsType.OK, note)
-                    response = dlg.run()
-                    dlg.destroy()
+                response = dlg.run()
+                dlg.destroy()
 
     def add_candidate_to_knownpulsars(self, fname):
         """
