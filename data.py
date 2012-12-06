@@ -341,8 +341,12 @@ class dataloader(object):
         pdts =  clf.predict(self.test_pfds)
         truepulsar = set([])
         pulsar = set([])
+        if self.test_target.ndim > 1:
+            mytarget = self.test_target[...,0]
+        else:
+            mytarget = self.test_target
         for i,p in enumerate(pdts):
-            if int(self.test_target[i]) == 1:
+            if int(mytarget[i]) == 1:
                 truepulsar.add(i)
             if  int(p) == 1:
                 pulsar.add(i)
@@ -433,7 +437,7 @@ class dataloader(object):
                     feature = [k for k in sorted(self.kwds, key=lambda x:self.kwds.get(x), reverse=True)][0]
                     if feature in ['intervals', 'subbands']:
                         N = self.kwds[feature]
-                        ax.imshow(test_data[sample_list[i]].reshape(N,N))
+                        ax.imshow(test_data[sample_list[i]].reshape(N,N), cmap=plt.get_cmap("binary"))
                                   #cmap=plt.cmap.gray)
                     else:
                         ax.plot(test_data[sample_list[i]])

@@ -15,7 +15,8 @@ def normalize(data):
     else:
         shape = data.shape
         data = data.reshape((-1,1))
-        mean = np.mean(data)
+        #mean = np.mean(data)
+        mean = np.median(data)
         var = np.std(data)
         data = (data-mean)/var
         data = data.reshape(shape)

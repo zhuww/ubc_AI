@@ -44,20 +44,20 @@ def plot_histogram(probs, target, title=''):
     plt.clf()
     nrfi = np.sum(target != 1)
     npulsar = np.sum(target == 1)
-    npsr_clf, binpsr, patchespsr = plt.hist(probs[target==1], 25, facecolor='green', alpha=0.65, label='pulsars (%s)' %npulsar, range=[0,1])
+    npsr_clf, binpsr, patchespsr = plt.hist(probs[target==1], 25, facecolor='grey', alpha=0.65, label='pulsars (%s)' %npulsar, range=[0,1])
 
-    nrfi_clf, binrfi_clf, patchesrfi_clf = plt.hist(probs[target!=1], 25, facecolor='red', alpha=0.65, label='rfi (%s)' %nrfi, range=[0,1])
+    nrfi_clf, binrfi_clf, patchesrfi_clf = plt.hist(probs[target!=1], 25, facecolor='w', alpha=0.65, label='RFIs (%s)' %nrfi, range=[0,1])
 
     plt.legend()
-    plt.xlabel('pulsar prediciton')
-    plt.ylabel('number')
+    plt.xlabel('AI score')
+    plt.ylabel('number of candidates')
 
     pct, f1, prec, compl = find_best_f1(probs, target)
     overlap = hist_overlap(npsr_clf, nrfi_clf, idx=0, norm=True)
-    title = '%s, best (cut, P, C, f1) = (%.3f, %.3f, %.3f, %.3f), (overlap: %s)' %\
-        (title, pct, prec, compl, f1, int(overlap))
+    #title = '%s, best (cut, P, C, f1) = (%.3f, %.3f, %.3f, %.3f), (overlap: %s)' %\
+        #(title, pct, prec, compl, f1, int(overlap))
 
-    plt.title(title)
+    #plt.title(title)
     plt.show()
     
 def find_best_f1(proba, target):
