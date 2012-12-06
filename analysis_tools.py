@@ -171,7 +171,7 @@ def cut_performance(AIs, target, nbins=25, plot=True, norm=True):
     return pcts, performance, pct_recovered
 
 
-def plot_neuralactivity(nn, data, cls=1, std=1, imshow=False):
+def plot_neuralactivity(nn, data, cls=1, std=1, imshow=False, title='', savename=None, topN=None, shift=True):
     """
     Given a neural network (assumed 1 hidden layer) and input data,
     plot the activation of the hidden neurons.
@@ -188,7 +188,18 @@ def plot_neuralactivity(nn, data, cls=1, std=1, imshow=False):
              final sigmoid activation
     imshow: False (default), plot 1d 
             True, plot 2d
+    title: title for plot
+    savename : Default None, otherwise save to this filename
+    topN : Default None, otherwise, override std. and instead show
+            the 'topN' most-excited neurons
+    shift : rescale the nn so it's means represents it's contribution
+            to the final decision
+            Default=True
+
     """
+    import pylab as plt
+    from itertools import cycle
+    lines = ["--","-",":","-."]
 
     theta1 = nn.layers[0].theta #nfeatures+bias x nneurons
     theta2 = nn.layers[1].theta #nneurons+bias x nclass
@@ -216,27 +227,51 @@ def plot_neuralactivity(nn, data, cls=1, std=1, imshow=False):
 #collect all the neurons in order of importance
 #(weighted by contribution to final decision)
     a = []
-    for wi in worder:
+    for i, wi in enumerate(worder):
         weight = w[wi]
         neuron = theta1[:,wi]
         #shift the neural-pattern to have neuron.mean() = weight... 
         #so plot can indicate the significance
-        neuron = neuron + (weight - neuron.mean())
+        if shift:
+            neuron = neuron + (weight - neuron.mean())
         a.append(neuron)
     a = np.array(a)
         
 #plot all neurons with > std-sigma contribution
+#    plt.clf()
     plt.clf()
+    fig = plt.figure(figsize=(12,9))
     if imshow:
         plt.imshow(a)
     else:
         astd = a.std()
         amean = a.mean()
-        for wi, wv in enumerate(worder):
+        ax = plt.subplot(211)
+        linecycler = cycle(lines)
+        for wi, wv in enumerate(worder): #neural index (most active --> least)
+            l = next(linecycler)
             n = a[wi]
         #skip non-extreme neurons
-            if abs(n.mean() - amean) >= std*astd: 
-                plt.plot(n)
-    plt.show()
+            if topN is None:
+                if abs(n.mean() - amean) >= std*astd: 
+                    ax.plot(n, l, label='nn%s (%0.2f,%0.2f)' % (wv,z1[wv],w[wv]))
+#                    ax.plot(n, l, label='nn%s (%0.2f)' % (wv,w[wv]))
+            else:
+                if (wi < topN) | (wi >= len(worder) - topN):
+                    ax.plot(n, l, label='nn%s (%0.2f,%0.2f)' % (wv,z1[wv],w[wv]))
+#                    ax.plot(n, l, label='nn%s (%0.2f)' % (wv,w[wv]))
+        ax.set_xlabel('phase bin')
+        ax.set_ylabel('activation contribution')
+        ax.legend(loc=7)
+
+        ax = plt.subplot(212)
+        ax.plot(data)
+        ax.set_xlabel('phase bin')
+        ax.set_ylabel('Intensity')
+        ax.set_title(title)
+    if savename is not None:
+        fig.savefig(savename)
+    else:
+        plt.show()
     
     
