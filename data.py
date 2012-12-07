@@ -5,8 +5,52 @@ import numpy as np
 from random import shuffle
 import cPickle
 from scipy import mgrid
+import os,sys
 
 from ubc_AI.training import pfddata
+
+class pfdreader(object):
+    """ 
+    A new pfd reader class that only store the link to the file and the extracted data.
+    """
+    SearchPATH = "/home/zhuww/work/AI_PFD/training/PFDfiles/pulsars/:/home/zhuww/work/AI_PFD/training/PFDfiles/RFIs/:/home/zhuww/work/AI_PFD/training/PFDfiles/nonpulsars/:/home/zhuww/work/AI_PFD/training/PFDfiles/harmonics/"
+    def __init__(self, pfdfile):
+        #search for the file
+        self.extracted_feature = {}
+        if pfdfile.__class__ == pfddata:
+            self.extracted_feature.update(pfdfile.extracted_feature)
+            for cls in ['PSRclass', 'SmPclass', 'DMCclass', 'TvPclass', 'FvPclass']:
+                if cls in pfdfile.__dict__:
+                    self.__dict__.update({cls:pfdfile.__dict__[cls]})
+            pfdfile = pfdfile.pfd_filename
+
+        if os.access(pfdfile, os.R_OK):
+            self.pfdfile = pfdfile
+        else:
+            for path in self.SearchPATH.split(':'):
+                if os.access(path+pfdfile, os.R_OK):
+                    self.pfdfile = path+pfdfile
+                    break
+            if not 'pfdfile' in self.__dict__:
+                print pfdfile, self.PSRclass, self.DMCclass
+                raise NameError, "did not file the file %s" % pfdfile
+
+
+
+    def getdata(self, **features):
+        pfd = pfddata(self.pfdfile)
+        data = np.array([])
+        for key in features:
+            value = features[key]
+            feature = '%s:%s' % (key, value)
+            if feature in self.extracted_feature:
+                newdata = self.extracted_feature[feature]
+            else:
+                newdata = pfd.getdata(**{key:value})
+                self.extracted_feature.update({feature:newdata})
+            data = np.append(data, newdata)
+        del pfd
+        return data
 
 
 def singleclass_score(classifier, test_pfds, test_target, verbose=False):
