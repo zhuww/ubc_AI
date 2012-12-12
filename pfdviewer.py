@@ -170,6 +170,8 @@ class MainFrameGTK(Gtk.Window):
         else:
             self.tmpAI = None
             self.tmpAI_tog.set_active(0)
+        #keep track of seen/voted pfd's so things are quicker
+        self.tmpAI_avgs= {}
 
         #pulsar-matching stuff
         self.pmatch_win = self.builder.get_object('pmatch_win')
@@ -252,13 +254,14 @@ class MainFrameGTK(Gtk.Window):
             #make active voter the first non-"AI" and non-"_FL" column
             names = [name for name in self.data.dtype.names[1:] \
                                if not name.endswith('_FL')]
-            av = np.where(np.array(names != 'AI'))[0]
+            av = np.where( np.array(names != 'AI'))[0]
 #            av = np.where(np.array(self.data.dtype.names[1:] != 'AI'))[0]
             if len(av) == 0:
                 self.active_voter = 1
                 self.statusbar.push(0, 'Warning, voting overwrites AI votes')
             else:
-                idx = self.voters.index(self.data.dtype.names[1:][av[0]]) 
+                name = names[av[0]]
+                idx = self.voters.index(name)
                 if 'AI' in self.voters: 
                     idx += 1
                 self.active_voter = idx 
@@ -742,10 +745,13 @@ class MainFrameGTK(Gtk.Window):
 #are we displaying the prediction from a tmpAI?            
             if exists(fname) and fname.endswith('.pfd') \
                     and (self.tmpAI != None) and self.tmpAI_tog.get_active():
-                pfd = pfddata(fname)
-                pfd.dedisperse()
-                print "dedispersing"
-                avgs = feature_predict(self.tmpAI, pfd)
+                if fname not in self.tmpAI_avgs:
+                    pfd = pfddata(fname)
+                    pfd.dedisperse()
+                    avgs = feature_predict(self.tmpAI, pfd)
+                    self.tmpAI_avgs[fname] = avgs
+                else:
+                    avgs = self.tmpAI_avgs[fname]
                 self.update_tmpAI_votemat(avgs)
                 disp_apnd = '(tmpAI: %0.3f)' % (self.tmpAI.predict_proba(pfd)[...,1][0])
             elif (self.tmpAI != None) and self.tmpAI_tog.get_active():
@@ -1212,9 +1218,13 @@ class MainFrameGTK(Gtk.Window):
 
 #are we displaying the prediction from a tmpAI?            
                     if exists(fname) and fname.endswith('.pfd') and (self.tmpAI is not None) and self.tmpAI_tog.get_active():
-                        pfd = pfddata(fname)
-                        pfd.dedisperse()
-                        avgs = feature_predict(self.tmpAI, pfd)
+                        if fname not in self.tmpAI_avgs:
+                            pfd = pfddata(fname)
+                            pfd.dedisperse()
+                            avgs = feature_predict(self.tmpAI, pfd)
+                            self.tmpAI_avgs[fname] = avgs
+                        else:
+                            avgs = self.tmpAI_avgs[fname]
                         self.update_tmpAI_votemat(avgs)
                         disp_apnd = '(tmpAI: %0.3f)' % (self.tmpAI.predict_proba(pfd)[...,1][0])
                     else:
@@ -2203,9 +2213,13 @@ class MainFrameGTK(Gtk.Window):
         #update the tmpAI voting if necessary... and find matches
         if exists(savename) and savename.endswith('.pfd') \
                 and (self.tmpAI != None) and self.tmpAI_tog.get_active():
-            pfd = pfddata(savename)
-            pfd.dedisperse()
-            avgs = feature_predict(self.tmpAI, pfd)
+            if savename not in self.tmpAI_avgs:
+                pfd = pfddata(savename)
+                pfd.dedisperse()
+                avgs = feature_predict(self.tmpAI, pfd)
+                self.tmpAI_avgs[savename] = avgs
+            else:
+                avgs = self.tmpAI_avgs[savename]
             self.update_tmpAI_votemat(avgs)
             self.find_matches()
 
@@ -2415,8 +2429,10 @@ def load_data(fname):
 
     *any voter name ending with "_FL" uses the new feature-labelling ability
      this is 4 votes based on each subplot, each vote being an int 0/1
-     we cannot read text-based _FL votes. Must be a recarray.
+     reading of text-based _FL votes is experimental. Must be a recarray.
 
+    *if a voter_FL column is present but not 'voter', we copy the overall 
+     voter_FL vote to the 'voter' column
     """
     print "Opening %s" % fname
     has_fl_tuple = False
@@ -2501,6 +2517,15 @@ def load_data(fname):
         name = inputbox('Voter chooser',\
                             'No user voters found in %s. Add your voting name' % fname)
         data = add_voter(name, data)
+    #make sure the vote column is a regular (non-FL) vote. If not, 
+    #copy over the 'overall' FL vote 
+    if len(data.dtype.names) == 2:
+        name = data.dtype.names[1]
+        if name.endswith('_FL'):
+            newname = name.replace('_FL','')
+            print "Found feature-label voter %s. Copying overall vote to regular column %s " % (name, newname)
+            data = add_voter(newname, data)
+            data[newname] = data[name][:,0].astype('f8')
     return data
 
 
