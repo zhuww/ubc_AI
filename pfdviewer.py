@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 """
 Aaron Berndsen: A GUI to view and rank PRESTO candidates.
 
@@ -16,6 +17,7 @@ png: quick to display
 """
 import atexit
 import cPickle
+import datetime
 import fractions
 import glob
 import numpy as np
@@ -25,6 +27,7 @@ import subprocess
 import sys
 import tempfile
 from os.path import abspath, basename, dirname, exists
+from optparse import OptionParser
 
 from gi.repository import Gtk, Gdk
 import pylab as plt
@@ -78,7 +81,7 @@ bdir = '/'.join(__file__.split('/')[:-1])
 class MainFrameGTK(Gtk.Window):
     """This is the Main Frame for the GTK application"""
     
-    def __init__(self, data=None):
+    def __init__(self, data=None, tmpAI=None):
         Gtk.Window.__init__(self, title='pfd viewer')
         if bdir:
             self.gladefile = "%s/pfdviewer.glade" % bdir
@@ -101,10 +104,34 @@ class MainFrameGTK(Gtk.Window):
         self.image_disp = self.builder.get_object('image_disp')
         self.autosave = self.builder.get_object('autosave')
         self.pfdtree.connect("cursor-changed",self.on_pfdtree_select_row)
+
+        
+
+        #palfa query window
+        self.palfaqry_tog = self.builder.get_object('PALFAqry')
+        self.palfaqry_win = self.builder.get_object('PALFAqry_win')
+        self.palfaqry_win.set_deletable(False)
+        self.palfaqry_win.connect('delete-event', lambda w, e: w.hide() or True)
+        self.palfaqrybuf = self.builder.get_object('qry_view').get_buffer()
+        self.palfaqry_subfile = self.builder.get_object('qry_subfile')
+        self.palfa_qu = self.builder.get_object('qry_uname')
+        self.palfa_qp = self.builder.get_object('qry_pwd')
+        self.palfa_sampleqry = self.builder.get_object('sample_qry')
+        self.palfa_sampleqry.set_active(0)
+        #use this to keep track of Query candidates
+        self.qry_results = {}
+        self.qry_saveloc = './'
+        self.qry_savefil = '%s-qry.npy' % datetime.datetime.now().strftime('%Y_%m_%d')
+        self.data_fromQry = False
+#keep query in separate location, moving to self.qry_saveloc on save
+        self.qrybasedir = '/dev/shm/pfdvwr'
+
+        #aiview window
         self.aiview = self.builder.get_object('aiview')
         self.aiview_win = self.builder.get_object('aiview_win')
         self.aiview_win.set_deletable(False)
         self.aiview_win.connect('delete-event', lambda w, e: w.hide() or True)
+
         self.pmatchwin_tog = self.builder.get_object('pmatchwin_tog')
         self.col_options = []
         self.col1 = self.builder.get_object('col1')
@@ -115,8 +142,15 @@ class MainFrameGTK(Gtk.Window):
         self.limit_toggle = self.builder.get_object('limit_toggle')
         self.verbose_match = self.builder.get_object('verbose_match')
         self.matchsep = self.builder.get_object('matchsep')
+        #advance to next non-voted candidate, or next in list.
         self.advance_next = self.builder.get_object('advance_next')
         self.advance_col = self.builder.get_object('advance_col')
+        
+        #feature-labelling stuff
+        self.builder.get_object('FL_grid').hide()
+        self.fl_voting_tog = self.builder.get_object('FL_voting_tog')
+        #when feature-labeling, do 5 votes.
+        self.fl_nvote = 0
 
         #tmpAI window 
         self.tmpAI_win = self.builder.get_object('tmpAI_votemat')
@@ -127,8 +161,17 @@ class MainFrameGTK(Gtk.Window):
         self.tmpAI_DMbins = self.builder.get_object('DMbins_vote')
         self.tmpAI_tog = self.builder.get_object('tmpAI_tog')
         self.tmpAI_lab = self.builder.get_object('tmpAI_lab')
-        self.tmpAI = None 
-        
+        if tmpAI is not None:
+            self.tmpAI = cPickle.load(open(tmpAI,'r'))
+            self.tmpAI_tog.set_active(1)
+            self.tmpAI_win.show_all()
+            #hack to get the checkmark "on", and preserve the tmpAI
+            self.tmpAI = cPickle.load(open(tmpAI,'r'))
+        else:
+            self.tmpAI = None
+            self.tmpAI_tog.set_active(0)
+
+        #pulsar-matching stuff
         self.pmatch_win = self.builder.get_object('pmatch_win')
         self.pmatch_tree = self.builder.get_object('pmatch_tree')
         self.pmatch_store = self.builder.get_object('pmatch_store')
@@ -163,7 +206,8 @@ class MainFrameGTK(Gtk.Window):
                 col.set_max_width(80)
             self.pfdtree.append_column(col)
         self.pfdtree.set_expander_column(expcol)
-        self.pfdstore.set_sort_column_id(2,1)#arg1=col, arg2=sort/revsort
+        #default sort on fname, later changed if number of voters > 1
+        self.pfdstore.set_sort_column_id(1,1)#arg1=fname, arg2=sort/revsort
 
 # set up the matching-pulsar tree
         self.pmatch_tree_init()
@@ -187,7 +231,12 @@ class MainFrameGTK(Gtk.Window):
             self.data = None
         # start with default and '<new>' voters
         if self.data != None:
-            self.voters = list(self.data.dtype.names[1:]) #strip off 'fname'
+            self.voters = [name for name in self.data.dtype.names[1:] \
+                               if not name.endswith('_FL')]
+            if len(self.voters) > 1:
+                self.pfdstore.set_sort_column_id(2,1)#arg1=fname, arg2=sort/revsort
+                
+#            self.voters = list(self.data.dtype.names[1:]) #strip off 'fname'
             for v in self.voters:
                 if v not in self.col_options:
                     self.col_options.append(v)
@@ -200,8 +249,11 @@ class MainFrameGTK(Gtk.Window):
             #display first voter column from input data, making it "active"
             self.active_col1 = self.col_options.index(self.voters[1])
             self.col1.set_active(self.active_col1)
-            #make active vote the first non-"AI" column
-            av = np.where(np.array(self.data.dtype.names[1:] != 'AI'))[0]
+            #make active voter the first non-"AI" and non-"_FL" column
+            names = [name for name in self.data.dtype.names[1:] \
+                               if not name.endswith('_FL')]
+            av = np.where(np.array(names != 'AI'))[0]
+#            av = np.where(np.array(self.data.dtype.names[1:] != 'AI'))[0]
             if len(av) == 0:
                 self.active_voter = 1
                 self.statusbar.push(0, 'Warning, voting overwrites AI votes')
@@ -249,6 +301,7 @@ class MainFrameGTK(Gtk.Window):
 
     def on_verbose_match(self, widget):
         self.find_matches()
+
     def on_view_limit_changed(self, widget):
         """
         change what is displayed when the view limit is changed
@@ -279,7 +332,7 @@ class MainFrameGTK(Gtk.Window):
             else:
                 self.statusbar.push(0,'No %s candidates > %s. Showing all' % (col1, lim))
             for vi, v in enumerate(data[::-1]):
-                d = (vi,) + v.tolist()
+                d = (vi,) + v.tolist() 
                 self.pfdstore.append(d)
         else:
             data = self.data[['fname',col1]]
@@ -293,7 +346,7 @@ class MainFrameGTK(Gtk.Window):
                 self.statusbar.push(0,'No %s candidates > %s. Showing all' % (col1, lim))
             for vi, v in enumerate(data[::-1]):
                 v0, v1 = v
-                self.pfdstore.append((vi,v0,v1,v1))
+                self.pfdstore.append((vi,v0,float(v1),float(v1)))
                     
         self.pfdtree.set_model(self.pfdstore)
         self.find_matches()
@@ -302,9 +355,17 @@ class MainFrameGTK(Gtk.Window):
         """
         controls keypresses on over-all window
 
+        #recently added "feature-label" voting, where
+        #we cycle through the subplots before advancing
+
         """
         global cand_vote, have_warned
-        
+
+        #are we doing feature-label voting?
+        FL = False
+        if self.fl_voting_tog.get_active():
+            FL = True
+
 #key codes which change the voting data
         votes = {'1':1., 'p':1.,    #pulsar
                  'r': np.nan,      #reset to np.nan
@@ -313,16 +374,23 @@ class MainFrameGTK(Gtk.Window):
                  'h':3.,           #harmonic of known
                  '0':0.            #rfi (not a pulsar)
                  }
+        #checkboxes for FL voting (vote: glade checkbox)
+        FL_votes = {0: 'FL_overall',
+                    1: 'FL_profile',
+                    2: 'FL_intervals',
+                    3: 'FL_subbands',
+                    4: 'FL_DMcurve'
+                    }
                  
-
         key = Gdk.keyval_name(event.keyval)
         ctrl = event.state &\
             Gdk.ModifierType.CONTROL_MASK
         if self.active_voter:
             act_name = self.voters[self.active_voter]
+            if self.fl_voting_tog.get_active():
+                act_name += '_FL'
         else:
             act_name = 'AI'
-
             
 #don't allow voting/actions if sort_column = active voter
         col1 = self.col1.get_active_text()
@@ -330,7 +398,8 @@ class MainFrameGTK(Gtk.Window):
         sort_id = self.pfdstore.get_sort_column_id()[0]
         #0=number, 1=fname, 2=col1, 3=col2
         if (sort_id == 2) and (act_name == col1) and key in votes:
-            note = "Note. Voting disabled when active voter = sort column"
+            note = "Note. Voting disabled when active voter = sort column. \n"
+            note += "Try sorting by filename"
             if not have_warned:
                 dlg = Gtk.MessageDialog(self, 0, Gtk.MessageType.INFO,
                                         Gtk.ButtonsType.OK, note)
@@ -359,7 +428,7 @@ class MainFrameGTK(Gtk.Window):
             self.statusbar.push(0, note)
             return 
 
-
+        #if we've made it this far than we can record the vote...
         (model, pathlist) = self.pfdtree.get_selection().get_selected_rows()
 #only use first selected object
         if len(pathlist) == 0:
@@ -371,6 +440,7 @@ class MainFrameGTK(Gtk.Window):
             path = pathlist[0]
             this_iter = model.get_iter(path)
             next_iter = model.iter_next(this_iter)
+            #look for next non-ranked candidates
             advance = self.advance_next.get_active()
             adv_col = int(self.advance_col.get_value()) + 1 #plus 'number' and 'fname'
             if advance:
@@ -379,7 +449,6 @@ class MainFrameGTK(Gtk.Window):
                     next_iter = model.iter_next(next_iter)
                     if next_iter == None:
                         self.statusbar.push(0,'No unranked candidates in voter col %i. You are Done!' % adv_col)
-
                         break
                     else:
                         data = self.pfdstore[next_iter]
@@ -390,36 +459,78 @@ class MainFrameGTK(Gtk.Window):
         if key == 'q' and self.modifier in\
                 ['Control', 'Control_L', 'Control_R', 'Primary']:
             self.on_menubar_delete_event(widget, event)
-
         elif key == 's' and self.modifier in ['Control_L', 'Control_R', 'Primary']:
             self.on_save(widget)
-            
         elif key == 'l' and self.modifier in ['Control_L', 'Control_R', 'Primary']:
             self.on_open()
-
-        elif key == 'n':           
-            self.pfdtree_next(model, next_iter)
+        elif key == 'n':   
+            self.pfdtree_next(model, next_iter, FL=FL)
         elif key == 'b':
-            self.pfdtree_prev()
+            self.pfdtree_prev(FL=FL)
+        elif key == 'a':
+            #toggle aiview
+            d = self.aiview.get_active()
+            self.aiview.set_active(not(d))
+        elif key == 'd':
+            #download the candidate if we are in QRY mode
+            if self.data_fromQry:
+                #get the filename
+                fname = self.pfdstore[this_iter][1]
+                if not os.path.exists(os.path.join(self.qrybasedir,fname)):
+                    self.PALFA_download_qry(fname)
 
         #data-related (needs to be loaded)
         if self.data != None:
-
             if key in votes:
+                cand_vote += 1
+
+                #download the candidate if we are in QRY mode
+                if self.data_fromQry:
+                    #get the filename
+                    fname = self.pfdstore[this_iter][1]
+                    if not os.path.exists(os.path.join(self.qrybasedir,fname)):
+                        self.PALFA_download_qry(fname)
                 value = votes[key]
-                self.pfdtree_next(model, next_iter)
-                fname = self.pfdstore_set_value(value, this_iter=this_iter, \
-                                                    return_fname=True)
+
+                #FL only votes 0/1
+                if FL:
+                    value = int(value)
+                    if value in [0,1]:
+                        #set the checkbox
+                        o = self.builder.get_object(FL_votes[self.fl_nvote])
+                        o.set_active(value)
+                        fname = self.pfdstore_set_value(value, this_iter=this_iter, \
+                                                            return_fname=True, FL=FL)
+                else:
+                    fname = self.pfdstore_set_value(value, this_iter=this_iter, \
+                                                        return_fname=True)
                 
                 if key in ['1', 'p', 'm', '5', 'h']:
-                    self.add_candidate_to_knownpulsars(fname)
+                    if FL and self.fl_nvote == 0:
+                        self.add_candidate_to_knownpulsars(fname)
+                    else:
+                        self.add_candidate_to_knownpulsars(fname)
+                
+                if FL and value in [0,1]:
+                    o = self.builder.get_object(FL_votes[self.fl_nvote])
+                    o.modify_bg(Gtk.StateType.NORMAL, Gdk.color_parse('white'))
+                    self.fl_nvote = (self.fl_nvote + 1) % 5
+                    o = self.builder.get_object(FL_votes[self.fl_nvote])
+                    o.modify_bg(Gtk.StateType.NORMAL, Gdk.color_parse('red'))
+
+                #advance to the next candidate?
+                if next_iter is not None:
+                    if FL:
+                        if (self.fl_nvote % 5 == 0):
+                        #then we've done all the FL voting
+                            self.pfdtree_next(model, next_iter, FL=FL)
+                    else:
+                        self.pfdtree_next(model, next_iter, FL=FL)
 
             elif key == 'c':
                 # cycle between ranked candidates
                 self.pmatchtree_next()
 
-
-            cand_vote += 1
             if cand_vote//10 == 1:
                 if self.autosave.get_active():
                     self.on_save()
@@ -518,7 +629,7 @@ class MainFrameGTK(Gtk.Window):
                     else:
                         self.statusbar.push(0,'No %s candidates > %s. Showing All.' % (col1, lim))
                     for vi, v in enumerate(data[::-1]):
-                        d = (vi,) + v.tolist()
+                        d = (vi,) + v.tolist() 
                         self.pfdstore.append(d)
                 else:
                     data = self.data[['fname',col1]]
@@ -532,7 +643,7 @@ class MainFrameGTK(Gtk.Window):
                         self.statusbar.push(0,'No %s candidates > %s. Showing all.' % (col1, lim))
                     for vi, v in enumerate(data[::-1]):
                         v0, v1 = v
-                        self.pfdstore.append((vi,v0,v1,v1))
+                        self.pfdstore.append((vi,v0,float(v1),float(v1)))
                         
                 self.pfdtree.set_model(self.pfdstore)
                 self.find_matches()
@@ -601,6 +712,8 @@ class MainFrameGTK(Gtk.Window):
         if ai_view is active, we make a plot of data downsamples 
         to the AI and show that. If any of the AIview params are illegal
         we take (nbins, n_pca_comp) = (32, 0)... no pca
+        
+        if feature-label voting, load up the votes
 
         """
         gsel = self.pfdtree.get_selection()
@@ -608,18 +721,38 @@ class MainFrameGTK(Gtk.Window):
             tmpstore, tmpiter = gsel.get_selected()
         else:
             tmpiter = None
+        FL = False
+        if self.fl_voting_tog.get_active():
+            FL = True
 
         ncol = self.pfdstore.get_n_columns()
         if tmpiter != None:
-            fname = os.path.join(self.basedir, tmpstore.get_value(tmpiter, 1))
-
+            name = tmpstore.get_value(tmpiter,1)
+            if self.data_fromQry:
+                idx = np.where(self.qry_results['filename'] == basename(name))[0]
+                if len(idx) == 1 and self.qry_results['keep'][idx]:
+                    print "BBB",idx,self.qry_saveloc
+                    basedir = self.qry_saveloc
+                else:
+                    basedir = self.qrybasedir
+            else:
+                basedir = self.basedir
+            fname = os.path.join(basedir, name)
+            
 #are we displaying the prediction from a tmpAI?            
-            if exists(fname) and fname.endswith('.pfd') and (self.tmpAI != None) and self.tmpAI_tog.get_active():
+            if exists(fname) and fname.endswith('.pfd') \
+                    and (self.tmpAI != None) and self.tmpAI_tog.get_active():
                 pfd = pfddata(fname)
                 pfd.dedisperse()
+                print "dedispersing"
                 avgs = feature_predict(self.tmpAI, pfd)
                 self.update_tmpAI_votemat(avgs)
                 disp_apnd = '(tmpAI: %0.3f)' % (self.tmpAI.predict_proba(pfd)[...,1][0])
+            elif (self.tmpAI != None) and self.tmpAI_tog.get_active():
+                avgs = {'phasebins':np.nan,'subbands':np.nan,'intervals':np.nan,\
+                            'DMbins':np.nan,'overall':np.nan}
+                self.update_tmpAI_votemat(avgs)
+                disp_apnd = '(pfd not found)'
             else:
                 disp_apnd = ''
 
@@ -644,7 +777,6 @@ class MainFrameGTK(Gtk.Window):
                     self.image.set_from_file('')
 
             else:
-
                 #we are doing the AI view of the data
                 fpng= ''
                 if exists(fname) and fname.endswith('.pfd'):
@@ -654,6 +786,7 @@ class MainFrameGTK(Gtk.Window):
                     fpng = self.check_AIviewfile_match(fname)
                     if not fpng:
                         fpng = self.generate_AIviewfile(fname)
+
                     if fpng and exists(fpng):
                         self.image.set_from_file(fpng)
                         self.image_disp.set_text('displaying : %s %s' % (fname, disp_apnd))
@@ -669,6 +802,22 @@ class MainFrameGTK(Gtk.Window):
                     fpng = fname
                     self.image.set_from_file(fpng)
                     self.image_disp.set_text('displaying: %s %s' % (fpng, disp_apnd))
+
+            #load up the feature-label votes
+            if FL:
+                self.fl_nvote = 0 
+                idx = np.where(self.data['fname'] == name)
+                act_name = self.voters[self.active_voter] + '_FL'
+                kv = self.data[act_name][idx][0]
+                for i, v in enumerate(['FL_overall', 'FL_profile', 'FL_intervals',\
+                                           'FL_subbands','FL_DMcurve']):
+                    o = self.builder.get_object(v)
+                    o.set_active(kv[i])
+                    if i == 0:
+                        o.modify_bg(Gtk.StateType.NORMAL, Gdk.color_parse('red'))
+                    else:
+                        o.modify_bg(Gtk.StateType.NORMAL, Gdk.color_parse('white'))
+
             self.find_matches()
 
     def create_png(self, fname):
@@ -677,7 +826,6 @@ class MainFrameGTK(Gtk.Window):
         if it doesn't already exist
 
         """
-
         if fname.endswith('.ps'):
             fpng = fname.replace('.ps', '.png')
             if not exists(fpng):
@@ -744,14 +892,33 @@ class MainFrameGTK(Gtk.Window):
             dialog.set_default_size(800,400)
             response = dialog.run()
             if response == Gtk.ResponseType.OK:
-                self.basedir = dialog.get_filename()
-                print "Setting basepath to %s" % self.basedir
-                self.statusbar.push(0, 'Setting basepath to %s' % self.basedir)
+                if self.data_fromQry:
+                    idx = np.where(self.qry_results['filename'] == basename(fname))[0]
+                    if len(idx) == 1 and self.qry_results['keep'][idx]:
+                        self.qry_saveloc = dialog.get_filename()
+                        basedir = self.qry_saveloc
+                    else:
+                        self.qrybasedir = dialog.get_filename()
+                        basedir = self.qrybasedir
+                else:
+                    self.basedir = dialog.get_filename()
+                    basedir = self.basedir 
             else:
-                self.basedir = './'
+                if self.data_fromQry:
+                    idx = np.where(self.qry_results['filename'] == basename(fname))[0]
+                    if len(idx) == 1 and self.qry_results['keep'][idx]:
+                        self.qry_saveloc = dialog.get_filename()
+                        basedir = self.qry_saveloc
+                    else:
+                        self.qrybasedir = dialog.get_filename()
+                        basedir = self.qrybasedir
+                else:
+                    self.basedir = './'
+                    basedir = self.basedir 
             dialog.destroy()
             fname = basename(fname)
-            fname = os.path.join(abspath(self.basedir), fname)
+            
+            fname = os.path.join(abspath(basedir), fname)
             if exists(fname):
                 return fname
             else:
@@ -764,21 +931,47 @@ class MainFrameGTK(Gtk.Window):
         Given some PFD file and the AI_view flag, generate the png
         file for this particular view. 
 
-        We save the files in /tmp/AIview*, 
+        Notes:
+        * We save the files in /tmp/AIview*,
+        * If tmpAI is not None, we use its' pca/nbins
+          (we take the first of each type of subplot in the list_of_AIs)
 
         """
         
         pfd = pfddata(fname)
         plt.figure(figsize=(8,5.9))
-        vals = [('pprof_nbins', 'pprof_pcacomp'), #pulse profile
-                ('si_nbins', 'si_pcacomp'),       #frequency subintervals
-                ('pi_bins', 'pi_pcacomp'),        #pulse intervals
-                ('dm_bins', 'dm_pcacomp')         #DM-vs-chi2
+        vals = [('pprof_nbins', 'pprof_pcacomp','phasebins'), #pulse profile
+                ('si_nbins', 'si_pcacomp', 'subbands'),       #frequency subintervals
+                ('pi_bins', 'pi_pcacomp', 'intervals'),        #pulse intervals
+                ('dm_bins', 'dm_pcacomp', 'DMbins')         #DM-vs-chi2
                 ]
         AIview = []
         for subplt, inp in enumerate(vals):
-            nbins = self.builder.get_object(inp[0]).get_text()
-            npca_comp = self.builder.get_object(inp[1]).get_text()
+            ai = None
+            pca = None
+            nbins = None
+            npca_comp = None
+            #use the tmpAI values if tmpAI is loaded
+            if self.tmpAI is not None:
+                for tai in self.tmpAI.list_of_AIs:
+                    if inp[2] in tai.feature:
+                        ai = tai
+                        nbins = tai.feature[inp[2]]
+                        if ai.use_pca: 
+                            pca = ai.pca
+                            npca_comp = ai.pca.n_components
+            if nbins is not None:
+                self.builder.get_object(inp[0]).set_text(str(nbins))
+                self.builder.get_object(inp[0]).set_editable(0)
+            else:
+                self.builder.get_object(inp[0]).set_editable(1)
+                nbins = self.builder.get_object(inp[0]).get_text()
+            if npca_comp is not None:
+                self.builder.get_object(inp[1]).set_text(str(npca_comp))
+                self.builder.get_object(inp[1]).set_editable(0)
+            else:
+                self.builder.get_object(inp[1]).set_editable(1)
+                npca_comp = self.builder.get_object(inp[1]).get_text()
             try:
                 nbins = int(nbins)
             except ValueError:
@@ -792,9 +985,12 @@ class MainFrameGTK(Gtk.Window):
             if subplt == 0:
                 ax = plt.subplot2grid((3,2),(0,0))
                 data = pfd.getdata(phasebins=nbins)
-                if npca_comp:
+                if npca_comp and (pca is None):
                     pca = PCA(n_components=npca_comp)
                     pca.fit(data)
+                    pcadata = pca.transform(data)
+                    data = pca.inverse_transform(pcadata)
+                elif pca is not None:
                     pcadata = pca.transform(data)
                     data = pca.inverse_transform(pcadata)
                 ax.plot(data)
@@ -802,32 +998,41 @@ class MainFrameGTK(Gtk.Window):
             elif subplt == 1:
                 ax = plt.subplot2grid((3,2), (0,1), rowspan=2)
                 data = pfd.getdata(subbands=nbins)
-                if npca_comp:
+                if npca_comp and (pca is None):
                     #note: PCA is best set when fed many samples, not one
                     pca = PCA(n_components=npca_comp)
                     rd = data.reshape(nbins,nbins)
                     pca.fit(rd)
                     data = pca.inverse_transform(pca.transform(rd)).flatten()
+                elif pca is not None:
+#                    rd = data.reshape(nbins,nbins)
+                    data = pca.inverse_transform(pca.transform(data)).flatten()
                 ax.imshow(data.reshape(nbins, nbins),
                           cmap=plt.cm.gray)
                 ax.set_title('subbands (bins, pca) = (%s,%s)'%(nbins,npca_comp))
             elif subplt == 2:
                 ax = plt.subplot2grid((3,2), (1,0), rowspan=2)
                 data = pfd.getdata(intervals=nbins)
-                if npca_comp:
+                if npca_comp and (pca is None):
                     #note: PCA is best set when fed many samples, not one
                     pca = PCA(n_components=npca_comp)
                     rd = data.reshape(nbins,nbins)
                     pca.fit(rd)
                     data = pca.inverse_transform(pca.transform(rd)).flatten()
+                elif pca is not None:
+#                    rd = data.reshape(nbins,nbins)
+                    data = pca.inverse_transform(pca.transform(data)).flatten()
                 ax.imshow(data.reshape(nbins,nbins),
                                 cmap=plt.cm.gray)
                 ax.set_title('intervals (bins, pca) = (%s,%s)'%(nbins,npca_comp))
             elif subplt == 3:
                 ax = plt.subplot2grid((3,2), (2,1))
                 data = pfd.getdata(DMbins=nbins)
-                if npca_comp:
+                if npca_comp and (pca is None):
                     pca = PCA(n_components=npca_comp).fit(data)
+                    pcadata = pca.transform(data)
+                    data = pca.inverse_transform(pcadata)
+                elif pca is not None:
                     pcadata = pca.transform(data)
                     data = pca.inverse_transform(pcadata)
                 ax.plot(data)
@@ -882,16 +1087,17 @@ class MainFrameGTK(Gtk.Window):
         return fpng
 
         
-    def pfdstore_set_value(self, value, this_iter=None, return_fname=False):
+    def pfdstore_set_value(self, value, this_iter=None, return_fname=False, FL=False):
         """
         update the pfdstore value for the given path
         
         Args:
         Value: the voter prob (ranking) to assign
         return_fname: return the filename of the pfd file
+        FL : are we doing feature labeling? then use self.fl_nvote
+
         """
         if this_iter != None:
-
 #update self.data (since dealing with TreeStore blows my mind)
             n, fname, x, oval = self.pfdstore[this_iter]
             col1 = self.col1.get_active_text()
@@ -899,8 +1105,15 @@ class MainFrameGTK(Gtk.Window):
 
             idx = self.data['fname'] == fname
             if self.active_voter:
-                act_name = act_name = self.voters[self.active_voter]
-                self.data[act_name][idx] = value
+                act_name = self.voters[self.active_voter]
+                if FL:
+                    act_name += '_FL'
+                    value = int(value)
+                    kv = self.data[act_name][idx][0]
+                    kv[self.fl_nvote] = value
+                    self.data[act_name][idx] = kv
+                else:
+                    self.data[act_name][idx] = value
                 if col1 == act_name:
                     self.pfdstore[this_iter][2] = value
                 if col2 == act_name:
@@ -956,6 +1169,7 @@ class MainFrameGTK(Gtk.Window):
 
         ncol = self.pfdstore.get_n_columns()
         if tmpiter != None:
+            
 #            candname = os.path.join(self.basedir, tmpstore.get_value(tmpiter, 0))
             candname = tmpstore.get_value(tmpiter, 1)
 
@@ -977,7 +1191,11 @@ class MainFrameGTK(Gtk.Window):
                     else:
                         self.statusbar.push(0, 'Selected match found: local')
                 if fname.endswith('.pfd'):
-                    fname = os.path.join(self.basedir, fname)
+                    if self.data_fromQry:
+                        basedir = self.qrybasedir
+                    else:
+                        basedir = self.basedir
+                    fname = os.path.join(basedir, fname)
                     if not self.aiview.get_active():
                         # find/create png file from input file
                         fpng = self.create_png(fname)
@@ -993,7 +1211,7 @@ class MainFrameGTK(Gtk.Window):
                         fpng = ''
 
 #are we displaying the prediction from a tmpAI?            
-                    if exists(fname) and fname.endswith('.pfd') and (self.tmpAI != None) and self.tmpAI_tog.get_active():
+                    if exists(fname) and fname.endswith('.pfd') and (self.tmpAI is not None) and self.tmpAI_tog.get_active():
                         pfd = pfddata(fname)
                         pfd.dedisperse()
                         avgs = feature_predict(self.tmpAI, pfd)
@@ -1027,7 +1245,7 @@ class MainFrameGTK(Gtk.Window):
         Otherwise 'forget' the loaded classifier
 
         """
-        if self.tmpAI_tog.get_active():
+        if self.tmpAI_tog.get_active() and (self.tmpAI is None):
             dialog = Gtk.FileChooserDialog("load a pickled classifier", self,
                                            Gtk.FileChooserAction.OPEN,
                                            (Gtk.STOCK_CANCEL,
@@ -1063,7 +1281,6 @@ class MainFrameGTK(Gtk.Window):
         update the tmpAI_vote window
 
         """
-
         if 'phasebins' in avgs:
             self.tmpAI_phasebins.set_text('profile : %0.3f' % avgs['phasebins'])
         else:
@@ -1086,7 +1303,37 @@ class MainFrameGTK(Gtk.Window):
         else:
             self.tmpAI_overall.set_text('overall voting performance: N/A')
 
-                
+    def on_FL_voting_toggled(self, event):
+        #if we're turning this on, make sure the current voter has a '_FL' column
+        if self.active_voter:
+            act_name = self.voters[self.active_voter]
+            fl_actname = '%s_FL' % act_name
+            if fl_actname not in self.data.dtype.names:
+                self.data = add_voter(fl_actname, self.data, this_dtype='5i8')
+        o = self.builder.get_object('FL_grid')
+
+        if self.fl_voting_tog.get_active():
+            o.show_all()
+            #set the checkmarks:
+            (model, pathlist) = self.pfdtree.get_selection().get_selected_rows()
+#only use first selected object
+            if len(pathlist) != 0:
+                path = pathlist[0]
+                this_iter = model.get_iter(path)
+                fname = self.pfdstore[this_iter][1]
+                idx = self.data['fname'] == fname
+                act_name = self.voters[self.active_voter] + '_FL'
+                kv = self.data[act_name][idx][0]
+                for i, v in enumerate(['FL_overall', 'FL_profile', 'FL_intervals',\
+                                           'FL_subbands','FL_DMcurve']):
+                    self.builder.get_object(v).set_active(kv[i])
+            #set the current vote box to 'red'
+            self.fl_nvote = 0
+            o = self.builder.get_object('FL_overall')
+            o.modify_bg(Gtk.StateType.NORMAL, Gdk.color_parse('red'))
+        else:
+            o.hide()
+        pass
 
     def on_aiview_toggled(self, event):
         """
@@ -1137,6 +1384,8 @@ class MainFrameGTK(Gtk.Window):
     def on_voterbox_changed(self, event=None):
         """
         read the voter box and change the active voter
+        
+        add '_FL' if necessary
 
         """
         curpos = self.pfdtree.get_cursor()[0]
@@ -1177,6 +1426,15 @@ class MainFrameGTK(Gtk.Window):
             self.voterbox.set_active(self.active_voter)
             self.dataload_update()
 
+        if self.active_voter:
+            act_name = self.voters[self.active_voter]
+            if self.fl_voting_tog.get_active():
+                act_name += '_FL'
+            if self.data is not None:
+                if act_name not in self.data.dtype.names:
+                    self.data = add_voter(act_name, self.data, this_dtype='5i8')
+            print self.data[act_name]
+
 
 ############################
 ## menu-related actions
@@ -1199,6 +1457,9 @@ class MainFrameGTK(Gtk.Window):
                 savdlg.destroy()
 
             print "Goodbye"
+            #cleanup files in RAM
+            if os.path.exists('/dev/shm/pfdvwr'):
+                shutil.rmtree('/dev/shm/pfdvwr')
             dlg.destroy()
             Gtk.main_quit()
         dlg.destroy()
@@ -1220,7 +1481,6 @@ class MainFrameGTK(Gtk.Window):
         Also, check all the user's votes and add the candidates to self.known_pulsars
 
         """
-
         fname = ''
         if event != 'load':                           
             dialog = Gtk.FileChooserDialog("choose a file to load", self,
@@ -1232,7 +1492,6 @@ class MainFrameGTK(Gtk.Window):
             if response == Gtk.ResponseType.OK:
                 print "Select clicked"
                 fname = dialog.get_filename()
-#                print "File selected: " + fname
             elif response == Gtk.ResponseType.CANCEL:
                 print "Cancel clicked"
                 fname = None
@@ -1244,7 +1503,9 @@ class MainFrameGTK(Gtk.Window):
             self.loadfile = fname
             self.data = load_data(fname)
             oldvoters = self.voters
-            self.voters = list(self.data.dtype.names[1:]) #0=fnames
+            self.voters = [name for name in self.data.dtype.names[1:]\
+                               if not name.endswith('_FL')]
+#            self.voters = list(self.data.dtype.names[1:]) #0=fnames
             for v in self.voters:
                 if v not in self.col_options:
                     self.col_options.append(v)
@@ -1257,10 +1518,12 @@ class MainFrameGTK(Gtk.Window):
 
             self.active_voter = 1
 
-            #add new voters to the voterbox
+            #add new voters to the voterbox and datacolumn
             for v in self.voters:
+                self.voterbox.append_text(v)
                 if v not in oldvoters:
-                    self.voterbox.append_text(v)
+                    if v != '<new>':
+                        self.data = add_voter(v, self.data)
 
             if self.active_voter == None: 
                 self.active_voter = 1
@@ -1290,6 +1553,8 @@ class MainFrameGTK(Gtk.Window):
 
 #add all the candidates ranked as pulsars to the list of known_pulsars
         for v in self.data.dtype.names[1:]:
+            #skip all feature-label voters
+            if v.endswith('_FL'): continue 
             #add 1(=pulsar), 3(=harmonic), .5(=maybe a pulsar) to list of matches
             for vote in [1., 3., 0.5]:
                 cand_pulsar = self.data[v] == vote
@@ -1309,16 +1574,17 @@ class MainFrameGTK(Gtk.Window):
         note += "\tKey : k  -- rank candidate as known pulsar (prob = 2.)\n"        
         note += "\tKey : b/n  -- display the previous/next candidate\n"
         note += "\tKey : c  -- cycle through possible matches\n"
-        note += "\tKey : r -- reset the vote to np.nan\n"
+        note += "\tKey : a -- toggle AIview\n"
+        note += "\tKey : d -- download candidate from PALFA database (after query)"
         
         dialog = Gtk.MessageDialog(self, 0, Gtk.MessageType.INFO,
-                                   Gtk.ButtonsType.OK_CANCEL, note)
+                                   Gtk.ButtonsType.OK, note)
         response = dialog.run()
         dialog.destroy()
         
     def on_save(self, event=None):
         """
-        save the data
+        save the data.
 
         """
         if self.savefile == None:
@@ -1336,8 +1602,8 @@ class MainFrameGTK(Gtk.Window):
             filter.add_pattern("*.npy")
             dialog.add_filter(filter)
             filter = Gtk.FileFilter()
-            filter.set_name("text file (.txt)")
-            filter.add_pattern("*.txt")
+            filter.set_name("text file (.dat)")
+            filter.add_pattern("*.dat")
             dialog.add_filter(filter)
             filter = Gtk.FileFilter()
             filter.set_name("All *")
@@ -1354,9 +1620,13 @@ class MainFrameGTK(Gtk.Window):
             note = "No file selected. Votes not saved"
             print note
             self.statusbar.push(0,note)
-        elif self.savefile.endswith('.npy'):
+        elif self.savefile.endswith('.npy') or self.savefile.endswith('.pkl'):
             note = 'Saved to numpy file %s' % self.savefile
-            np.save(self.savefile,self.data)
+            if self.data_fromQry:
+                print "KEEP",self.qry_results['keep']
+                np.save(self.savefile, self.data[self.qry_results['keep']])
+            else:
+                np.save(self.savefile, self.data)
             if not self.autosave.get_active():
                 print note
             self.statusbar.push(0,note)
@@ -1368,10 +1638,16 @@ class MainFrameGTK(Gtk.Window):
             l1 += ' '.join(self.data.dtype.names)
             l1 += '\n'
             fout.writelines(l1)
-            for row in self.data:
-                for r in row:
-                    fout.write("%s " % r)
-                fout.write("\n")
+            for n, row in enumerate(self.data):
+                if self.data_fromQry:
+                    if self.qry_results['keep'][n]:
+                        for r in row:
+                            fout.write("%s " % r)
+                        fout.write("\n")
+                else:
+                    for r in row:
+                        fout.write("%s " % r)
+                    fout.write("\n")
             fout.close()
             if not self.autosave.get_active():
                 print note
@@ -1477,15 +1753,19 @@ class MainFrameGTK(Gtk.Window):
             tmpiter = None
 
         if tmpiter != None:
-            fname = '%s/%s' % (self.basedir,tmpstore.get_value(tmpiter, 1))
+            if self.data_fromQry:
+                basedir = self.qrybasedir
+            else:
+                basedir = self.basedir
+            fname = '%s/%s' % (basedir,tmpstore.get_value(tmpiter, 1))
             store_name = tmpstore.get_value(tmpiter, 1)
 # see if this path exists, update self.basedir if necessary
 #            self.find_file(fname)
             try:
                 pfd = pfddata(fname)
                 pfd.dedisperse()
-            except ValueError:
-                print "prepfold can't parse %s" % fname
+            except(IOError, ValueError):
+#                print "prepfold can't parse %s" % fname
                 pfd = None
                 
             if exists(fname) and fname.endswith('.pfd') and pfd != None:
@@ -1620,21 +1900,47 @@ class MainFrameGTK(Gtk.Window):
         else:
             self.statusbar.push(0,"Please select a row")
                     
-    def pfdtree_next(self, model, next_iter):
+    def pfdtree_next(self, model, next_iter, FL=False):
         """
         select next row in pfdtree
+        
+        Optional:
+        FL : if feature-labelling, set the checkboxes to current vote
+            otherwise 0
         """
         if next_iter:
             next_path = model.get_path(next_iter)
             self.pfdtree.set_cursor(next_path) 
             self.statusbar.push(0, "")
-#        else:
-#            self.statusbar.push(0,"Please select a row")
-#        self.find_matches()
+            #reset the number of FL votes, and the checkboxes to zero
+            FL_votes = {0: 'FL_overall',
+                        1: 'FL_profile',
+                        2: 'FL_intervals',
+                        3: 'FL_subbands',
+                        4: 'FL_DMcurve'
+                        }
 
-    def pfdtree_prev(self):
+            self.fl_nvote = 0
+            if FL:
+                fname = model.get_value(next_iter, 1)
+                idx = np.where(self.data['fname'] == fname)
+                act_name = self.voters[self.active_voter] + '_FL'
+                kv = self.data[act_name][idx][0]
+                for i, v in enumerate(['FL_overall', 'FL_profile', 'FL_intervals',\
+                                           'FL_subbands','FL_DMcurve']):
+                    o = self.builder.get_object(v)
+                    o.set_active(kv[i])
+                    if i == 0:
+                        o.modify_bg(Gtk.StateType.NORMAL, Gdk.color_parse('red'))
+                    else:
+                        o.modify_bg(Gtk.StateType.NORMAL, Gdk.color_parse('white'))
+    def pfdtree_prev(self, FL=False):
         """
         select prev row in pfdtree
+        Optional:
+        FL : if doing feature-labelling, we see if we've voted on this candidate
+             and set the checkboxes appropriately
+        
         """
         (model, pathlist) = self.pfdtree.get_selection().get_selected_rows()
 #only use first selected object
@@ -1645,7 +1951,22 @@ class MainFrameGTK(Gtk.Window):
             if prevn:
                 prevpath = model.get_path(prevn)
                 self.pfdtree.set_cursor(prevpath)
-            self.statusbar.push(0, "")
+                self.fl_nvote = 0
+
+                if FL:
+                    fname = model.get_value(prevn, 1)
+                    idx = np.where(self.data['fname'] == fname)
+                    act_name = self.voters[self.active_voter] + '_FL'
+                    kv = self.data[act_name][idx][0]
+                    for i, v in enumerate(['FL_overall', 'FL_profile', 'FL_intervals',\
+                                               'FL_subbands','FL_DMcurve']):
+                        o = self.builder.get_object(v)
+                        o = self.builder.get_object(v)
+                        o.set_active(kv[i])
+                        if i == 0:
+                            o.modify_bg(Gtk.StateType.NORMAL, Gdk.color_parse('red'))
+                        else:
+                            o.modify_bg(Gtk.StateType.NORMAL, Gdk.color_parse('white'))
         else:
             self.statusbar.push(0,"Please select a row")
 #        self.find_matches()
@@ -1687,10 +2008,317 @@ class MainFrameGTK(Gtk.Window):
             else:
                 self.statusbar.push(0,'No new pulsars listed')
         dlg.destroy()
+
+    def on_sampleqry_changed(self, event):
+        """
+        load a template PALFA query
+        """
+        tmplts = {'by candidate id': "SELECT * FROM PDM_Candidate_Binaries_Filesystem as t where t.pdm_cand_id = %s",
+                  'recent rfi': "SELECT DISTINCT t1.pdm_cand_id from pdm_candidates as t1 with(nolock)  RIGHT JOIN headers as t4 with(nolock) on t1.header_id=t4.header_id AND t4.obsType in ('Mock','wapp')  LEFT OUTER JOIN pdm_classifications as t2 with(nolock) ON t2.pdm_cand_id=t1.pdm_cand_id AND t2.person_id=30 AND t2.pdm_class_type_id=1  LEFT JOIN pdm_rating as t3 with(nolock) ON t1.pdm_cand_id=t3.pdm_cand_id  RIGHT JOIN headers as t7 with(nolock) ON t1.header_id=t7.header_id WHERE  ISNULL(t2.rank,0) BETWEEN 4 AND 5 AND t3.pdm_rating_instance_id=22 AND t3.value >= 0.5 AND t7.source_name LIKE 'G%'"}
+        act_tmplt = self.palfa_sampleqry.get_active_text()
+        self.palfaqrybuf.set_text(tmplts[act_tmplt])
+        
+    def on_qry_execute(self, event):
+        """
+        respond to "Execute Query" events.
+        Read in username/password (prompting if not set),
+        and run the query
+
+        """
+        try:
+            import pymssql
+        except ImportError:
+            print "PALFA query requires pymssql module. Aborting query"
+            return
+        print "executing query"
+
+        pwd = self.palfa_qu.get_text()
+        uname = self.palfa_qp.get_text()
+
+        if '' in [uname, pwd]:
+            print "A username and password are required. Aborting query"
+            return
+        
+        dbhost = Vdecode(uname+pwd, 'ugkagdipzy.nm.qigtcjn.bmh')
+        database = Vdecode(uname+pwd, 'JPRDYEukmQQ2')
+        table_name = Vdecode(pwd+uname, 'EXW_Qucjgbcnb_Oxhkowyh_Dgnyphfiyw')
+        
+        #file with list of query subs
+        fin = self.palfaqry_subfile.get_filename() 
+        #actual query to perform
+        srt = self.palfaqrybuf.get_start_iter()
+        stp = self.palfaqrybuf.get_end_iter()
+        qry = self.palfaqrybuf.get_text(srt, stp,1)
+        #if "by candidateid" is not active we still use that query to download the filelocation
+        if self.palfa_sampleqry.get_active_text() != 'by candidate id':
+            loc_qry = "SELECT * FROM PDM_Candidate_Binaries_Filesystem as t where t.pdm_cand_id = %s"
+            #(pdm_cand_bin_id,pdm_cand_id,pdm_plot_type_id,filename,file_location,uploaded
+        else:
+            #else we don't need to run the location query
+            loc_qry = ""
+
+        try:
+            db = pymssql.connect(dbhost, pwd, uname, database)
+        except:
+            print "Couldn't contact the database. Wrong password?"
+            return 
+
+        #perform the query if all things are set
+        connection = db.cursor()
+        loc_list, fn_list, png_list = palfa_query(connection, qry, fin, loc_qry)
+
+        #keep track of the filename and location
+        self.qry_results['location'] = np.array(loc_list)
+        self.qry_results['filename'] = np.array(fn_list)
+        self.qry_results['pngname'] = np.array([i[0] for i in png_list])
+        #keep: if we vote or 'd'ownload on candidate, we keep it.
+        #default is not to keep it
+        self.qry_results['keep'] = np.array([False for i in png_list])
+
+        #write out the pngs to self.qrybasedir if they don't already exist
+        #and create a file listing the candidates together with current voter
+        if (self.qrybasedir is not None) and (not os.path.exists(self.qrybasedir)):
+            os.makedirs(self.qrybasedir)
+        temp = tempfile.NamedTemporaryFile(prefix='PFDqry_', suffix='.txt', \
+                                               dir=self.qrybasedir,delete=False)
+        if self.active_voter is None:
+            #AAR: could prompt for voter name
+            name = inputbox('Voter chooser',\
+                                'No user voters found in %s. Add your voting name')
+            if name:
+                act_name = name
+            else:
+                act_name = 'temp'
+        else:
+            act_name = self.voters[self.active_voter]
+        temp.file.write("#%s %s\n" % ('fname', act_name))
+        for pngname, pngdata in png_list:
+            pfdname = pngname.replace('.png','')
+            temp.file.write("%s %3.4f \n"% (pfdname, np.nan))
+            if os.path.exists('%s/%s' % (self.qrybasedir,pfdname)):
+                continue
+            f = open('%s/%s' % (self.qrybasedir,pngname),'w')
+            f.write(pngdata)
+            f.close()
+        temp.file.flush()
+        self.qry_savefil = temp.name
+        #get the pfd download location
+        self.qry_saveloc = self.builder.get_object('gtk_qrysaveloc').get_text()
+        if not self.qry_saveloc:
+            self.qry_saveloc = './'
+        print "Will save downloaded pfd's to ", abspath(self.qry_saveloc)
+        #we track which candidates we like/have-downloaded, only saving those
+        self.data_fromQry = True
+        #load up the data
+        self.on_open(event='load', fin=self.qry_savefil)
+        #reset the savefile location for future votes...
+        self.savefile = None
+        
+
+    def on_fl_toggle(self, widget, event=None):
+        """
+        respond to FL votes done by mouse-click
+
+        """
+        act_name = self.voters[self.active_voter] + '_FL'
+        FL_votes = {0: 'FL_overall',
+                    1: 'FL_profile',
+                    2: 'FL_intervals',
+                    3: 'FL_subbands',
+                    4: 'FL_DMcurve'
+                    }
+        (model, pathlist) = self.pfdtree.get_selection().get_selected_rows()
+#only use first selected object
+        if len(pathlist) != 0:
+            path = pathlist[0]
+            this_iter = model.get_iter(path)
+            fname = self.pfdstore[this_iter][1]
+
+            idx = self.data['fname'] == fname
+            newvote = []
+            for k, v in FL_votes.iteritems():
+                o = self.builder.get_object(v).get_active()
+                value = np.where(o,1,0)
+                newvote.append(value)
+            self.data[act_name][idx] = np.array(newvote)
+
+
+    def PALFA_download_qry(self, fname):
+        """
+        if we vote on a query candidate (just a png) or hit 'd',
+        we download the candidate.
+
+        """
+        from ftplib import FTP
+
+        #fn_name doesn't seem to be right! look into "def palfa_qry"
+        tmp = np.array([i.replace('.png','') for i in self.qry_results['pngname']])
+        idx = np.where(self.qry_results['filename'] == fname)[0]
+        idx = np.where(tmp == fname)[0]
+        print "FNAME",fname,idx
+        if len(idx) == 1:
+            print "D1",self.qry_results['keep']
+            self.qry_results['keep'][idx] = True
+            print "D2",self.qry_results['keep']
+            pfdname = self.qry_results['filename'][idx]
+            pfdloc = self.qry_results['location'][idx]
+            
+        if isinstance(pfdname, str):
+            pfdname = [pfdname]
+        if isinstance(pfdloc, str):
+            pfdloc = [pfdloc]
+
+        pwd = self.palfa_qu.get_text()
+        uname = self.palfa_qp.get_text()
+
+        if '' in [uname, pwd]:
+            print "A username and password are required. Aborting query"
+            return
+        ftp_host = Vdecode(pwd+uname, 'plozwvd.ra.wlaatfv.sxj')
+        ftp_pwd = Vdecode(pwd+uname, 'CUSZ305s')
+        ftp_username = Vdecode(uname+pwd, 'jprdyfuqj')
+        ftp_port = 31001
+        ftp = FTP()
+        ftp.connect(ftp_host, ftp_port)
+        ftp.login(ftp_username, ftp_pwd)
+        for i,d in enumerate(pfdloc):
+            ftp.cwd(d)
+            filename = pfdname[i]
+            savename = "%s/%s" % (self.qry_saveloc, filename)
+            tmpname = abspath(os.path.join(self.qrybasedir,filename))
+            if os.path.exists(savename):
+                print "FTP: %s already exists" % \
+                    abspath(os.path.join(self.qry_saveloc, filename))
+                #make sure temp file is there:
+                if not os.path.exists(tmpname):
+                    os.symlink(abspath(savename), tmpname)
+            else:
+                print("\r FTP: downloading %s... " % savename)
+                ftp.retrbinary('RETR %s' % filename, open( savename, 'wb').write )
+                print("\r FTP: downloading %s... done" % savename)
+            #create a symbolic link to this file from the temporary location (for coding-ease)
+                os.symlink(abspath(savename), tmpname)
+        ftp.quit()
+   
+        #update the tmpAI voting if necessary... and find matches
+        if exists(savename) and savename.endswith('.pfd') \
+                and (self.tmpAI != None) and self.tmpAI_tog.get_active():
+            pfd = pfddata(savename)
+            pfd.dedisperse()
+            avgs = feature_predict(self.tmpAI, pfd)
+            self.update_tmpAI_votemat(avgs)
+            self.find_matches()
+
+
+
+    def on_PALFAqry_toggled(self, event):
+        """
+        get status of checkbox, and display
+        the palfa query window accordingly
+
+        """
+        if self.palfaqry_tog.get_active():
+            self.palfaqry_win.show_all()
+        else:
+            self.palfaqry_win.hide()
+
+
+
 ####### end MainFrame class ####
 
 ################################
 ## utilities
+
+def palfa_query(conn, qry, fin, loc_qry):
+    """
+    perform the query defined in "the query" box.
+
+    Args:
+    conn : the db.connection 
+    qry : the actual qry
+    fin : if not '', should contain the qry substitutions
+    loc_qry : if qry isn't a 'by candidate id' query which returns the pfd file location,
+              then we also run the "by candidate id" query
+
+    Returns:
+    list_of_file_locations, list_of_filenames, list_of(png filenames, png data)
+    """
+    #recovers the png file for each candidate id.
+    png_qry = 'SELECT * FROM PDM_Candidate_plots as t where t.pdm_cand_id = %s'
+            #returns [(pdfm_cand_id, pdfm_plot_type_id, filename, png filedata)]
+
+    loc_list, fn_list, png_list = [], [], []
+    
+    if fin: #then we require substitutions
+        subs = np.genfromtxt(fin, dtype=str)
+        print "Getting information for %s candidates. Be patient" % len(subs)
+        for sub in subs:
+            if subs.ndim == 1:
+                Q = qry % sub
+            else:
+                Q = qry % tuple(sub)
+            conn.execute(Q)
+            info = conn.fetchall()
+            for i in info:
+                if loc_qry:
+                    #recall, expect first entry of "Q" to be candid
+                    conn.execute(loc_qry % i[0]) 
+                    info2 = conn.fetchall()
+                    #loc_qry returns (pdf_cand_bin_id, pdf_cand_id, pdfm_plot_type_id, filename, file_location,uploaded)
+                    #get the actual png data
+                    for j in info2:
+                        filename, location = j[3], j[4]
+                        location = '/' + location
+                        conn.execute(png_qry % j[1]) 
+                        png_info = conn.fetchall()
+                        if len(png_info) > 0:
+                            loc_list.append(location)
+                            fn_list.append(filename)
+                            png_list.append((png_info[0][2], png_info[0][3]))
+                else:
+                    #the original query was a 'loc_qry'-->candid=element(2)
+                    filename, location = i[3], i[4]
+                    location = '/' + location
+                    conn.execute(png_qry % i[1])
+                    png_info = conn.fetchall()
+                    if len(png_info) > 0:
+                        loc_list.append(location)
+                        fn_list.append(filename)
+                        png_list.append((png_info[0][2], png_info[0][3]))
+    else:
+        conn.execute(qry)
+        info = conn.fetchall()
+        print "Getting information for %s candidates. Be patient" % len(info)
+        for n, i in enumerate(info):
+            sys.stdout.write("\r  (%s/%s)" % (n+1, len(info)))
+            sys.stdout.flush()
+            if loc_qry:
+                conn.execute(loc_qry % i[0])
+                info2 = conn.fetchall()
+                for j in info2:
+                    filename, location = j[3], j[4]
+                    location = '/' + location
+                    conn.execute(png_qry % j[1])
+                    png_info = conn.fetchall()
+                    if len(png_info) > 0:
+                        #only append if we have all the info
+                        loc_list.append(location)
+                        fn_list.append(filename)
+                        png_list.append((png_info[0][2], png_info[0][3]))
+            else:
+                #the original query was a 'loc_qry'-->candid=element(2)
+                filename, location = i[3], i[4]
+                location = '/' + location
+                loc_list.append(location)
+                fn_list.append(filename)
+                conn.execute(png_qry % i[2])
+                png_info = conn.fetchall()
+                if len(png_info) > 0:
+                    #only append if we have all the info
+                    loc_list.append(location)
+                    fn_list.append(filename)
+                    png_list.append((png_info[0][2], png_info[0][3]))
+    return loc_list, fn_list, png_list
 
 def convert(fin):
     """
@@ -1776,80 +2404,126 @@ def convert(fin):
 
 def load_data(fname):
     """
-    read data stored in a simple txt file with (at least) one column:
+    read data stored in a simple txt file or numpy recarry with (at least) one column:
     filename 
 
     subsequent columns are added based on a users votes
 
     Notes:
-    We also expect the first row to be a '#' comment line with the 
+    *We also expect the first row to be a '#' comment line with the 
     labels for each column. This must be, at least, '#fname '
 
-    We will create the AI row if necessary and a 'dummy' voter row
+    *any voter name ending with "_FL" uses the new feature-labelling ability
+     this is 4 votes based on each subplot, each vote being an int 0/1
+     we cannot read text-based _FL votes. Must be a recarray.
 
     """
     print "Opening %s" % fname
-    if fname.endswith('.npy'):
+    has_fl_tuple = False
+    if fname.endswith('.npy') or fname.endswith('.pkl'):
         data = np.load(fname)
+        #make sure all single-vote entries are type 'f8'
+        newdtype = []
+        for d in data.dtype.descr:
+            if len(d) == 2:
+                name, typ = d
+                if 'i' in typ:
+                    print "Recasting %s from %s to float" % (name, typ)
+                    newdtype.append((name,'f8'))
+                else:
+                    newdtype.append(d)
+            elif len(d) == 3:
+                name, typ, sz = d
+                if not name.endswith('_FL'):
+                    print "Convention is to end FL vote cols with _FL"
+                    print "Renaming %s to %s" % (name, name+'_FL')
+                    newdtype.append((name+'_FL',type, sz))
+                else:
+                    newdtype.append(d)
+            else:
+                newdtype.append(d)
+        data = data.astype(newdtype)
     else:
         f = open(fname,'r')
         l1 = f.readline()
         f.close()
         if '#' not in l1:
             print "Expected first line to be a comment line describing the columns"
-            print "format: fname voter1 voter2 ..."
-            print "We assume voter1 = AI"
-            ncol = len(l1.split())
+            print "format: #fname voter1 voter2 ..."
+            cols = l1.split()
+            ncol = len(cols)
             if ncol > 1:
-                colnames = ['fname','AI']
-                coltypes = ['|S130', 'f8']
-                for n in range(ncol-2):
-                    colnames.append('f%s' % n)
-                    coltypes.append('f8')
+                colnames = ['fname']
+                coltypes = ['|S130']
+                for ni, nv in enumerate(cols[1:]):#range(ncol-1):
+#                    nv = cols[ni+1]
+                    try:
+                        #test if this is a regular column
+                        val = float(nv)
+                        colnames.append('voter%s' % ni)
+                        coltypes.append('f8')
+                    except(TypeError,ValueError):
+                        #or a feature-label column
+                        coltypes.append('|S11')
+                        colnames.append('voter%s_FL' % ni)
+                        has_fl_tuple = True
             else:
                 colnames = ['fname']
                 coltypes = ['|S130']
         else:
             l1 = l1.strip('#')
             colnames = l1.split()
-            #fname, AI
-            coltypes = ['|S130','f8']
-            for n in range(len(colnames)-2):
-                coltypes.append('f8')
+            #fname
+            coltypes = ['|S130']
+            for ni, nv in enumerate(colnames[1:]):
+                if nv.endswith('_FL'):
+                    coltypes.append("|S11")
+                    has_fl_tuple = True
+                else:
+                    coltypes.append('f8')
 
-        data = np.recfromtxt(fname, dtype={'names':colnames,'formats':coltypes})
+        data = np.recfromtxt(fname, dtype={'names':colnames,'formats':coltypes},comments='#')
+        if has_fl_tuple:
+            dtypes = data.dtype.descr
+            new_dtypes = []
+            for k, v in dtypes:
+                new_dtypes.append((k,v.replace('|S11','5i8')))
+            new_data = np.recarray(data.size, dtype=new_dtypes)
+            for k, v in dtypes:
+                if v != '|S11':
+                    new_data[k] = data[k]
+                else:
+                    for i in xrange(data.size):
+                        new_data[k][i] = eval(data[k][i])
+            data = new_data
 
-        if len(data.dtype.names[1:]) == 1 and data.dtype.names[1]  == 'AI':
-            #can't have data file of only 'AI'... we must be able to vote
-            name = inputbox('Voter chooser',\
-                                'No user voters found in %s. Add your voting name' % fname)
-            data = add_voter(name, data)
-    while len(data.dtype.names) == 1: #fname
-        #data should have two columns.
+    if len(data.dtype.names) == 1: #fname alone!
         name = inputbox('Voter chooser',\
                             'No user voters found in %s. Add your voting name' % fname)
         data = add_voter(name, data)
-
     return data
 
 
-def add_voter(voter, data):
+def add_voter(voter, data, this_dtype='f8'):
     """
     add a field 'voter' to the data array
+
+    optional:
+    this_dtype : specify the recarray dtype. 
+                usually 'f8', but feature-labeling is '5i8'
 
     """
     if voter not in data.dtype.names:
         nrow = len(data)
-        if voter == 'AI':
-            this_dtype = 'f8'
-        else:
-            this_dtype = 'f8'
-        nvote = np.zeros(nrow,dtype=this_dtype)*np.nan
+
+        nvote = np.zeros(nrow,dtype=this_dtype)
+        if this_dtype != '5i8':
+            #for feature-labelling we default to "RFI",
+            #but otherwise we set to nan
+            nvote *= np.nan
         dtype = data.dtype.descr
-        if voter == 'AI':
-            dtype.append((voter,'f8'))
-        else:
-            dtype.append((voter,'f8'))
+        dtype.append((voter,this_dtype))
+
         newdata = np.zeros(nrow,dtype=dtype)
         newdata[voter] = nvote
         for name in data.dtype.names:
@@ -1873,9 +2547,6 @@ def inputbox(title='Input Box', label='Please input the value',
     lbl.show()
     dlg.vbox.pack_start(lbl, False, False, 0)
     entry = Gtk.Entry()
-    entry.connect("activate", 
-                      lambda ent, dlg, resp: dlg.response(resp), 
-                      dlg, Gtk.ResponseType.OK)
     if text: entry.set_text(text)
     entry.show()
     dlg.vbox.pack_start(entry, False, True, 0)
@@ -1924,10 +2595,13 @@ def feature_predict(clf, pfd):
 
     Assumes 'pulsar' class in label '1'
     """
+    if not isinstance(pfd,list):
+        pfd = [pfd]
+        
     features = ['phasebins', 'intervals', 'subbands', 'DMbins']
     avgs = {}
     for f in features:
-        if clf.strategy != 'adaboost':
+        if  clf.strategy != 'adaboost':
             avgs[f] = np.mean([c.predict_proba(pfd)[...,1][0] for c in clf.list_of_AIs \
                                    if f in c.feature])
         else:
@@ -1952,13 +2626,70 @@ def harm_ratio(a,b,max_denom=100):
     c = fractions.Fraction(a/b).limit_denominator(max_denominator=max_denom)
     return c.numerator, c.denominator
 
-if __name__ == '__main__':        
-    
-    #did we pass an input file:
-    args = sys.argv[1:]
-    data = None
-    if len(args) > 0:
-        data = args[0]#load_data(args[0])
 
-    app = MainFrameGTK(data=data)    
+
+def Vencode(key, string):
+    """
+    simple Vigenere cipher encoding
+    inspired by:
+    code.google.com/p/pysecret/source/browse/vigenere.py
+
+    """
+    l, k = [], 0 
+    for i in string:
+        if i.isalpha():
+            if i.isupper():
+                l.append( chr((ord(i) + ord(key[k])) % 26 + 65) )
+            else:
+                l.append( chr((ord(i) - 32 + ord(key[k])) % 26 + 97) )
+        else:
+            l.append(i)
+        k = (k+1) % len(key)
+    return "".join(l)
+
+def Vdecode(key, string):
+    """
+    simple Vigenere cipher decoding
+    inspired by:
+    code.google.com/p/pysecret/source/browse/vigenere.py
+    """
+    l, k = [], 0
+    for i in string:
+        if i.isalpha():
+            if i.isupper():
+                l.append( chr((ord(i) - ord(key[k])) % 26 + 65))
+            else:
+                l.append(chr((ord(i) - 32 - ord(key[k])) % 26 + 97))
+        else:
+            l.append(i)
+        k = (k+1) % len(key)
+    return "".join(l)
+
+
+
+
+
+if __name__ == '__main__':        
+    parser = OptionParser()
+    parser.add_option("-i", "--datafile", dest="data",
+                      help="load pfd list from file FILE", metavar="FILE")
+    parser.add_option("-a", "--tmpAI", dest="tmpAI",
+                      help="load a temporary AI clf.pkl to gauge it's performance and see its' view of the candidates", metavar="clf.pkl")
+    
+    parser.add_option("-q", "--quiet",
+                      action="store_false", dest="verbose", default=True,
+                      help="don't print status messages to stdout")
+
+    (opts, args) = parser.parse_args()
+    if len(args) > 0 and opts.data is None:
+        opts.data = args[0]
+
+    if opts.tmpAI is not None:
+        if not os.path.exists(opts.tmpAI):
+            opts.tmpAI = None
+    app = MainFrameGTK(data=opts.data, tmpAI=opts.tmpAI)    
     Gtk.main()
+
+
+    
+
