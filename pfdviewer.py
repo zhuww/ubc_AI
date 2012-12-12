@@ -104,8 +104,13 @@ class MainFrameGTK(Gtk.Window):
         self.image_disp = self.builder.get_object('image_disp')
         self.autosave = self.builder.get_object('autosave')
         self.pfdtree.connect("cursor-changed",self.on_pfdtree_select_row)
-
         
+        #info window stuff
+        self.info_win = self.builder.get_object('info_win')
+        self.info_win.set_deletable(False)
+        self.info_win.connect('delete-event', lambda w, e: w.hide() or True)
+        self.tmpAI_exp = self.builder.get_object('tmpAI_expander')
+        self.AIview_exp = self.builder.get_object('AIview_expander')
 
         #palfa query window
         self.palfaqry_tog = self.builder.get_object('PALFAqry')
@@ -127,10 +132,7 @@ class MainFrameGTK(Gtk.Window):
         self.qrybasedir = '/dev/shm/pfdvwr'
 
         #aiview window
-        self.aiview = self.builder.get_object('aiview')
-        self.aiview_win = self.builder.get_object('aiview_win')
-        self.aiview_win.set_deletable(False)
-        self.aiview_win.connect('delete-event', lambda w, e: w.hide() or True)
+        self.aiview_tog = self.builder.get_object('aiview')
 
         self.pmatchwin_tog = self.builder.get_object('pmatchwin_tog')
         self.col_options = []
@@ -164,12 +166,17 @@ class MainFrameGTK(Gtk.Window):
         if tmpAI is not None:
             self.tmpAI = cPickle.load(open(tmpAI,'r'))
             self.tmpAI_tog.set_active(1)
-            self.tmpAI_win.show_all()
+            self.info_win.show_all()
+            self.tmpAI_exp.set_expanded(1)
             #hack to get the checkmark "on", and preserve the tmpAI
             self.tmpAI = cPickle.load(open(tmpAI,'r'))
+#            self.info_win.resize()
         else:
             self.tmpAI = None
             self.tmpAI_tog.set_active(0)
+            if not self.aiview_tog.get_active():
+                #then both 'info' views are off, so hide window
+                self.info_win.hide()
         #keep track of seen/voted pfd's so things are quicker
         self.tmpAI_avgs= {}
 
@@ -472,8 +479,8 @@ class MainFrameGTK(Gtk.Window):
             self.pfdtree_prev(FL=FL)
         elif key == 'a':
             #toggle aiview
-            d = self.aiview.get_active()
-            self.aiview.set_active(not(d))
+            d = self.aiview_tog.get_active()
+            self.aiview_tog.set_active(not(d))
         elif key == 'd':
             #download the candidate if we are in QRY mode
             if self.data_fromQry:
@@ -753,7 +760,7 @@ class MainFrameGTK(Gtk.Window):
                 else:
                     avgs = self.tmpAI_avgs[fname]
                 self.update_tmpAI_votemat(avgs)
-                disp_apnd = '(tmpAI: %0.3f)' % (self.tmpAI.predict_proba(pfd)[...,1][0])
+                disp_apnd = '(tmpAI: %0.3f)' % (avgs['overall'])
             elif (self.tmpAI != None) and self.tmpAI_tog.get_active():
                 avgs = {'phasebins':np.nan,'subbands':np.nan,'intervals':np.nan,\
                             'DMbins':np.nan,'overall':np.nan}
@@ -771,7 +778,7 @@ class MainFrameGTK(Gtk.Window):
                 fpng = self.create_png(fname)
             
             #we are not doing "AI view" of data
-            if not self.aiview.get_active():
+            if not self.aiview_tog.get_active():
                 if fpng and exists(fpng):
                     self.image.set_from_file(fpng)
                     self.image_disp.set_text('displaying : %s %s' % 
@@ -1202,7 +1209,7 @@ class MainFrameGTK(Gtk.Window):
                     else:
                         basedir = self.basedir
                     fname = os.path.join(basedir, fname)
-                    if not self.aiview.get_active():
+                    if not self.aiview_tog.get_active():
                         # find/create png file from input file
                         fpng = self.create_png(fname)
                        #update the basedir if necessary 
@@ -1226,7 +1233,7 @@ class MainFrameGTK(Gtk.Window):
                         else:
                             avgs = self.tmpAI_avgs[fname]
                         self.update_tmpAI_votemat(avgs)
-                        disp_apnd = '(tmpAI: %0.3f)' % (self.tmpAI.predict_proba(pfd)[...,1][0])
+                        disp_apnd = '(tmpAI: %0.3f)' % avgs['overall']
                     else:
                         disp_apnd = ''
                         
@@ -1281,9 +1288,15 @@ class MainFrameGTK(Gtk.Window):
             self.tmpAI = None
         
         if self.tmpAI == None:
-            self.tmpAI_win.hide()
+            self.tmpAI_exp.set_expanded(0)
+#            self.info_win.resize()
+            if not self.AIview_exp.get_expanded():
+                #then both 'info' view are off, so hide window
+                self.info_win.hide()
         else:
-            self.tmpAI_win.show_all()
+            self.info_win.show_all()
+            self.tmpAI_exp.set_expanded(1)
+#            self.info_win.resize()
 
     def update_tmpAI_votemat(self, avgs):
         """
@@ -1350,10 +1363,16 @@ class MainFrameGTK(Gtk.Window):
         display or destroy the AI_view parameters window
 
         """
-        if self.aiview.get_active():
-            self.aiview_win.show_all()
+        if self.aiview_tog.get_active():
+            self.info_win.show_all()
+            self.AIview_exp.set_expanded(1)
+#            self.info_win.resize()
         else:
-            self.aiview_win.hide()
+            if not self.tmpAI_tog.get_active():
+                #then both 'info' views are off, hide window
+                self.info_win.hide()
+            self.AIview_exp.set_expanded(0)
+#            self.info_win.resize()
 # redraw the pfdwin 
         self.on_pfdtree_select_row(event)
 
@@ -1562,14 +1581,15 @@ class MainFrameGTK(Gtk.Window):
                                 % len(self.knownpulsars))
 
 #add all the candidates ranked as pulsars to the list of known_pulsars
-        for v in self.data.dtype.names[1:]:
+        if self.data is not None:
+            for v in self.data.dtype.names[1:]:
             #skip all feature-label voters
-            if v.endswith('_FL'): continue 
+                if v.endswith('_FL'): continue 
             #add 1(=pulsar), 3(=harmonic), .5(=maybe a pulsar) to list of matches
-            for vote in [1., 3., 0.5]:
-                cand_pulsar = self.data[v] == vote
-                for fname in self.data['fname'][cand_pulsar]:
-                    self.add_candidate_to_knownpulsars(fname)
+                for vote in [1., 3., 0.5]:
+                    cand_pulsar = self.data[v] == vote
+                    for fname in self.data['fname'][cand_pulsar]:
+                        self.add_candidate_to_knownpulsars(fname)
                 
 
     def on_help(self, widget, event=None):
@@ -2130,6 +2150,9 @@ class MainFrameGTK(Gtk.Window):
         respond to FL votes done by mouse-click
 
         """
+        if self.active_voter is None:
+            print "Please add a voter (or load a file)"
+            return
         act_name = self.voters[self.active_voter] + '_FL'
         FL_votes = {0: 'FL_overall',
                     1: 'FL_profile',
