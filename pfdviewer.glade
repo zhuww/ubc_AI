@@ -1628,17 +1628,46 @@ if tmp.AI is loaded we use it's values</property>
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkCheckButton" id="PALFAqry">
-                        <property name="label" translatable="yes">PALFA query</property>
+                      <object class="GtkBox" id="box33">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <property name="receives_default">False</property>
-                        <property name="has_tooltip">True</property>
-                        <property name="tooltip_markup" translatable="yes">Query the PALFA database for new candidates</property>
-                        <property name="tooltip_text" translatable="yes">Query the PALFA database for new candidates</property>
-                        <property name="xalign">0</property>
-                        <property name="draw_indicator">True</property>
-                        <signal name="toggled" handler="on_PALFAqry_toggled" swapped="no"/>
+                        <child>
+                          <object class="GtkCheckButton" id="PALFAqry">
+                            <property name="label" translatable="yes">PALFA query</property>
+                            <property name="visible">True</property>
+                            <property name="can_focus">True</property>
+                            <property name="receives_default">False</property>
+                            <property name="has_tooltip">True</property>
+                            <property name="tooltip_markup" translatable="yes">Query the PALFA database for new candidates</property>
+                            <property name="tooltip_text" translatable="yes">Query the PALFA database for new candidates</property>
+                            <property name="xalign">0</property>
+                            <property name="draw_indicator">True</property>
+                            <signal name="toggled" handler="on_PALFAqry_toggled" swapped="no"/>
+                          </object>
+                          <packing>
+                            <property name="expand">False</property>
+                            <property name="fill">True</property>
+                            <property name="position">0</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkButton" id="qry_dwnld">
+                            <property name="label" translatable="yes">download all pfds</property>
+                            <property name="can_focus">False</property>
+                            <property name="receives_default">True</property>
+                            <property name="no_show_all">True</property>
+                            <property name="tooltip_text" translatable="yes">Download all candidates files (pfd's) from query. 
+This can take a while...</property>
+                            <property name="focus_on_click">False</property>
+                            <signal name="clicked" handler="on_qry_dwnld_clicked" swapped="no"/>
+                          </object>
+                          <packing>
+                            <property name="expand">False</property>
+                            <property name="fill">True</property>
+                            <property name="padding">6</property>
+                            <property name="position">1</property>
+                          </packing>
+                        </child>
                       </object>
                       <packing>
                         <property name="expand">False</property>
@@ -1705,6 +1734,22 @@ as each subplot. We record results in a new column appended with '_FL'</property
       <!-- column-name col1_prob -->
       <column type="gdouble"/>
       <!-- column-name col2_prob -->
+      <column type="gdouble"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="pmatch_store">
+    <columns>
+      <!-- column-name name -->
+      <column type="gchararray"/>
+      <!-- column-name P0 -->
+      <column type="gchararray"/>
+      <!-- column-name DM -->
+      <column type="gdouble"/>
+      <!-- column-name RA -->
+      <column type="gchararray"/>
+      <!-- column-name DEC -->
+      <column type="gchararray"/>
+      <!-- column-name vote -->
       <column type="gdouble"/>
     </columns>
   </object>
@@ -2002,22 +2047,6 @@ as each subplot. We record results in a new column appended with '_FL'</property
         </child>
       </object>
     </child>
-  </object>
-  <object class="GtkListStore" id="pmatch_store">
-    <columns>
-      <!-- column-name name -->
-      <column type="gchararray"/>
-      <!-- column-name P0 -->
-      <column type="gchararray"/>
-      <!-- column-name DM -->
-      <column type="gdouble"/>
-      <!-- column-name RA -->
-      <column type="gchararray"/>
-      <!-- column-name DEC -->
-      <column type="gchararray"/>
-      <!-- column-name vote -->
-      <column type="gdouble"/>
-    </columns>
   </object>
   <object class="GtkWindow" id="pmatch_win">
     <property name="can_focus">False</property>

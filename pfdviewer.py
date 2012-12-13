@@ -74,7 +74,7 @@ have_warned = False
 cand_vote = 0
 #store AI_view png's in a temporary dir
 tempdir = tempfile.mkdtemp(prefix='AIview_')
-atexit.register(lambda: shutil.rmtree(tempdir))
+atexit.register(lambda: shutil.rmtree(tempdir, ignore_errors=True))
 bdir = '/'.join(__file__.split('/')[:-1])
 
 
@@ -123,6 +123,7 @@ class MainFrameGTK(Gtk.Window):
         self.palfa_qp = self.builder.get_object('qry_pwd')
         self.palfa_sampleqry = self.builder.get_object('sample_qry')
         self.palfa_sampleqry.set_active(0)
+        self.qry_dwnld = self.builder.get_object('qry_dwnld')
         #use this to keep track of Query candidates
         self.qry_results = {}
         self.qry_saveloc = './'
@@ -608,7 +609,7 @@ class MainFrameGTK(Gtk.Window):
         if self.active_voter:
             act_name = self.voters[self.active_voter]
 #update the Treeview... 
-            if self.data != None:
+            if self.data is not None:
 
                 col1 = self.col1.get_active_text()
                 col2 = self.col2.get_active_text()
@@ -651,9 +652,14 @@ class MainFrameGTK(Gtk.Window):
                                             (limidx.sum(),len(limidx),lim))
                     else:
                         self.statusbar.push(0,'No %s candidates > %s. Showing all.' % (col1, lim))
-                    for vi, v in enumerate(data[::-1]):
-                        v0, v1 = v
+                    if data.size == 1:
+                        vi = 0
+                        v0, v1 = data
                         self.pfdstore.append((vi,v0,float(v1),float(v1)))
+                    else:
+                        for vi, v in enumerate(data[::-1]):
+                            v0, v1 = v
+                            self.pfdstore.append((vi,v0,float(v1),float(v1)))
                         
                 self.pfdtree.set_model(self.pfdstore)
                 self.find_matches()
@@ -741,7 +747,6 @@ class MainFrameGTK(Gtk.Window):
             if self.data_fromQry:
                 idx = np.where(self.qry_results['filename'] == basename(name))[0]
                 if len(idx) == 1 and self.qry_results['keep'][idx]:
-                    print "BBB",idx,self.qry_saveloc
                     basedir = self.qry_saveloc
                 else:
                     basedir = self.qrybasedir
@@ -1488,7 +1493,7 @@ class MainFrameGTK(Gtk.Window):
             print "Goodbye"
             #cleanup files in RAM
             if os.path.exists('/dev/shm/pfdvwr'):
-                shutil.rmtree('/dev/shm/pfdvwr')
+                shutil.rmtree('/dev/shm/pfdvwr',ignore_errors=True)
             dlg.destroy()
             Gtk.main_quit()
         dlg.destroy()
@@ -1529,8 +1534,12 @@ class MainFrameGTK(Gtk.Window):
             fname = fin
                 
         if fname:
-            self.loadfile = fname
             self.data = load_data(fname)
+            if self.data is None:
+                print "Failed to open file"
+                return
+
+            self.loadfile = fname
             oldvoters = self.voters
             self.voters = [name for name in self.data.dtype.names[1:]\
                                if not name.endswith('_FL')]
@@ -1570,7 +1579,7 @@ class MainFrameGTK(Gtk.Window):
             else:
                 self.col2.set_active(1)
                 self.active_col2 = 1
-            self.statusbar.push(0,'Loaded %s candidates' % len(self.data))
+            self.statusbar.push(0,'Loaded %s candidates' % self.data.size)
         self.dataload_update()
         self.pfdtree.set_cursor(0)
 
@@ -1588,8 +1597,13 @@ class MainFrameGTK(Gtk.Window):
             #add 1(=pulsar), 3(=harmonic), .5(=maybe a pulsar) to list of matches
                 for vote in [1., 3., 0.5]:
                     cand_pulsar = self.data[v] == vote
-                    for fname in self.data['fname'][cand_pulsar]:
-                        self.add_candidate_to_knownpulsars(fname)
+                    if self.data.size == 1:
+                        fname = self.data['fname']
+                        self.add_candidate_to_knownpulsars(str(fname))
+                    else:
+                        fnames = self.data['fname'][cand_pulsar]
+                        for fname in fnames:#self.data['fname'][cand_pulsar]:
+                            self.add_candidate_to_knownpulsars(fname)
                 
 
     def on_help(self, widget, event=None):
@@ -1653,7 +1667,6 @@ class MainFrameGTK(Gtk.Window):
         elif self.savefile.endswith('.npy') or self.savefile.endswith('.pkl'):
             note = 'Saved to numpy file %s' % self.savefile
             if self.data_fromQry:
-                print "KEEP",self.qry_results['keep']
                 np.save(self.savefile, self.data[self.qry_results['keep']])
             else:
                 np.save(self.savefile, self.data)
@@ -2105,6 +2118,10 @@ class MainFrameGTK(Gtk.Window):
         #default is not to keep it
         self.qry_results['keep'] = np.array([False for i in png_list])
 
+        if len(loc_list) > 0:
+            self.qry_dwnld.show()
+        else:
+            self.qry_dwnld.hide()
         #write out the pngs to self.qrybasedir if they don't already exist
         #and create a file listing the candidates together with current voter
         if (self.qrybasedir is not None) and (not os.path.exists(self.qrybasedir)):
@@ -2112,7 +2129,7 @@ class MainFrameGTK(Gtk.Window):
         temp = tempfile.NamedTemporaryFile(prefix='PFDqry_', suffix='.txt', \
                                                dir=self.qrybasedir,delete=False)
         if self.active_voter is None:
-            #AAR: could prompt for voter name
+            #prompt for voter name
             name = inputbox('Voter chooser',\
                                 'No user voters found in %s. Add your voting name')
             if name:
@@ -2123,6 +2140,7 @@ class MainFrameGTK(Gtk.Window):
             act_name = self.voters[self.active_voter]
         temp.file.write("#%s %s\n" % ('fname', act_name))
         for pngname, pngdata in png_list:
+            print "PNG",pngname
             pfdname = pngname.replace('.png','')
             temp.file.write("%s %3.4f \n"% (pfdname, np.nan))
             if os.path.exists('%s/%s' % (self.qrybasedir,pfdname)):
@@ -2136,7 +2154,7 @@ class MainFrameGTK(Gtk.Window):
         self.qry_saveloc = self.builder.get_object('gtk_qrysaveloc').get_text()
         if not self.qry_saveloc:
             self.qry_saveloc = './'
-        print "Will save downloaded pfd's to ", abspath(self.qry_saveloc)
+        print "\n Will save downloaded pfd's to ", abspath(self.qry_saveloc)
         #we track which candidates we like/have-downloaded, only saving those
         self.data_fromQry = True
         #load up the data
@@ -2144,6 +2162,15 @@ class MainFrameGTK(Gtk.Window):
         #reset the savefile location for future votes...
         self.savefile = None
         
+    def on_qry_dwnld_clicked(self, event):
+        """
+        download all results from the palfa query
+
+        """
+        if self.data_fromQry:
+            for fname in self.qry_results['filename']:
+                if not os.path.exists(os.path.join(self.qrybasedir,fname)):
+                    self.PALFA_download_qry(fname)
 
     def on_fl_toggle(self, widget, event=None):
         """
@@ -2188,11 +2215,8 @@ class MainFrameGTK(Gtk.Window):
         tmp = np.array([i.replace('.png','') for i in self.qry_results['pngname']])
         idx = np.where(self.qry_results['filename'] == fname)[0]
         idx = np.where(tmp == fname)[0]
-        print "FNAME",fname,idx
         if len(idx) == 1:
-            print "D1",self.qry_results['keep']
             self.qry_results['keep'][idx] = True
-            print "D2",self.qry_results['keep']
             pfdname = self.qry_results['filename'][idx]
             pfdloc = self.qry_results['location'][idx]
             
@@ -2226,9 +2250,10 @@ class MainFrameGTK(Gtk.Window):
                 if not os.path.exists(tmpname):
                     os.symlink(abspath(savename), tmpname)
             else:
-                print("\r FTP: downloading %s... " % savename)
+                sys.stdout.write("\r FTP: downloading %s... " % savename)
                 ftp.retrbinary('RETR %s' % filename, open( savename, 'wb').write )
-                print("\r FTP: downloading %s... done" % savename)
+                sys.stdout.write("\r FTP: downloading %s... done" % savename)
+                sys.stdout.flush()
             #create a symbolic link to this file from the temporary location (for coding-ease)
                 os.symlink(abspath(savename), tmpname)
         ftp.quit()
@@ -2348,7 +2373,7 @@ def palfa_query(conn, qry, fin, loc_qry):
                 location = '/' + location
                 loc_list.append(location)
                 fn_list.append(filename)
-                conn.execute(png_qry % i[2])
+                conn.execute(png_qry % i[1])
                 png_info = conn.fetchall()
                 if len(png_info) > 0:
                     #only append if we have all the info
@@ -2520,35 +2545,40 @@ def load_data(fname):
                     has_fl_tuple = True
                 else:
                     coltypes.append('f8')
+        try:
+            data = np.recfromtxt(fname, dtype={'names':colnames,'formats':coltypes},comments='#')
+        except(IOError):
+            data = None
+            print "Couldn't parse file %s" % fname
+        if data is not None:
+            if has_fl_tuple:
+                dtypes = data.dtype.descr
+                new_dtypes = []
+                for k, v in dtypes:
+                    new_dtypes.append((k,v.replace('|S11','5i8')))
+                new_data = np.recarray(data.size, dtype=new_dtypes)
+                for k, v in dtypes:
+                    if v != '|S11':
+                        new_data[k] = data[k]
+                    else:
+                        for i in xrange(data.size):
+                            new_data[k][i] = eval(data[k][i])
+                data = new_data
 
-        data = np.recfromtxt(fname, dtype={'names':colnames,'formats':coltypes},comments='#')
-        if has_fl_tuple:
-            dtypes = data.dtype.descr
-            new_dtypes = []
-            for k, v in dtypes:
-                new_dtypes.append((k,v.replace('|S11','5i8')))
-            new_data = np.recarray(data.size, dtype=new_dtypes)
-            for k, v in dtypes:
-                if v != '|S11':
-                    new_data[k] = data[k]
-                else:
-                    for i in xrange(data.size):
-                        new_data[k][i] = eval(data[k][i])
-            data = new_data
-
-    if len(data.dtype.names) == 1: #fname alone!
-        name = inputbox('Voter chooser',\
-                            'No user voters found in %s. Add your voting name' % fname)
-        data = add_voter(name, data)
-    #make sure the vote column is a regular (non-FL) vote. If not, 
-    #copy over the 'overall' FL vote 
-    if len(data.dtype.names) == 2:
-        name = data.dtype.names[1]
-        if name.endswith('_FL'):
-            newname = name.replace('_FL','')
-            print "Found feature-label voter %s. Copying overall vote to regular column %s " % (name, newname)
-            data = add_voter(newname, data)
-            data[newname] = data[name][:,0].astype('f8')
+    if data is not None:
+        if len(data.dtype.names) == 1: #fname alone!
+            name = inputbox('Voter chooser',\
+                                'No user voters found in %s. Add your voting name' % fname)
+            data = add_voter(name, data)
+        #make sure the vote column is a regular (non-FL) vote. If not, 
+        #copy over the 'overall' FL vote 
+        if len(data.dtype.names) == 2:
+            name = data.dtype.names[1]
+            if name.endswith('_FL'):
+                newname = name.replace('_FL','')
+                print "Found feature-label voter %s. Copying overall vote to regular column %s " % (name, newname)
+                data = add_voter(newname, data)
+                data[newname] = data[name][:,0].astype('f8')
     return data
 
 
