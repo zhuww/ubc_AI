@@ -1026,7 +1026,7 @@ class MainFrameGTK(Gtk.Window):
 #                    rd = data.reshape(nbins,nbins)
                     data = pca.inverse_transform(pca.transform(data)).flatten()
                 ax.imshow(data.reshape(nbins, nbins),
-                          cmap=plt.cm.gray)
+                          cmap=plt.cm.gray_r)
                 ax.set_title('subbands (bins, pca) = (%s,%s)'%(nbins,npca_comp))
             elif subplt == 2:
                 ax = plt.subplot2grid((3,2), (1,0), rowspan=2)
@@ -1041,7 +1041,7 @@ class MainFrameGTK(Gtk.Window):
 #                    rd = data.reshape(nbins,nbins)
                     data = pca.inverse_transform(pca.transform(data)).flatten()
                 ax.imshow(data.reshape(nbins,nbins),
-                                cmap=plt.cm.gray)
+                                cmap=plt.cm.gray_r)
                 ax.set_title('intervals (bins, pca) = (%s,%s)'%(nbins,npca_comp))
             elif subplt == 3:
                 ax = plt.subplot2grid((3,2), (2,1))
