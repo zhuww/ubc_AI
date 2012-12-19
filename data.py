@@ -31,11 +31,12 @@ class pfdreader(object):
                 if os.access(path+pfdfile, os.R_OK):
                     self.pfdfile = path+pfdfile
                     break
+                elif os.access(path+pfdfile.split('/')[-1], os.R_OK):
+                    self.pfdfile = path+pfdfile.split('/')[-1]
+                    break
             if not 'pfdfile' in self.__dict__:
                 print pfdfile, self.PSRclass, self.DMCclass
                 raise NameError, "did not file the file %s" % pfdfile
-
-
 
     def getdata(self, **features):
         pfd = pfddata(self.pfdfile)
@@ -44,8 +45,10 @@ class pfdreader(object):
             value = features[key]
             feature = '%s:%s' % (key, value)
             if feature in self.extracted_feature:
+                #print 'use extracted feature %s' % feature
                 newdata = self.extracted_feature[feature]
             else:
+                #print 'extracting new feature %' % feature
                 newdata = pfd.getdata(**{key:value})
                 self.extracted_feature.update({feature:newdata})
             data = np.append(data, newdata)
