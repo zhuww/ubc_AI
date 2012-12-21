@@ -23,6 +23,7 @@ class pfddata(pfd):
         """
         if not 'extracted_feature' in self.__dict__:
             self.extracted_feature = {}
+        self.adjust_period()
         self.dedisperse(DM=self.bestdm, doppler=1)
         profs = self.profs
 

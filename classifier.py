@@ -289,6 +289,7 @@ class classifier(object):
         #print '%s %s MaxN:%s'%(self.orig_class, self.feature, MaxN)
         #shift = random.randint(0, MaxN-1)
         shift = random.randint(0, MaxN-1, len(pfds))
+        Nspam = 3
 
         if feature in ['phasebins', 'timebins', 'freqbins']:
             #print '%s %s 1D shift:%s'%(self.orig_class, self.feature, shift)
@@ -298,7 +299,7 @@ class classifier(object):
         elif feature in ['intervals', 'subbands']:
             #print '%s %s 2D shift:%s'%(self.orig_class, self.feature, shift)
             #data = np.array([np.roll(pfd.getdata(**self.feature).reshape(MaxN, MaxN), shift[i], axis=1).ravel() for i, pfd in enumerate(pfds)])
-            data = np.vstack([np.array([np.roll(pfd.getdata(**self.feature).reshape(MaxN, MaxN), shift, axis=1).ravel() for shift in random.randint(0, MaxN-1, 10)]) for i, pfd in enumerate(pfds)])
+            data = np.vstack([np.array([np.roll(pfd.getdata(**self.feature).reshape(MaxN, MaxN), shift, axis=1).ravel() for shift in random.randint(0, MaxN-1, Nspam)]) for i, pfd in enumerate(pfds)])
             #print data.shape
         else:
             data = np.array([pfd.getdata(**self.feature) for pfd in pfds])
@@ -315,7 +316,7 @@ class classifier(object):
                 data = self.pca.transform(data)
 
             if feature in ['intervals', 'subbands']:
-                exptargets = np.array([ [t]*10 for t in mytarget]).ravel()
+                exptargets = np.array([ [t]*Nspam for t in mytarget]).ravel()
                 mytarget = exptargets
             results = self.fit( data, mytarget)
         except KeyboardInterrupt as detail:
