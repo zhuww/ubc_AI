@@ -5,7 +5,30 @@ import psr_utils
 import matplotlib.pyplot as plt
 #from scipy.linalg import svd
 #from pylab import *
+
 class pfddata(pfd):
+    def __init__(self, filename, align=True):
+        """
+        pfddata: a wrapper class around prepfold.pfd
+        
+        Args:
+        filename : the pfd filename
+
+        Optionally: 
+        align : ensure that binned data falls on max(sum profile).
+                this aids in interpolation of the original data onto 
+                the downsampled grid. [Default = False]
+                Improved summed profile (negligible change to intervals and subband plots)
+        """
+        pfd.__init__(self, filename)
+        self.dedisperse(DM=self.bestdm, doppler=1)
+        self.adjust_period()
+        if align:
+            #ensure downsampled grid falls bin of max(profile)
+            self.align = self.profs.sum(0).sum(0).argmax()
+        else:
+            self.align = 0
+        
 
     def getdata(self, phasebins=0, freqbins=0, timebins=0, DMbins=0, intervals=0, subbands=0, bandpass=0, ratings=None):
         """
@@ -23,7 +46,6 @@ class pfddata(pfd):
         """
         if not 'extracted_feature' in self.__dict__:
             self.extracted_feature = {}
-        self.dedisperse(DM=self.bestdm, doppler=1)
         profs = self.profs
 
         def getsumprofs(M):
@@ -31,7 +53,8 @@ class pfddata(pfd):
             if M == 0:
                 return np.array([])
             if not feature in self.extracted_feature:
-                self.extracted_feature[feature]  = normalize(downsample(profs.sum(0).sum(0),M).ravel())
+                data = profs.sum(0).sum(0)
+                self.extracted_feature[feature]  = normalize(downsample(data,M,align=self.align).ravel())
             return self.extracted_feature[feature]
         def getfreqprofs(M):
             feature = '%s:%s' % ('freqbins', M)

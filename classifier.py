@@ -580,8 +580,7 @@ class adaboost(object):
             tmp = np.where(list_of_predictions != 1, -1, 1)
         else:
             tmp = list_of_predictions
-
-        return  np.where(np.dot(tmp, self.weights) > 0, 1, 0)
+        return  np.where(np.dot(tmp, self.weights) >= 0., 1, 0)
 
     def predict_proba(self, lops):
         """
@@ -618,7 +617,7 @@ class adaboost(object):
             lops = np.array([lops])
 
        
-        if 0:
+        if self.platt is not None:
         #this techniques doesn't do that well
             f = np.transpose([self.predict(lops)]) #[nsamples x 1] 
             return  self.platt.predict_proba(f)
@@ -633,19 +632,14 @@ class adaboost(object):
                 nsamples = 1
 
             # H(x) works on sign(sum_i w[i]h_i(x))
-            # so shift all class-1 predictions (0 < lops < 1) to (-1 < lops < 1)
-            lops[...,1::nclass] = 2.*lops[...,1::nclass]-1.
+            # so shift all predictions (0 < lops < 1) to (-1 < lops < 1)
+            lops = 2.*lops - 1.
 
             #so repeat the weights nclass times
             #weights are only for 'class 1', so use uniform weight on non-'1' classes
             w = np.ones((npreds,nclass), dtype=np.float)/float(npreds)
             w[:,1] = self.weights
-            
             f = np.transpose([np.dot( lops[:,c::nclass], v)\
                                   for c, v in enumerate(w.transpose())])
-
-            #AAR: shift predict_proba(class 1) back to range 0<P<1
-            mx_psr = np.abs(self.weights).sum()
-            f[...,1] = (f[...,1]+mx_psr)/mx_psr/2.
-
-            return f
+            #use sigmoid to get final predict_proba
+            return 1./(1.0 + np.exp(-f))

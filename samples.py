@@ -25,9 +25,15 @@ def normalize(data):
 from scipy.interpolate import RectBivariateSpline as interp2d
 from scipy import ndimage, array, ogrid, mgrid
 
-def downsample(a, n):
+def downsample(a, n, align=0):
     '''a: input array of 1-3 dimentions
        n: downsample to n bins
+       optional:
+       align : if non-zero, downsample grid (coords) 
+               will have a bin at same location as 'align'
+               ( typically max(sum profile) )
+               useful for plots vs. phase
+         
     '''
     if type(a) in [list]:
         result = []
@@ -41,7 +47,18 @@ def downsample(a, n):
             coords = mgrid[0:1-1./n:1j*n]
         elif D == 2:
             d1,d2 = shape
-            coords = mgrid[0:d1-1:1j*n, 0:d2-1:1j*n]
+            if align: 
+                #original phase bins
+                x2 = mgrid[0:1.-1./d2:1j*d2]
+                #downsampled phase bins
+                crd = mgrid[0:1-1./n:1j*n]
+                crd += x2[align]
+                crd = (crd % 1)
+                crd.sort()
+                offset = crd[0]*d2
+                coords = mgrid[0:d1-1:1j*n, offset:d2-float(d2)/n+offset:1j*n]
+            else:
+                coords = mgrid[0:d1-1:1j*n, 0:d2-1:1j*n]
         elif D == 3:
             d1,d2,d3 = shape
             coords = mgrid[0:d1-1:1j*n, 0:d2-1:1j*n, 0:d3-1:1j*n]
@@ -53,6 +70,11 @@ def downsample(a, n):
         if D == 1:
             m = len(a)
             x = mgrid[0:1-1./m:1j*m]
+            if align:
+                #ensure new grid lands on max(a)
+                coords += x[align]
+                coords = coords % 1
+                coords.sort()
             #newf = interp(x, a, bounds_error=True)
             #return newf(coords)
             return np.interp(coords, x, a)
@@ -63,7 +85,7 @@ def downsample(a, n):
             #f = interp2d(x, y, a)
             #coords = mgrid[0:1:1j*n]
             #return f(coords, coords)
-            newf = ndimage.map_coordinates(a, coords)
+            newf = ndimage.map_coordinates(a, coords, cval=np.median(a))
             return newf
         else:
             #coeffs = ndimage.spline_filter(a)

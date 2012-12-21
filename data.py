@@ -35,10 +35,8 @@ class pfdreader(object):
                 print pfdfile, self.PSRclass, self.DMCclass
                 raise NameError, "did not file the file %s" % pfdfile
 
-
-
     def getdata(self, **features):
-        pfd = pfddata(self.pfdfile)
+        pfd = pfddata(self.pfdfile, align=True)
         data = np.array([])
         for key in features:
             value = features[key]
