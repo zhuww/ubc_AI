@@ -1,4 +1,4 @@
-import random
+import numpy.random as random
 import numpy as np
 from sklearn.decomposition import RandomizedPCA as PCA
 from sklearn import svm, linear_model, tree, ensemble
@@ -287,14 +287,20 @@ class classifier(object):
         MaxN = max([self.feature[k] for k in self.feature])
         feature = [k for k in self.feature if self.feature[k] == MaxN][0]
         #print '%s %s MaxN:%s'%(self.orig_class, self.feature, MaxN)
-        shift = random.randint(0, MaxN-1)
+        #shift = random.randint(0, MaxN-1)
+        shift = random.randint(0, MaxN-1, len(pfds))
+        Nspam = 3
 
         if feature in ['phasebins', 'timebins', 'freqbins']:
             #print '%s %s 1D shift:%s'%(self.orig_class, self.feature, shift)
-            data = np.array([np.roll(pfd.getdata(**self.feature), shift) for pfd in pfds])
+            data = np.array([np.roll(pfd.getdata(**self.feature), shift[i])  for i, pfd in enumerate(pfds)])
+            #data = np.hstack([np.array([np.roll(pfd.getdata(**self.feature), shift) for shift in random.randint(0, MaxN-1, 10)]) for i, pfd in enumerate(pfds)])
+            #print data.shape
         elif feature in ['intervals', 'subbands']:
             #print '%s %s 2D shift:%s'%(self.orig_class, self.feature, shift)
-            data = np.array([np.roll(pfd.getdata(**self.feature).reshape(MaxN, MaxN), shift, axis=1).ravel() for pfd in pfds])
+            #data = np.array([np.roll(pfd.getdata(**self.feature).reshape(MaxN, MaxN), shift[i], axis=1).ravel() for i, pfd in enumerate(pfds)])
+            data = np.vstack([np.array([np.roll(pfd.getdata(**self.feature).reshape(MaxN, MaxN), shift, axis=1).ravel() for shift in random.randint(0, MaxN-1, Nspam)]) for i, pfd in enumerate(pfds)])
+            #print data.shape
         else:
             data = np.array([pfd.getdata(**self.feature) for pfd in pfds])
         current_class = self.__class__
@@ -304,14 +310,22 @@ class classifier(object):
                 mytarget = target
             else:
                 mytarget = target[...,self.targetmap[self.feature.keys()[0]]]
+                
             if self.use_pca:
                 self.pca = PCA(n_components=self.n_components).fit(data[mytarget == 1])
                 data = self.pca.transform(data)
+
+            if feature in ['intervals', 'subbands']:
+                exptargets = np.array([ [t]*Nspam for t in mytarget]).ravel()
+                mytarget = exptargets
             results = self.fit( data, mytarget)
         except KeyboardInterrupt as detail:
+            import sys
             print sys.exc_info()[0], detail
         finally:
             self.__class__ = current_class
+
+
         return results
         #return self.orig_class.fit(self, data, target)
 

@@ -1012,6 +1012,7 @@ class MainFrameGTK(Gtk.Window):
                     pcadata = pca.transform(data)
                     data = pca.inverse_transform(pcadata)
                 ax.plot(data)
+                ax.set_xlim([0,len(data)])
                 ax.set_title('pulse profile (bins, pca) = (%s,%s)'%(nbins,npca_comp))
             elif subplt == 1:
                 ax = plt.subplot2grid((3,2), (0,1), rowspan=2)
