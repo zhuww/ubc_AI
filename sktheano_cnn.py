@@ -3,21 +3,20 @@ Aaron Berndsen:
 A Conformal Neural Network using Theano for computation and structure, 
 but built to obey sklearn's basic 'fit' 'predict' functionality
 
-
 *code largely motivated from deeplearning.net examples
 and Graham Taylor's "Vanilla RNN" (https://github.com/gwtaylor/theano-rnn/blob/master/rnn.py)
+
+You'll require theano and libblas-dev
 """
+import cPickle as pickle
+import logging
 import numpy as np
+
+from sklearn.base import BaseEstimator
 import theano
 import theano.tensor as T
 from theano.tensor.signal import downsample
 from theano.tensor.nnet import conv
-from sklearn.base import BaseEstimator
-import logging
-import time
-import os
-import datetime
-import cPickle as pickle
 
 logger = logging.getLogger(__name__)
 
@@ -206,7 +205,13 @@ class CNN(object):
 
 
 class MetaCNN(BaseEstimator):
-    def __init__(self, n_in=52, n_hidden=50, n_out=2, learning_rate=0.08,
+    """
+    the actual CNN is not init-ed until .fit is called.
+    We determine the image input size (assumed square images) and
+    the number of outputs in .fit from the training data
+
+    """
+    def __init__(self, n_hidden=50, learning_rate=0.08,
                  n_epochs=60, batch_size=250, activation='tanh', 
                  nkerns=[20,50],
                  nh_out=500,
@@ -215,9 +220,8 @@ class MetaCNN(BaseEstimator):
                  output_type='softmax',
                  L1_reg=0.00, L2_reg=0.00,
                  use_symbolic_softmax=False):
-        self.n_in = int(n_in)
+
         self.n_hidden = int(n_hidden)
-        self.n_out = int(n_out)
         self.learning_rate = float(learning_rate)
         self.nkerns = nkerns
         self.nh_out = nh_out
@@ -230,10 +234,13 @@ class MetaCNN(BaseEstimator):
         self.activation = activation
         self.output_type = output_type
         self.use_symbolic_softmax = use_symbolic_softmax
-        # initialize the CNN
-        self.ready()
 
     def ready(self):
+        """
+        this routine is called from "fit" since we determine the
+        image size (assumed square) and output labels from the training data.
+
+        """
         #input
         self.x = T.matrix('x')
         #output (a label)
@@ -303,6 +310,11 @@ class MetaCNN(BaseEstimator):
             in terms of number of sequences (or number of weight updates)
         n_epochs : None (used to override self.n_epochs from init.
         """
+        #prepare the CNN 
+        self.n_in = int(np.sqrt(X_train.shape[1]))
+        self.n_out = len(np.unique(Y_train))
+        self.ready()
+
         if X_test is not None:
             assert(Y_test is not None)
             self.interactive = True
@@ -384,7 +396,6 @@ class MetaCNN(BaseEstimator):
                                   # check every epoch
         best_test_loss = np.inf
         best_iter = 0
-        start_time = time.clock()
         epoch = 0
         done_looping = False 
 
@@ -433,7 +444,6 @@ class MetaCNN(BaseEstimator):
                 if patience <= iter:
                     done_looping = True
                     break
-        end_time = time.clock()
         logger.info("Optimization complete")
         logger.info("Best xval score of %f %% obtained at iteration %i" %
                     (best_test_loss * 100., best_iter))
@@ -464,7 +474,7 @@ class MetaCNN(BaseEstimator):
             z[0:n_rem] = data[n_batches*self.batch_size:n_batches*self.batch_size+n_rem]
             preds.append(self.predict_wrap(z)[0:n_rem])
         
-        return np.array(preds).flatten()
+        return np.hstack(preds).flatten()
     
 
     def shared_dataset(self, data_xy):
@@ -481,65 +491,6 @@ class MetaCNN(BaseEstimator):
             return shared_x, T.cast(shared_y, 'int32')
         else:
             return shared_x, shared_y
-
-    def __getstate__(self):
-        """ Return state sequence."""
-        params = self._get_params()  # parameters set in constructor
-        weights = [p.get_value() for p in self.cnn.params]
-        state = (params, weights)
-        return state
-
-    def _set_weights(self, weights):
-        """ Set fittable parameters from weights sequence.
-
-        Parameters must be in the order defined by self.params:
-            W, W_in, W_out, h0, bh, by
-        """
-        i = iter(weights)
-
-        for param in self.cnn.params:
-            param.set_value(i.next())
-
-    def __setstate__(self, state):
-        """ Set parameters from state sequence.
-
-        Parameters must be in the order defined by self.params:
-            W, W_in, W_out, h0, bh, by
-        """
-        params, weights = state
-        self.set_params(**params)
-        self.ready()
-        self._set_weights(weights)
-
-    def save(self, fpath='.', fname=None):
-        """ Save a pickled representation of Model state. """
-        fpathstart, fpathext = os.path.splitext(fpath)
-        if fpathext == '.pkl':
-            # User supplied an absolute path to a pickle file
-            fpath, fname = os.path.split(fpath)
-
-        elif fname is None:
-            # Generate filename based on date
-            date_obj = datetime.datetime.now()
-            date_str = date_obj.strftime('%Y-%m-%d-%H:%M:%S')
-            class_name = self.__class__.__name__
-            fname = '%s.%s.pkl' % (class_name, date_str)
-
-        fabspath = os.path.join(fpath, fname)
-
-        logger.info("Saving to %s ..." % fabspath)
-        file = open(fabspath, 'wb')
-        state = self.__getstate__()
-        pickle.dump(state, file, protocol=pickle.HIGHEST_PROTOCOL)
-        file.close()
-
-    def load(self, path):
-        """ Load model parameters from path. """
-        logger.info("Loading from %s ..." % path)
-        file = open(path, 'rb')
-        state = pickle.load(file)
-        self.__setstate__(state)
-        file.close()
 
 
 class LogisticRegression(object):

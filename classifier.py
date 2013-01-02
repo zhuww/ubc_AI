@@ -6,6 +6,7 @@ from sklearn.ensemble import GradientBoostingClassifier as GBC
 
 from ubc_AI.training import split_data
 from ubc_AI import pulsar_nnetwork as pnn 
+import sktheano_cnn as skcnn
 
 class combinedAI(object):
     """
@@ -48,7 +49,8 @@ class combinedAI(object):
         self.list_of_AIs = list_of_AIs
         self.strategy = strategy
         if strategy != 'vote' and strategy not in self.AIonAIs:
-            raise "strategy %s is not recognized" % strategy
+            note = "strategy %s is not recognized" % strategy
+            raise MyError(note)
         if strategy == 'lr':
             self.AIonAI = linear_model.LogisticRegression(**kwds)
         elif strategy == 'svm':
@@ -271,7 +273,7 @@ class classifier(object):
     """
     def __init__(self, feature=None, use_pca=False, n_comp=12, *args, **kwds):
         if feature == None:
-            raise "must specifiy the feature used by this classifier!"
+            raise MyError(None)
         self.feature = feature
         self.use_pca = use_pca
         self.n_components = n_comp
@@ -457,6 +459,13 @@ class ranforclf(classifier, ensemble.RandomForestClassifier):
     the mixed in class for DecisionTree
     """
     orig_class = ensemble.RandomForestClassifier
+    pass
+
+class cnnclf(classifier, skcnn.MetaCNN):
+    """
+    the mixed in class for a convolutional neural network
+    """
+    orig_class = skcnn.MetaCNN
     pass
 
 class adaboost(object):
@@ -657,3 +666,13 @@ class adaboost(object):
                                   for c, v in enumerate(w.transpose())])
             #use sigmoid to get final predict_proba
             return 1./(1.0 + np.exp(-f))
+
+class MyError(Exception):
+    def __init__(self, note):
+        self.note = note
+    def __str__(self):
+        if self.note is None:
+            return repr("must specify the feature used by this classifier")
+        else:
+            return repr(self.note)
+        
