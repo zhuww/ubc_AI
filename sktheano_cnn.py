@@ -476,6 +476,35 @@ class MetaCNN(BaseEstimator):
         
         return np.hstack(preds).flatten()
     
+    def predict_proba(self, data):
+        """
+        the CNN expects inputs with Nsamples = self.batch_size.
+        In order to run 'predict_proba' on an arbitrary number of samples we
+        pad as necessary.
+
+        """
+        if isinstance(data, list):
+            data = np.array(data)
+        if data.ndim == 1:
+            data = np.array([data])
+
+        nsamples = data.shape[0]
+        n_batches = nsamples//self.batch_size
+        n_rem = nsamples%self.batch_size
+        if n_batches > 0:
+            preds = [list(self.predict_proba_wrap(data[i*self.batch_size:(i+1)*self.batch_size]))\
+                                           for i in range(n_batches)]
+        else:
+            preds = []
+        if n_rem > 0:
+            z = np.zeros((self.batch_size, self.n_in * self.n_in))
+            z[0:n_rem] = data[n_batches*self.batch_size:n_batches*self.batch_size+n_rem]
+            preds.append(self.predict_proba_wrap(z)[0:n_rem])
+        if n_rem == 1 and n_batches == 0:
+            return np.vstack(preds)[0]
+        else:
+            return np.vstack(preds)
+        
 
     def shared_dataset(self, data_xy):
         """ Load the dataset into shared variables """
