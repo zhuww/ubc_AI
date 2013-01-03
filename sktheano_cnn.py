@@ -7,6 +7,10 @@ but built to obey sklearn's basic 'fit' 'predict' functionality
 and Graham Taylor's "Vanilla RNN" (https://github.com/gwtaylor/theano-rnn/blob/master/rnn.py)
 
 You'll require theano and libblas-dev
+
+tips/tricks/notes:
+* if training set is large (>O(100)) and redundant, use stochastic gradient descent (batch_size=1), otherwise use conjugate descent (batch_size > 1)
+*  
 """
 import cPickle as pickle
 import logging
@@ -50,7 +54,7 @@ class CNN(object):
     """
     def __init__(self, input, n_in, n_out, activation=T.tanh,
                  nkerns=[20,50],
-                 filters=[11,8],
+                 filters=[11,7],
                  poolsize=[(2,2),(2,2)],
                  n_hidden=500,
                  output_type='softmax', batch_size=250,
@@ -210,13 +214,21 @@ class MetaCNN(BaseEstimator):
     We determine the image input size (assumed square images) and
     the number of outputs in .fit from the training data
 
+    initialization parameters (see, also, class CNN):
+    n_epochs : number of training epochs
+    batch_size : size of grad. desc. batches (1 for stochastic gradient)
+    filters : size of convolutional filter in layer0 and layer1 respectively
+    nkerns : number of output maps from convolutional filters in layer0 and layer1 resp.
+    poolsize : (max) pooling of pixels at end of each convolutional. filter
+    n_hidden : number of hidden neurons
+
     """
     def __init__(self, learning_rate=0.08,
                  n_epochs=60, batch_size=250, activation='tanh', 
+                 filters=[11,7],
                  nkerns=[20,50],
-                 n_hidden=500,
-                 filters=[11,8],
                  poolsize=[(2,2),(2,2)],
+                 n_hidden=500,
                  output_type='softmax',
                  L1_reg=0.00, L2_reg=0.00,
                  use_symbolic_softmax=False):
