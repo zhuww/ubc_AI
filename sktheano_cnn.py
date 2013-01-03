@@ -500,10 +500,8 @@ class MetaCNN(BaseEstimator):
             z = np.zeros((self.batch_size, self.n_in * self.n_in))
             z[0:n_rem] = data[n_batches*self.batch_size:n_batches*self.batch_size+n_rem]
             preds.append(self.predict_proba_wrap(z)[0:n_rem])
-        if n_rem == 1 and n_batches == 0:
-            return np.vstack(preds)[0]
-        else:
-            return np.vstack(preds)
+        
+        return np.vstack(preds)
         
 
     def shared_dataset(self, data_xy):
