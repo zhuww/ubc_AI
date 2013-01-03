@@ -26,7 +26,7 @@ mode = theano.Mode(linker='cvm')
 class CNN(object):
     """
     Conformal Neural Network, 
-    backend by Theano, but using sklearn interface.
+    backend by Theano, but compliant with sklearn interface.
 
     This class holds the actual layers, while MetaCNN does
     the fit/predict routines. You should init with MetaCNN.
@@ -43,8 +43,8 @@ class CNN(object):
              (N, nkerns[0], nx1/2, ny1/2)
              --> (N, nkerns[1], nx2, ny2) (nx2 = nx1 - filters[1][0] + 1)
              --> (N, nkerns[1], nx3, ny3) (nx3 = nx2/poolsize[1][0], ny3=ny2/poolsize[1][1])
-    layer2 : hidden layer of nkerns[1]*nx3*ny3 input features and nh_out hidden neurons
-    layer3 : final LR layer with nh_out neural inputs and nout outputs
+    layer2 : hidden layer of nkerns[1]*nx3*ny3 input features and n_hidden hidden neurons
+    layer3 : final LR layer with n_hidden neural inputs and n_out outputs/classes
              
 
     """
@@ -52,12 +52,12 @@ class CNN(object):
                  nkerns=[20,50],
                  filters=[11,8],
                  poolsize=[(2,2),(2,2)],
-                 nh_out=500,
+                 n_hidden=500,
                  output_type='softmax', batch_size=250,
                  use_symbolic_softmax=False):
 
         """
-        n_in : binned dimensions of input image (assumed square)
+        n_in : width (or length) of input image (assumed square)
         n_out : number of class labels
         
         :type nkerns: list of ints
@@ -70,8 +70,8 @@ class CNN(object):
         :param poolsize: maxpooling in convolution layer (index-0),
                          and direction x or y (index-1)
 
-        :type nh_out: int
-        :param nh_out: number of hidden neurons
+        :type n_hidden: int
+        :param n_hidden: number of hidden neurons
         
         :type output_type: string
         :param output_type: type of decision 'softmax', 'binary', 'real'
@@ -129,11 +129,11 @@ class CNN(object):
         poo2y = (pooy-nconf+1)/poolsize[1][1]
         self.layer2 = HiddenLayer(rng, input=layer2_input,
                                   n_in=nkerns[1]*poo2x*poo2y,
-                                  n_out=nh_out, activation=T.tanh)
+                                  n_out=n_hidden, activation=T.tanh)
 
         # classify the values of the fully-connected sigmoidal layer
         self.layer3 = LogisticRegression(input=self.layer2.output,
-                                         n_in=nh_out, n_out=n_out)
+                                         n_in=n_hidden, n_out=n_out)
 
         # CNN regularization
         self.L1 = self.layer3.L1
@@ -211,20 +211,19 @@ class MetaCNN(BaseEstimator):
     the number of outputs in .fit from the training data
 
     """
-    def __init__(self, n_hidden=50, learning_rate=0.08,
+    def __init__(self, learning_rate=0.08,
                  n_epochs=60, batch_size=250, activation='tanh', 
                  nkerns=[20,50],
-                 nh_out=500,
+                 n_hidden=500,
                  filters=[11,8],
                  poolsize=[(2,2),(2,2)],
                  output_type='softmax',
                  L1_reg=0.00, L2_reg=0.00,
                  use_symbolic_softmax=False):
 
-        self.n_hidden = int(n_hidden)
         self.learning_rate = float(learning_rate)
         self.nkerns = nkerns
-        self.nh_out = nh_out
+        self.n_hidden = n_hidden
         self.filters = filters
         self.poolsize = poolsize
         self.n_epochs = int(n_epochs)
@@ -261,7 +260,7 @@ class MetaCNN(BaseEstimator):
                        n_out=self.n_out, activation=activation, 
                        nkerns=self.nkerns,
                        filters=self.filters,
-                       nh_out=self.nh_out,
+                       n_hidden=self.n_hidden,
                        poolsize=self.poolsize,
                        output_type=self.output_type,
                        batch_size=self.batch_size,
