@@ -54,10 +54,10 @@ class CNN(object):
     """
     def __init__(self, input, n_in, n_out, activation=T.tanh,
                  nkerns=[20,50],
-                 filters=[11,7],
-                 poolsize=[(2,2),(2,2)],
+                 filters=[15,9],
+                 poolsize=[(3,3),(2,2)],
                  n_hidden=500,
-                 output_type='softmax', batch_size=250,
+                 output_type='softmax', batch_size=25,
                  use_symbolic_softmax=False):
 
         """
@@ -214,24 +214,19 @@ class MetaCNN(BaseEstimator):
     We determine the image input size (assumed square images) and
     the number of outputs in .fit from the training data
 
-    initialization parameters (see, also, class CNN):
-    n_epochs : number of training epochs
-    batch_size : size of grad. desc. batches (1 for stochastic gradient)
-    filters : size of convolutional filter in layer0 and layer1 respectively
-    nkerns : number of output maps from convolutional filters in layer0 and layer1 resp.
-    poolsize : (max) pooling of pixels at end of each convolutional. filter
-    n_hidden : number of hidden neurons
-
     """
-    def __init__(self, learning_rate=0.08,
-                 n_epochs=60, batch_size=250, activation='tanh', 
-                 filters=[11,7],
-                 nkerns=[20,50],
-                 poolsize=[(2,2),(2,2)],
+    def __init__(self, learning_rate=0.05,
+                 n_epochs=60, batch_size=25, activation='tanh', 
+                 nkerns=[20,45],
                  n_hidden=500,
+                 filters=[15,7],
+                 poolsize=[(3,3),(2,2)],
                  output_type='softmax',
                  L1_reg=0.00, L2_reg=0.00,
-                 use_symbolic_softmax=False):
+                 use_symbolic_softmax=False,
+                 ### Note, n_in and n_out are actually set in 
+                 ### .fit, they are here to help cPickle
+                 n_in=100, n_out=100):
 
         self.learning_rate = float(learning_rate)
         self.nkerns = nkerns
@@ -529,6 +524,73 @@ class MetaCNN(BaseEstimator):
             return shared_x, T.cast(shared_y, 'int32')
         else:
             return shared_x, shared_y
+
+    def __getstate__(self):
+        """ Return state sequence."""
+        params = self.get_params()  #sklearn.BaseEstimator
+        #add the n_in and n_out parameters determined in the fit() routine
+        try:
+            params['n_in'] = self.n_in
+            params['n_out'] = self.n_out
+        except AttributeError:
+            print "cannot pickle properly until 'fit' has been run"
+            
+        weights = [p.get_value() for p in self.cnn.params]
+        state = (params, weights)
+        return state
+
+    def _set_weights(self, weights):
+        """ Set fittable parameters from weights sequence.
+
+        Parameters must be in the order defined by self.params:
+            W, W_in, W_out, h0, bh, by
+        """
+        i = iter(weights)
+
+        for param in self.cnn.params:
+            param.set_value(i.next())
+
+    def __setstate__(self, state):
+        """ Set parameters from state sequence.
+
+        Parameters must be in the order defined by self.params:
+            W, W_in, W_out, h0, bh, by
+        """
+        params, weights = state
+        self.set_params(**params)
+        self.ready()
+        self._set_weights(weights)
+
+    def save(self, fpath='.', fname=None):
+        """ Save a pickled representation of Model state. """
+        import datetime
+        fpathstart, fpathext = os.path.splitext(fpath)
+        if fpathext == '.pkl':
+            # User supplied an absolute path to a pickle file
+            fpath, fname = os.path.split(fpath)
+
+        elif fname is None:
+            # Generate filename based on date
+            date_obj = datetime.datetime.now()
+            date_str = date_obj.strftime('%Y-%m-%d-%H:%M:%S')
+            class_name = self.__class__.__name__
+            fname = '%s.%s.pkl' % (class_name, date_str)
+
+        fabspath = os.path.join(fpath, fname)
+
+        logger.info("Saving to %s ..." % fabspath)
+        file = open(fabspath, 'wb')
+        state = self.__getstate__()
+        pickle.dump(state, file, protocol=pickle.HIGHEST_PROTOCOL)
+        file.close()
+
+    def load(self, path):
+        """ Load model parameters from path. """
+        logger.info("Loading from %s ..." % path)
+        file = open(path, 'rb')
+        state = pickle.load(file)
+        self.__setstate__(state)
+        file.close()
 
 
 class LogisticRegression(object):
