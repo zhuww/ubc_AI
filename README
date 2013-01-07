@@ -1,2 +1,15 @@
 UBC AI project (pfd AI part)
 by Aaron Berndsen and Weiwei Zhu
+
+
+TO USE THIS CODE YOU NEED TO INSTALL:
+    sklearn (python)
+    libblas-dev
+    theano (python)
+
+TO USE OUR PICKLED CLASSIFIERS:
+
+classifier = cPickle.load(open('trained_AI/clfl2_FL.pkl' ,'rb'))
+pfdfiles = glob.glob('*.pfd')
+predictions = classifier.predict(pfdfiles)
+float_number_predictions =  classifier.predict_proba(pfdfiles)
