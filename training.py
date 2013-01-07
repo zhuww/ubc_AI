@@ -21,9 +21,10 @@ class pfddata(pfd):
                 Improved summed profile (negligible change to intervals and subband plots)
         """
         pfd.__init__(self, filename)
-        self.dedisperse(DM=self.bestdm, doppler=1)
         self.adjust_period()
-        if align:
+        self.dedisperse(DM=self.bestdm, doppler=1)
+        self.align = align
+        if self.align:
             #ensure downsampled grid falls bin of max(profile)
             self.align = self.profs.sum(0).sum(0).argmax()
         else:
@@ -146,7 +147,8 @@ class pfddata(pfd):
                     #while len(S) < M:
                         #np.append(S, 0.)
                     #return S
-                self.extracted_feature[feature] = normalize(downsample(img, M).ravel())
+                #self.extracted_feature[feature] = normalize(downsample(img, M).ravel())
+                self.extracted_feature[feature] = normalize(downsample(img, M, align=self.align).ravel())
             return self.extracted_feature[feature]
 
         def getsubbands(M):
@@ -162,7 +164,8 @@ class pfddata(pfd):
                     #while len(S) < M:
                         #np.append(S, 0.)
                     #return S
-                self.extracted_feature[feature] = normalize(downsample(img, M).ravel())
+                #self.extracted_feature[feature] = normalize(downsample(img, M).ravel())
+                self.extracted_feature[feature] = normalize(downsample(img, M, align=self.align).ravel())
             return self.extracted_feature[feature]
 
         def getratings(L):
