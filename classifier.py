@@ -6,6 +6,7 @@ from sklearn.ensemble import GradientBoostingClassifier as GBC
 
 from ubc_AI.training import split_data
 from ubc_AI import pulsar_nnetwork as pnn 
+from ubc_AI import sktheano_cnn as skcnn
 
 class combinedAI(object):
     """
@@ -48,7 +49,8 @@ class combinedAI(object):
         self.list_of_AIs = list_of_AIs
         self.strategy = strategy
         if strategy != 'vote' and strategy not in self.AIonAIs:
-            raise "strategy %s is not recognized" % strategy
+            note = "strategy %s is not recognized" % strategy
+            raise MyError(note)
         if strategy == 'lr':
             self.AIonAI = linear_model.LogisticRegression(**kwds)
         elif strategy == 'svm':
@@ -269,26 +271,30 @@ class classifier(object):
 
     the feature has to be a diction like {'phasebins':32}, where 'phasebins' being the name of the feature, 32 is the size.
     """
-    def __init__(self, feature=None, use_pca=False, n_comp=12, *args, **kwds):
+    def __init__(self, feature=None, use_pca=False, n_comp=12, **kwds):
         if feature == None:
-            raise "must specifiy the feature used by this classifier!"
+            raise MyError(None)
         self.feature = feature
         self.use_pca = use_pca
         self.n_components = n_comp
         self.targetmap = {'phasebins':1, 'DMbins':2, 'intervals':3, 'subbands':4, }
-        super(classifier, self).__init__( *args, **kwds)
+        super(classifier, self).__init__( **kwds)
 
-    def fit(self, pfds, target):
+    def fit(self, pfds, target, randomshift=True):
         """
         args: pfds, target
         pfds: the training pfds
         target: the training targets
+        randomshift: add a random shift to the phase, otherwise use the phase .5 aligned feature
+
         """
         MaxN = max([self.feature[k] for k in self.feature])
         feature = [k for k in self.feature if self.feature[k] == MaxN][0]
         #print '%s %s MaxN:%s'%(self.orig_class, self.feature, MaxN)
         #shift = random.randint(0, MaxN-1)
         shift = random.randint(0, MaxN-1, len(pfds))
+        if not randomshift:
+            shift *= 0
         Nspam = 3
 
         if feature in ['phasebins', 'timebins', 'freqbins']:
@@ -298,8 +304,10 @@ class classifier(object):
             #print data.shape
         elif feature in ['intervals', 'subbands']:
             #print '%s %s 2D shift:%s'%(self.orig_class, self.feature, shift)
-            #data = np.array([np.roll(pfd.getdata(**self.feature).reshape(MaxN, MaxN), shift[i], axis=1).ravel() for i, pfd in enumerate(pfds)])
-            data = np.vstack([np.array([np.roll(pfd.getdata(**self.feature).reshape(MaxN, MaxN), shift, axis=1).ravel() for shift in random.randint(0, MaxN-1, Nspam)]) for i, pfd in enumerate(pfds)])
+            if not randomshift:
+                data = np.array([np.roll(pfd.getdata(**self.feature).reshape(MaxN, MaxN), shift[i], axis=1).ravel() for i, pfd in enumerate(pfds)])
+            else:
+                data = np.vstack([np.array([np.roll(pfd.getdata(**self.feature).reshape(MaxN, MaxN), shift, axis=1).ravel() for shift in random.randint(0, MaxN-1, Nspam)]) for i, pfd in enumerate(pfds)])
             #print data.shape
         else:
             data = np.array([pfd.getdata(**self.feature) for pfd in pfds])
@@ -315,7 +323,7 @@ class classifier(object):
                 self.pca = PCA(n_components=self.n_components).fit(data[mytarget == 1])
                 data = self.pca.transform(data)
 
-            if feature in ['intervals', 'subbands']:
+            if feature in ['intervals', 'subbands'] and randomshift:
                 exptargets = np.array([ [t]*Nspam for t in mytarget]).ravel()
                 mytarget = exptargets
             results = self.fit( data, mytarget)
@@ -457,6 +465,13 @@ class ranforclf(classifier, ensemble.RandomForestClassifier):
     the mixed in class for DecisionTree
     """
     orig_class = ensemble.RandomForestClassifier
+    pass
+
+class cnnclf(classifier, skcnn.MetaCNN):
+    """
+    the mixed in class for a convolutional neural network
+    """
+    orig_class = skcnn.MetaCNN
     pass
 
 class adaboost(object):
@@ -657,3 +672,13 @@ class adaboost(object):
                                   for c, v in enumerate(w.transpose())])
             #use sigmoid to get final predict_proba
             return 1./(1.0 + np.exp(-f))
+
+class MyError(Exception):
+    def __init__(self, note):
+        self.note = note
+    def __str__(self):
+        if self.note is None:
+            return repr("must specify the feature used by this classifier")
+        else:
+            return repr(self.note)
+        
