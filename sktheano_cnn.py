@@ -226,8 +226,7 @@ class MetaCNN(BaseEstimator):
                  use_symbolic_softmax=False,
                  ### Note, n_in and n_out are actually set in 
                  ### .fit, they are here to help cPickle
-                 n_in=100, n_out=100):
-
+                 n_in=50, n_out=2):
         self.learning_rate = float(learning_rate)
         self.nkerns = nkerns
         self.n_hidden = n_hidden
@@ -240,6 +239,8 @@ class MetaCNN(BaseEstimator):
         self.activation = activation
         self.output_type = output_type
         self.use_symbolic_softmax = use_symbolic_softmax
+        self.n_in = n_in
+        self.n_out = n_out
 
     def ready(self):
         """
@@ -323,17 +324,17 @@ class MetaCNN(BaseEstimator):
 
         if X_test is not None:
             assert(Y_test is not None)
-            self.interactive = True
+            interactive = True
             test_set_x, test_set_y = self.shared_dataset((X_test, Y_test))
         else:
-            self.interactive = False
+            interactive = False
 
         train_set_x, train_set_y = self.shared_dataset((X_train, Y_train))
 
         n_train_batches = train_set_x.get_value(borrow=True).shape[0]
         n_train_batches /= self.batch_size
 
-        if self.interactive:
+        if interactive:
             n_test_batches = test_set_x.get_value(borrow=True).shape[0]
             n_test_batches /= self.batch_size
 
@@ -355,7 +356,7 @@ class MetaCNN(BaseEstimator):
                 self.y: train_set_y[index * self.batch_size: (index + 1) * self.batch_size]},
                                               mode=mode)
 
-        if self.interactive:
+        if interactive:
             compute_test_error = theano.function(inputs=[index, ],
                                                  outputs=self.cnn.loss(self.y),
                                                  givens={
@@ -422,7 +423,7 @@ class MetaCNN(BaseEstimator):
                                     for i in xrange(n_train_batches)]
                     this_train_loss = np.mean(train_losses)
 
-                    if self.interactive:
+                    if interactive:
                         test_losses = [compute_test_error(i)
                                         for i in xrange(n_test_batches)]
                         this_test_loss = np.mean(test_losses)

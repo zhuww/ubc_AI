@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 #from pylab import *
 
 class pfddata(pfd):
-    def __init__(self, filename, align=True):
+    def __init__(self, filename, align=True, centre=False):
         """
         pfddata: a wrapper class around prepfold.pfd
         
@@ -19,10 +19,20 @@ class pfddata(pfd):
                 this aids in interpolation of the original data onto 
                 the downsampled grid. [Default = False]
                 Improved summed profile (negligible change to intervals and subband plots)
+        centre : shift the feature to the phase 0.5 
+                 (classifier.combinedAI.fit has a randomshift parameter which can re-randomize things)
+                
         """
         pfd.__init__(self, filename)
         self.dedisperse(DM=self.bestdm, doppler=1)
         self.adjust_period()
+
+        if centre:
+            mx = self.profs.sum(0).sum(0).argmax()
+            nbin = self.proflen
+            #number of bins from 
+            noff = nbin/2 - mx
+            self.profs = np.roll(self.profs, noff, axis=-1)
         if align:
             #ensure downsampled grid falls bin of max(profile)
             self.align = self.profs.sum(0).sum(0).argmax()
@@ -146,7 +156,7 @@ class pfddata(pfd):
                     #while len(S) < M:
                         #np.append(S, 0.)
                     #return S
-                self.extracted_feature[feature] = normalize(downsample(img, M).ravel())
+                self.extracted_feature[feature] = normalize(downsample(img, M, align=self.align).ravel())
             return self.extracted_feature[feature]
 
         def getsubbands(M):
@@ -162,7 +172,7 @@ class pfddata(pfd):
                     #while len(S) < M:
                         #np.append(S, 0.)
                     #return S
-                self.extracted_feature[feature] = normalize(downsample(img, M).ravel())
+                self.extracted_feature[feature] = normalize(downsample(img, M, align=self.align).ravel())
             return self.extracted_feature[feature]
 
         def getratings(L):

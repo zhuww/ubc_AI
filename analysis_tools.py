@@ -33,13 +33,16 @@ def hist_overlap(A,B, idx=0, norm=True):
         N = 1.
     return k.sum()*N
 
-def plot_histogram(probs, target, title=''):
+def plot_histogram(probs, target, title=False):
     """
     Given the list of pulsar probabilities 'proba'
     and the true target 'target', make a histogram
     of the pulsar and rfi distributions
 
     Assumes pulsars labelled '1', rfi '0'
+ 
+    optional :
+    title = False... add an informative title or not
     """
     if isinstance(probs, list):
         probs = np.array(probs)
@@ -59,10 +62,10 @@ def plot_histogram(probs, target, title=''):
 
     pct, f1, prec, compl = find_best_f1(probs, target)
     overlap = hist_overlap(npsr_clf, nrfi_clf, idx=0, norm=True)
-    #title = '%s, best (cut, P, C, f1) = (%.3f, %.3f, %.3f, %.3f), (overlap: %s)' %\
-        #(title, pct, prec, compl, f1, int(overlap))
-
-    #plt.title(title)
+    if title:
+        title = 'best (cut, P, C, f1) = (%.3f, %.3f, %.3f, %.3f), (overlap: %s)' %\
+            (pct, prec, compl, f1, int(overlap))
+        plt.title(title)
     plt.show()
     
 def find_best_f1(proba, target):
@@ -102,7 +105,7 @@ def find_best_f1(proba, target):
             bestcompl = completeness
     return bestpct, f1, bestprec, bestcompl
     
-def cut_performance(AIs, target, nbins=25, plot=True, norm=True):
+def cut_performance(AIs, target, nbins=25, plot=True, norm=True, legend=True):
     """
     given a dictionary of AIs (keyword = descriptive name, value = predict_proba[...,1])
     return a dictionary of the hist_overlap as we change the %cut
@@ -117,7 +120,7 @@ def cut_performance(AIs, target, nbins=25, plot=True, norm=True):
     plot: True/False make the plots, or only return the data
     norm: when calculating the overlap, 
           normalize recovered fraction by by pulsar/(pulsar+rfi)
-
+    legend: display a legend or not...
 
     Returns:
     1) pct cut
@@ -138,8 +141,10 @@ def cut_performance(AIs, target, nbins=25, plot=True, norm=True):
     rfi_hist = {}
     for k, v in AIs.iteritems():
         if v.ndim == 1:
-            psr_hist[k] = np.histogram(v[target==1], nbins, range=[0,1])[0] #returns histogram, bin_edges
-            rfi_hist[k] = np.histogram(v[target!=1], nbins, range=[0,1])[0]
+            idcs = target == 1
+            psr_hist[k] = np.histogram(v[idcs], nbins, range=[0,1])[0] #returns histogram, bin_edges
+            idcs = target != 1
+            rfi_hist[k] = np.histogram(v[idcs], nbins, range=[0,1])[0]
         else:
             psr_hist[k] = np.histogram(v[target==1][...,1], bins=nbins, range=[0,1])[0] #returns histogram, bin_edges
             rfi_hist[k] = np.histogram(v[target!=1][...,1], bins=nbins, range=[0,1])[0]
@@ -161,7 +166,8 @@ def cut_performance(AIs, target, nbins=25, plot=True, norm=True):
             ax.plot(pcts, v, next(linecycler), label=k)
         ax.set_xlabel('pct cut')
         ax.set_ylabel('overlap')
-        ax.legend()
+        if legend:
+            ax.legend()
 
         ax = plt.subplot(212)
         linecycler = cycle(lines)
@@ -169,7 +175,8 @@ def cut_performance(AIs, target, nbins=25, plot=True, norm=True):
             ax.plot(pcts, v, next(linecycler), label=k)
         ax.set_xlabel('pct cut')
         ax.set_ylabel('pulsar fraction recovered')
-        ax.legend(loc=3)
+        if legend:
+            ax.legend(loc=3)
         
         plt.show()
 
