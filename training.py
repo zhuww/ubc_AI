@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 #from pylab import *
 
 class pfddata(pfd):
-    def __init__(self, filename, align=True, centre=False):
+    def __init__(self, filename, align=True, centre=True):
         """
         pfddata: a wrapper class around prepfold.pfd
         

@@ -280,7 +280,7 @@ class classifier(object):
         self.targetmap = {'phasebins':1, 'DMbins':2, 'intervals':3, 'subbands':4, }
         super(classifier, self).__init__( **kwds)
 
-    def fit(self, pfds, target, randomshift=True):
+    def fit(self, pfds, target, randomshift=False):
         """
         args: pfds, target
         pfds: the training pfds
