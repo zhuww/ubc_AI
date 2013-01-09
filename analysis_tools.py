@@ -163,7 +163,7 @@ def cut_performance(AIs, target, nbins=25, plot=True, norm=True, legend=True):
         ax = plt.subplot(211)
         linecycler = cycle(lines)
         for k, v in performance.iteritems():
-            ax.plot(pcts, v, next(linecycler), label=k)
+            ax.plot(pcts, v, next(linecycler), label=str(k))
         ax.set_xlabel('pct cut')
         ax.set_ylabel('overlap')
         if legend:
@@ -172,7 +172,7 @@ def cut_performance(AIs, target, nbins=25, plot=True, norm=True, legend=True):
         ax = plt.subplot(212)
         linecycler = cycle(lines)
         for k, v in pct_recovered.iteritems():
-            ax.plot(pcts, v, next(linecycler), label=k)
+            ax.plot(pcts, v, next(linecycler), label=str(k))
         ax.set_xlabel('pct cut')
         ax.set_ylabel('pulsar fraction recovered')
         if legend:

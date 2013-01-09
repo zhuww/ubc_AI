@@ -52,7 +52,7 @@ class CNN(object):
              
 
     """
-    def __init__(self, input, n_in, n_out, activation=T.tanh,
+    def __init__(self, input, n_in=1, n_out=0, activation=T.tanh,
                  nkerns=[20,50],
                  filters=[15,9],
                  poolsize=[(3,3),(2,2)],
@@ -528,14 +528,21 @@ class MetaCNN(BaseEstimator):
 
     def __getstate__(self):
         """ Return state sequence."""
-        params = self.get_params()  #sklearn.BaseEstimator
-        #add the n_in and n_out parameters determined in the fit() routine
-        try:
-            params['n_in'] = self.n_in
-            params['n_out'] = self.n_out
-        except AttributeError:
-            print "cannot pickle properly until 'fit' has been run"
-            
+        
+        #check if we're using ubc_AI.classifier wrapper, 
+        #adding it's params to the state
+        if hasattr(self, 'orig_class'):
+            superparams = self.get_params()
+            #now switch to orig. class (MetaCNN)
+            oc = self.orig_class
+            cc = self.__class__
+            self.__class__ = oc
+            params = self.get_params()
+            for k, v in superparams.iteritems():
+                params[k] = v
+            self.__class__ = cc
+        else:
+            params = self.get_params()  #sklearn.BaseEstimator
         weights = [p.get_value() for p in self.cnn.params]
         state = (params, weights)
         return state
@@ -558,9 +565,26 @@ class MetaCNN(BaseEstimator):
             W, W_in, W_out, h0, bh, by
         """
         params, weights = state
-        self.set_params(**params)
-        self.ready()
-        self._set_weights(weights)
+        #we may have several classes or superclasses
+        for k in ['n_comp', 'use_pca', 'feature']:
+            if k in params:
+                self.set_params(**{k:params[k]})
+                params.pop(k)
+
+        #now switch to MetaCNN if necessary
+        if hasattr(self,'orig_class'):
+            cc = self.__class__
+            oc = self.orig_class
+            self.__class__ = oc
+            self.set_params(**params)
+            self.ready()
+            self._set_weights(weights)
+            self.__class__ = cc
+        else:
+            self.set_params(**params)
+            self.ready()
+            self._set_weights(weights)
+            
 
     def save(self, fpath='.', fname=None):
         """ Save a pickled representation of Model state. """
