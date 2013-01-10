@@ -6,6 +6,7 @@ TO USE THIS CODE YOU NEED TO INSTALL:
     sklearn (python)
     libblas-dev
     theano (python)
+    python-dev
 
 TO USE OUR PICKLED CLASSIFIERS:
 
