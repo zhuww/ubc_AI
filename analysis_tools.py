@@ -105,7 +105,7 @@ def find_best_f1(proba, target):
             bestcompl = completeness
     return bestpct, f1, bestprec, bestcompl
     
-def cut_performance(AIs, target, nbins=25, plot=True, norm=True, legend=True):
+def cut_performance(AIs, target, nbins=25, plot=True, norm=True, legend=True, features=None):
     """
     given a dictionary of AIs (keyword = descriptive name, value = predict_proba[...,1])
     return a dictionary of the hist_overlap as we change the %cut
@@ -121,6 +121,10 @@ def cut_performance(AIs, target, nbins=25, plot=True, norm=True, legend=True):
     norm: when calculating the overlap, 
           normalize recovered fraction by by pulsar/(pulsar+rfi)
     legend: display a legend or not...
+    features: a dictionary of the 'feature' for the classifier in the 'AIs' dictionary
+             if 'not None', we assume target.shape = [nsamples x 5], the feature-labelled
+             targets, and we get performance from that comparison.
+             'feature' should be keyed by the 'AIs' keys, and value in ['phasebins', 'DMbins', 'intervals', 'subbands']
 
     Returns:
     1) pct cut
@@ -131,6 +135,10 @@ def cut_performance(AIs, target, nbins=25, plot=True, norm=True, legend=True):
     import pylab as plt
     from itertools import cycle
     lines = ["--","-",":","-."]
+    targetmap = {'phasebins':1, 'DMbins':2, 'intervals':3, 'subbands':4, }
+
+    if features is not None:
+        assert(target.ndim == 2)
 
     performance = {}
     pct_recovered = {}
@@ -140,14 +148,22 @@ def cut_performance(AIs, target, nbins=25, plot=True, norm=True, legend=True):
     psr_hist = {}
     rfi_hist = {}
     for k, v in AIs.iteritems():
+        #are we using feature labeling targets and classifiers?
+        if features is not None:
+            if features[k] in targetmap:
+                label = target[:,targetmap[features[k]]]
+            else:
+                #then this is the overall classifier
+                label = target[:,0]
+
         if v.ndim == 1:
-            idcs = target == 1
+            idcs = label == 1
             psr_hist[k] = np.histogram(v[idcs], nbins, range=[0,1])[0] #returns histogram, bin_edges
-            idcs = target != 1
+            idcs = label != 1
             rfi_hist[k] = np.histogram(v[idcs], nbins, range=[0,1])[0]
         else:
-            psr_hist[k] = np.histogram(v[target==1][...,1], bins=nbins, range=[0,1])[0] #returns histogram, bin_edges
-            rfi_hist[k] = np.histogram(v[target!=1][...,1], bins=nbins, range=[0,1])[0]
+            psr_hist[k] = np.histogram(v[label==1][...,1], bins=nbins, range=[0,1])[0] #returns histogram, bin_edges
+            rfi_hist[k] = np.histogram(v[label!=1][...,1], bins=nbins, range=[0,1])[0]
         
     #now change the cut and record the overlap
     pcts = []
