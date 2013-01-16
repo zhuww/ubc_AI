@@ -85,9 +85,9 @@ def GBNCC_pulsarlist():
     pulsars = {}
     for row in rows:
         cols = row.findAll('td')
-        name = cols[0].text
-        p0 = float(cols[1].text)/1000. #ms --> [s]
-        dm = cols[2].text
+        name = cols[1].text
+        p0 = float(cols[2].text)/1000. #ms --> [s]
+        dm = cols[3].text
         coords = name.strip('J')   
         if '+' in coords:
             raj = coords.split('+')[0]
@@ -305,12 +305,15 @@ def ao327_pulsarlist():
 
 def deepmb_pulsarlist():
     url = 'http://astro.phys.wvu.edu/dmb/'
-    sock = urllib.urlopen(url)
-    data = sock.read()
-    soup = BeautifulSoup(data)
-    sock.close()
-    table = soup.findAll('table')[0] #pulsars are in first table
-    rows = table.findAll('tr')[1:]
+    try:
+        sock = urllib.urlopen(url)
+        data = sock.read()
+        soup = BeautifulSoup(data)
+        sock.close()
+        table = soup.findAll('table')[0] #pulsars are in first table
+        rows = table.findAll('tr')[1:]
+    except(IOError):
+        rows = []
     pulsars = {}
     for row in rows:
         cols = row.findAll('td')
@@ -599,16 +602,23 @@ def ddmm2deg(ddmm):
                 + float(ddmm[4:6])/3600.
     return deg*sgn
     
-def matches(allpulsars, pulsar, sep=.6):
+def matches(allpulsars, pulsar, sep=.6, harm_match=False, DM_match=False):
     """
-    given a dictionary of all pulsars, return
-    the objects within 'sep' degrees of the pulsar.
+    given a dictionary of all pulsars and a pulsar object,
+    return the objects within 'sep' degrees of the pulsar.
 
     args:
     allpulsars : dictionary of allpulsars
     pulsar : object of interest
-    sep : degrees of separation [default .5 deg]
+    sep : degrees of separation [default .6 deg]
 
+    Optional:
+    harmonic_match : [default False], if True reject match if it is
+              not a harmonic ratio 
+              (we print the rejected object so you can follow up)
+    DM_match : [default False], if True reject match if it is there
+               is a 15% difference in DM
+    
 
     Notes:
     *because GBNCC only gives Dec to nearest degree, we consider
@@ -622,6 +632,9 @@ def matches(allpulsars, pulsar, sep=.6):
     pdec = ddmm2deg(pulsar.dec)
     orig_sep = sep
     for k, v in allpulsars.iteritems():
+        amatch = False
+
+        ## find positional matches
         ra = hhmm2deg(v.ra)
         dec = ddmm2deg(v.dec)
         #use very wide "beam" for bright pulsars (the "B" pulsars)
@@ -629,16 +642,48 @@ def matches(allpulsars, pulsar, sep=.6):
             sep = max(orig_sep, 2.5)
         else:
             sep = orig_sep
-
         dra = abs(ra - pra)*np.cos(pdec*np.pi/180.)
         ddec = abs(dec - pdec)
         if v.gbncc or pulsar.gbncc:
             #make sure dec is at least one degree
             if dra <= sep and ddec <= max(1.2,sep):
-                matches[v.name] = v
+                amatch = True
         elif dra <= sep and ddec <= sep:
+            amatch = True
+            
+        ## reject nearby objects if they aren't harmonics
+        if amatch and harm_match:
+            max_denom = 100
+            num, den = harm_ratio(np.round(pulsar.P0,5), np.round(v.P0,5), 
+                                  max_denom=max_denom)
+            if num == 0:
+                num = 1
+                den = max_denom
+            pdiff = abs(1. - float(den)/float(num) *pulsar.P0/v.P0)
+            if pdiff > 1:
+                amatch = False
+                print "%s is not a harmonic match (rejecting)" % k
+
+        ## reject nearby objects if 15% difference in DM
+        if amatch and DM_match:
+            if (v.DM != np.nan) and (pulsar.DM != 0.):
+                dDM = abs(v.DM - pulsar.DM)/pulsar.DM
+                if dDM > 0.15:
+                    amatch = False
+                    print "%s has a very different DM (rejecting)" % k
+
+        ## finally, we've passed location, harmonic and DM matching
+        if amatch:
             matches[v.name] = v
     return sorted(matches.values(), key=lambda x: x.name, reverse=True) #gives a sorted list
     
-        
+def harm_ratio(a,b,max_denom=100):
+    """
+    given two numbers, find the harmonic ratio
+
+    """
+    c = fractions.Fraction(a/b).limit_denominator(max_denominator=max_denom)
+    return c.numerator, c.denominator
+
+      
     
