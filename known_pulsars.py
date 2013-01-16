@@ -674,7 +674,7 @@ def matches(allpulsars, pulsar, sep=.6, harm_match=False, DM_match=False):
             matches[v.name] = v
     return sorted(matches.values(), key=lambda x: x.name, reverse=True) #gives a sorted list
     
- def harm_ratio(a,b,max_denom=100):
+def harm_ratio(a,b,max_denom=100):
     """
     given two numbers, find the harmonic ratio
 
