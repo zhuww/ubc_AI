@@ -155,6 +155,8 @@ def cut_performance(AIs, target, nbins=25, plot=True, norm=True, legend=True, fe
             else:
                 #then this is the overall classifier
                 label = target[:,0]
+        else:
+            label = target[:,0]
 
         if v.ndim == 1:
             idcs = label == 1
