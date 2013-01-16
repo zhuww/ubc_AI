@@ -85,9 +85,9 @@ def GBNCC_pulsarlist():
     pulsars = {}
     for row in rows:
         cols = row.findAll('td')
-        name = cols[0].text
-        p0 = float(cols[1].text)/1000. #ms --> [s]
-        dm = cols[2].text
+        name = cols[1].text
+        p0 = float(cols[2].text)/1000. #ms --> [s]
+        dm = cols[3].text
         coords = name.strip('J')   
         if '+' in coords:
             raj = coords.split('+')[0]
@@ -305,12 +305,15 @@ def ao327_pulsarlist():
 
 def deepmb_pulsarlist():
     url = 'http://astro.phys.wvu.edu/dmb/'
-    sock = urllib.urlopen(url)
-    data = sock.read()
-    soup = BeautifulSoup(data)
-    sock.close()
-    table = soup.findAll('table')[0] #pulsars are in first table
-    rows = table.findAll('tr')[1:]
+    try:
+        sock = urllib.urlopen(url)
+        data = sock.read()
+        soup = BeautifulSoup(data)
+        sock.close()
+        table = soup.findAll('table')[0] #pulsars are in first table
+        rows = table.findAll('tr')[1:]
+    except(IOError):
+        rows = []
     pulsars = {}
     for row in rows:
         cols = row.findAll('td')

@@ -516,7 +516,7 @@ class MainFrameGTK(Gtk.Window):
                     fname = self.pfdstore_set_value(value, this_iter=this_iter, \
                                                         return_fname=True)
                 
-                if key in ['1', 'p', 'm', '5', 'h']:
+                if key in ['1', 'p', 'm', '5', 'h', 'k']:
                     if FL and self.fl_nvote == 0:
                         self.add_candidate_to_knownpulsars(fname)
                     else:
@@ -1595,8 +1595,8 @@ class MainFrameGTK(Gtk.Window):
             for v in self.data.dtype.names[1:]:
             #skip all feature-label voters
                 if v.endswith('_FL'): continue 
-            #add 1(=pulsar), 3(=harmonic), .5(=maybe a pulsar) to list of matches
-                for vote in [1., 3., 0.5]:
+            #add 1(=pulsar), 2(=known), 3(=harmonic), .5(=maybe a pulsar) to list of matches
+                for vote in [1., 2., 3., 0.5]:
                     cand_pulsar = self.data[v] == vote
                     if self.data.size == 1:
                         fname = self.data['fname']
@@ -1847,7 +1847,12 @@ class MainFrameGTK(Gtk.Window):
                     print "\n--- candidate %s (ra,dec,DM)=(%s,%s, %s) ---" %\
                         (nm, this_pulsar.ra, this_pulsar.dec, this_pulsar.DM)
                     
-                for m in matches:
+                #we do this loop first, adding non-local candidates, then local ones
+                match_nonlocal_loc = [v for v in matches if v.catalog != 'local']
+                for v in matches:
+                    if v.catalog == 'local':
+                        match_nonlocal_loc.append(v)
+                for m in match_nonlocal_loc:
                     max_denom = 100
                     num, den = harm_ratio(np.round(this_pulsar.P0,5), np.round(m.P0,5), max_denom=max_denom)
                     
