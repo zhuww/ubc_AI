@@ -549,7 +549,7 @@ class MainFrameGTK(Gtk.Window):
                     self.statusbar.push(0,'Remember to save your output')
 
             awards = [30, 75, 150, 250, 400, 600, 1000]
-            if (cand_vote in awards) | ( (cand_vote > max(awards)) & (cand_vote%500 == 0) ):
+            if 0 and (cand_vote in awards) | ( (cand_vote > max(awards)) & (cand_vote%500 == 0) ):
                 try:
                     idx = awards.index(cand_vote) 
                     level = idx + 1
