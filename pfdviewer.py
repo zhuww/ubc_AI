@@ -2237,8 +2237,13 @@ class MainFrameGTK(Gtk.Window):
         if isinstance(pfdloc, str):
             pfdloc = [pfdloc]
 
-        pwd = self.palfa_qu.get_text()
-        uname = self.palfa_qp.get_text()
+        try:
+            from config.commondb import username, password
+            pwd = username 
+            uname = password
+        except:
+            pwd = self.palfa_qu.get_text()
+            uname = self.palfa_qp.get_text()
 
         if '' in [uname, pwd]:
             print "A username and password are required. Aborting query"
