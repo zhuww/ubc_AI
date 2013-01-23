@@ -2081,12 +2081,18 @@ class MainFrameGTK(Gtk.Window):
             return
         print "executing query"
 
-        pwd = self.palfa_qu.get_text()
-        uname = self.palfa_qp.get_text()
+        try:
+            from config.commondb import username, password
+            pwd = username 
+            uname = password
+        except:
+            pwd = self.palfa_qu.get_text()
+            uname = self.palfa_qp.get_text()
 
         if '' in [uname, pwd]:
             print "A username and password are required. Aborting query"
             return
+
         
         dbhost = Vdecode(uname+pwd, 'ugkagdipzy.nm.qigtcjn.bmh')
         database = Vdecode(uname+pwd, 'JPRDYEukmQQ2')
