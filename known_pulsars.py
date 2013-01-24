@@ -27,6 +27,7 @@ def get_allpulsars():
                 'deepmb' : deepmb_pulsarlist(),
                 'gbt350' : GBT350NGP_pulsarlist(),
                 'fermi' : FERMI_pulsarlist(),
+                'lofar' : LOFAR_pulsarlist(),
                 'ryan': ryan_pulsars(),
                 }
 
@@ -123,9 +124,39 @@ def GBNCC_pulsarlist():
 
     return pulsars
 
+def LOFAR_pulsarlist():
+    """
+    gather the pulsars listed on the LOFAR lotas discovery page
+    """
+    url = 'http://astron.nl/pulsars/lofar/surveys/lotas/'
+    sock = urllib.urlopen(url)
+    data = sock.read()
+    sock.close()
+    datas = data.splitlines()
+    #read until '-----------'
+    pulsars = {}
+    for n, l in enumerate(datas):
+        try:
+            if l[0] != 'J': continue
+            ldata = l.split()
+            name = ldata[0]
+            DM = ldata[1]
+            P0 = ldata[2]
+            ra = ldata[5]
+            dec = ldata[6]
+            pulsars[name] = pulsar(name=name, psrj=name,
+                                   ra=ra, dec=dec,
+                                   P0=P0, DM=DM,
+                                   catalog='lofar'
+                                   )
+        except(IndexError):
+            pass
+
+    return pulsars
+
 def PALFA_pulsarlist():
     """
-    gather the pulsars listed on the palfa discover page
+    gather the pulsars listed on the palfa discovery page
     http://www.naic.edu/~palfa/newpulsars/
 
     return:
