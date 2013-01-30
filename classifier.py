@@ -8,17 +8,20 @@ from ubc_AI.training import split_data
 from ubc_AI import pulsar_nnetwork as pnn 
 from ubc_AI import sktheano_cnn as skcnn
 
+equaleval = "%s"
+
 class combinedAI(object):
     """
     A class to combine different AIs, and have them operate as one
     """
-    def __init__(self, list_of_AIs, strategy='vote', nvote=None, **kwds):
+    def __init__(self, list_of_AIs, strategy='vote', nvote=None, score_mapper=equaleval, **kwds):
         """
         inputs
         list_of_AIs: list of classifiers
         strategy: What to do with the prediction matrix from the list_of_AIs.
                 One of ['vote', 'lr', 'svm', 'forest', 'tree', 'nn', 'adaboost', 'gbc', 'kitchensink']
                 Default = 'vote'
+        *score_map: has to be a string that eval(score_map % score) to a function that converts the calculated probability to a new score.
         
         Notes:
         *'vote': **assumes** pulsars are labelled class 1, 
@@ -85,6 +88,7 @@ class combinedAI(object):
 
         self.nvote = nvote
         self.nclasses = None #keep track of number of classes (determined in 'fit')
+        self.score_mapper = score_mapper
 
     def fit(self, pfds, target, **kwds):
         """
@@ -236,7 +240,13 @@ class combinedAI(object):
                                           for clf in self.list_of_AIs]) #nsamples x (npreds x nclasses)
 
             result = self.AIonAI.predict_proba(predicts) #nsamples x nclasses
-        return result
+
+        #score_mapper = eval(self.score_mapper)
+        return np.array([res if res == 0. else eval(score_mapper % res) for res in result])
+        #if not result == 0.:
+            #return score_mapper(result)
+        #else:
+            #return result
         
     def score(self, pfds, target, F1=True):
         """
