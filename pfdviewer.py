@@ -1889,7 +1889,7 @@ class MainFrameGTK(Gtk.Window):
                         vote = np.nan
 #don't add the current candidate to the list of matches
                     if basename(m.name) != basename(nm):
-                        txt = "%s (%s/%s) to %4.3f" % (np.round(m.P0,5), num, den, pdiff)
+                        txt = "%s (%s/%s) to %4.3f" % (np.round(m.P0,5), num, den, pdiff*100.)
                         txt += '%'
                         d = [m.name, txt, m.DM, m.ra, m.dec, vote]
                         self.pmatch_store.append(d)
