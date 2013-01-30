@@ -636,7 +636,7 @@ def hhmm2deg(hhmm):
     degrees
 
     """
-	deg = 0.0
+    deg = 0.0
     if ':' in hhmm:
         s = hhmm.split(':')
         ncomp = len(s)
