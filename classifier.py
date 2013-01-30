@@ -242,7 +242,8 @@ class combinedAI(object):
             result = self.AIonAI.predict_proba(predicts) #nsamples x nclasses
 
         #score_mapper = eval(self.score_mapper)
-        return np.array([res if res == 0. else eval(score_mapper % res) for res in result])
+        renderer = lambda x:(1-x, x)
+        return np.array([res if res[1] == 0. else renderer(eval(self.score_mapper % res[1])) for res in result])
         #if not result == 0.:
             #return score_mapper(result)
         #else:
