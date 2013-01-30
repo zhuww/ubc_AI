@@ -779,6 +779,7 @@ def ryan_pulsars():
     pulsars = {}
     for row in ryans_list.splitlines():
         if not row: continue
+        if row.startswith('#'): continue
         try:
             name, ra, dec, p0, dm, typ, catalog = row.split()
         except(ValueError):
