@@ -12,7 +12,7 @@ class pfddata(pfd):
         pfddata: a wrapper class around prepfold.pfd
         
         Args:
-        filename : the pfd filename
+        filename : the pfd filename, or "self", then don't try to load a file.
 
         Optionally: 
         align : ensure that binned data falls on max(sum profile).
@@ -23,7 +23,8 @@ class pfddata(pfd):
                  (classifier.combinedAI.fit has a randomshift parameter which can re-randomize things)
                 
         """
-        pfd.__init__(self, filename)
+        if not filename == "self":
+            pfd.__init__(self, filename)
         self.dedisperse(DM=self.bestdm, doppler=1)
         self.adjust_period()
 

@@ -241,13 +241,15 @@ class combinedAI(object):
 
             result = self.AIonAI.predict_proba(predicts) #nsamples x nclasses
 
-        #score_mapper = eval(self.score_mapper)
+        #renderer = lambda x:(1-x, x)
+        #return np.array([res if res[1] == 0. else renderer(eval(self.score_mapper % res[1])) for res in result])
+        return result
+
+    def report_score(self, pfds):
+        probs = self.predict_proba(pfds)
         renderer = lambda x:(1-x, x)
         return np.array([res if res[1] == 0. else renderer(eval(self.score_mapper % res[1])) for res in result])
-        #if not result == 0.:
-            #return score_mapper(result)
-        #else:
-            #return result
+
         
     def score(self, pfds, target, F1=True):
         """
@@ -683,6 +685,9 @@ class adaboost(object):
                                   for c, v in enumerate(w.transpose())])
             #use sigmoid to get final predict_proba
             return 1./(1.0 + np.exp(-f))
+
+
+
 
 class MyError(Exception):
     def __init__(self, note):
