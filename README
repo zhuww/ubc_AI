@@ -14,4 +14,4 @@ from ubc_AI.data import pfdreader
 classifier = cPickle.load(open('trained_AI/clfl2_FL.pkl' ,'rb'))
 pfdfiles = glob.glob('*.pfd')
 predictions = classifier.predict([pfdreader(f) for f in pfdfiles])
-float_number_predictions =  classifier.predict_proba(pfdfiles)
+float_number_AI_score=  classifier.report_score(pfdfiles)
