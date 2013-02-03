@@ -247,8 +247,8 @@ class combinedAI(object):
 
     def report_score(self, pfds):
         probs = self.predict_proba(pfds)
-        renderer = lambda x:(1-x, x)
-        return np.array([res if res[1] == 0. else renderer(eval(self.score_mapper % res[1])) for res in probs])
+        #renderer = lambda x:(1-x, x)
+        return np.array([0. if res[1] == 0. else eval(self.score_mapper % res[1]) for res in probs])
 
         
     def score(self, pfds, target, F1=True):
