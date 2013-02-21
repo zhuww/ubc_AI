@@ -21,7 +21,9 @@ import theano
 import theano.tensor as T
 from theano.tensor.signal import downsample
 from theano.tensor.nnet import conv
-
+import logging
+_logger = logging.getLogger("theano.gof.compilelock")
+_logger.setLevel(logging.WARN)
 logger = logging.getLogger(__name__)
 
 mode = theano.Mode(linker='cvm')

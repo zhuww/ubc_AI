@@ -160,7 +160,7 @@ class combinedAI(object):
         if not type(pfds) in [list, np.ndarray]:
             print "warniing: changing pfds from type %s to list" % (type(pfds))
             pfds = [pfds]
-        
+
         if (self.strategy in self.AIonAIs) and self.strategy not in self.req_predict:
             #use predict_proba for AI_on_AI classifier, 
             list_of_predicts = np.hstack([clf.predict_proba(pfds)\
@@ -284,13 +284,13 @@ class classifier(object):
 
     the feature has to be a diction like {'phasebins':32}, where 'phasebins' being the name of the feature, 32 is the size.
     """
+    targetmap={'phasebins':1, 'DMbins':2, 'intervals':3, 'subbands':4, }
     def __init__(self, feature=None, use_pca=False, n_comp=12, **kwds):
         if feature == None:
             raise MyError(None)
         self.feature = feature
         self.use_pca = use_pca
         self.n_components = n_comp
-        self.targetmap = {'phasebins':1, 'DMbins':2, 'intervals':3, 'subbands':4, }
         super(classifier, self).__init__( **kwds)
 
     def fit(self, pfds, target, randomshift=False):
@@ -299,7 +299,6 @@ class classifier(object):
         pfds: the training pfds
         target: the training targets
         randomshift: add a random shift to the phase, otherwise use the phase .5 aligned feature
-
         """
         MaxN = max([self.feature[k] for k in self.feature])
         feature = [k for k in self.feature if self.feature[k] == MaxN][0]
@@ -313,8 +312,6 @@ class classifier(object):
         if feature in ['phasebins', 'timebins', 'freqbins']:
             #print '%s %s 1D shift:%s'%(self.orig_class, self.feature, shift)
             data = np.array([np.roll(pfd.getdata(**self.feature), shift[i])  for i, pfd in enumerate(pfds)])
-            #data = np.hstack([np.array([np.roll(pfd.getdata(**self.feature), shift) for shift in random.randint(0, MaxN-1, 10)]) for i, pfd in enumerate(pfds)])
-            #print data.shape
         elif feature in ['intervals', 'subbands']:
             #print '%s %s 2D shift:%s'%(self.orig_class, self.feature, shift)
             if not randomshift:
@@ -330,7 +327,7 @@ class classifier(object):
             if target.ndim == 1:
                 mytarget = target
             else:
-                mytarget = target[...,self.targetmap[self.feature.keys()[0]]]
+                mytarget = target[...,classifier.targetmap[self.feature.keys()[0]]]
                 
             if self.use_pca:
                 self.pca = PCA(n_components=self.n_components).fit(data[mytarget == 1])
@@ -345,7 +342,6 @@ class classifier(object):
             print sys.exc_info()[0], detail
         finally:
             self.__class__ = current_class
-
 
         return results
         #return self.orig_class.fit(self, data, target)
@@ -423,6 +419,8 @@ class classifier(object):
             #self.test_pfds = tuple(pfds)
             #self.data = data
             #self.last_feature = str(self.feature)
+        if not target.ndim == 1:
+            target = target[...,0]#feature labeling
         data = np.array([pfd.getdata(**self.feature) for pfd in pfds])
         current_class = self.__class__
         self.__class__ = self.orig_class
