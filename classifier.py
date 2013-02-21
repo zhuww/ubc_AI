@@ -8,6 +8,17 @@ from ubc_AI.training import split_data
 from ubc_AI import pulsar_nnetwork as pnn 
 from ubc_AI import sktheano_cnn as skcnn
 
+#multiprocess only works in non-interactive mode:
+import multiprocessing as MP
+from operator import itemgetter
+import __main__ as MAIN
+if hasattr(MAIN, '__file__'):
+    InteractivePy = False
+    #print "Yeah!!! we are running with multiprocessing!"
+else:
+    print "running in interactive python mode, multiprocessing disabled"
+    InteractivePy = True
+num_workers = max(1, MP.cpu_count() - 2)
 equaleval = "%s"
 
 class combinedAI(object):
@@ -40,8 +51,7 @@ class combinedAI(object):
         *'kitchensink': runs SVM, LR, tree, *and* NN on prediction matrix, 
                         then takes majority vote or 'lr' for final classification
 
-        *if strategy='vote' and nvote=None, 
-           determine best nvote value during self.fit (but this doesn't work good)
+        *if strategy='vote' and nvote > 0 , nvote < len(list_of_AIs)
 
         """
         #things that require a 'fit'
@@ -70,9 +80,9 @@ class combinedAI(object):
             else:
                 n = max(1,int(len(list_of_AIs)/2))
                 self.AIonAI = pnn.NeuralNetwork(design=[n,2], **kwds)
-                    
-            #grid-search optimized (2class)
-            #self.AIonAI = pnn.NeuralNetwork(gamma=15, design=[64], **kwds) 
+        elif strategy == 'vote':
+            assert( (nvote > 0) & (nvote <= len(self.list_of_AIs)) ) 
+            self.nvote = nvote
         elif strategy == 'adaboost':
             self.AIonAI = adaboost(**kwds)
         elif strategy == 'gbc':
@@ -86,7 +96,6 @@ class combinedAI(object):
 #            self.AIonAI = combinedAI([lr,nn,svc, dtree], strategy='lr')
             self.AIonAI = combinedAI([lr,nn,svc,dtree], strategy='adaboost')
 
-        self.nvote = nvote
         self.nclasses = None #keep track of number of classes (determined in 'fit')
         self.score_mapper = score_mapper
 
@@ -98,13 +107,15 @@ class combinedAI(object):
         following advice from http://en.wikipedia.org/wiki/Ensemble_learning
         we train each classifier on a subset of the training data
         
-        
         """
         if target.ndim == 1:
             psrtarget = target
         else:
             psrtarget = target[...,0]
-        train_preds = []
+        if not InteractivePy:
+            #extract pfd features beforehand
+            extractfeatures(self.list_of_AIs, pfds)
+
         for clf in self.list_of_AIs:
             tr_pfds, tr_target, te_pfds, te_target = split_data(pfds, target, pct=0.75)
 #            clf.fit(pfds, target, **kwds)
@@ -121,29 +132,22 @@ class combinedAI(object):
         if (self.strategy in self.AIonAIs):
             if self.strategy not in self.req_predict:
                 #use predict_prob 
-                predictions = np.hstack([clf.predict_proba(pfds)\
-                                             for clf in self.list_of_AIs]) #nsamples x (npred x nclasses)
+                if InteractivePy or (len(pfds) < 5*num_workers):
+                    predictions = np.hstack([clf.predict_proba(pfds)\
+                                                 for clf in self.list_of_AIs]) #nsamples x (npred x nclasses)
+                else:
+                    predictions = threadpredict_proba(self.list_of_AIs, pfds)
             else:
                 #use predict
-                predictions = np.transpose([clf.predict(pfds)\
-                                      for clf in self.list_of_AIs]) #nsamples x npred
+                if InteractivePy or (len(pfds) < 5*num_workers):
+                    predictions = np.transpose([clf.predict(pfds)\
+                                                    for clf in self.list_of_AIs]) #nsamples x npred
+                else:
+                    predictions = threadpredict(self.list_of_AIs, pfds)
 
             predictions = np.array(predictions) #nsamples x npred
             self.AIonAI.fit(predictions, psrtarget)
             
-# choose 'nvote' that maximizes the trianing-set performance                
-        if self.strategy == 'vote' and self.nvote == None:
-            train_preds = []
-            train_preds = np.array(train_preds).transpose() #nsamples x nclassifiers
-            score = 0.
-            for i in range(len(self.list_of_AIs)):
-                pct = (i+1.)/len(self.list_of_AIs)
-                avepred = np.where(train_preds.sum(axis=1) > pct, 1, 0)
-                this_score = np.mean(np.where(avepred == psrtarget, 1, 0))
-                if this_score > score:
-                    self.nvote = i + 1
-                    score = this_score
-
 
     def predict(self, pfds, pred_mat=False ):
         """
@@ -161,13 +165,23 @@ class combinedAI(object):
             print "warniing: changing pfds from type %s to list" % (type(pfds))
             pfds = [pfds]
 
+        if not InteractivePy:
+            #extract pfd features beforehand
+            extractfeatures(self.list_of_AIs, pfds)
+
         if (self.strategy in self.AIonAIs) and self.strategy not in self.req_predict:
             #use predict_proba for AI_on_AI classifier, 
-            list_of_predicts = np.hstack([clf.predict_proba(pfds)\
-                                              for clf in self.list_of_AIs])#nsamples x (npred x classes)
+            if InteractivePy or (len(pfds) < 5*num_workers):
+                list_of_predicts = np.hstack([clf.predict_proba(pfds)\
+                                                  for clf in self.list_of_AIs])#nsamples x (npred x classes)
+            else:
+                list_of_predicts = threadpredict_proba(self.list_of_AIs, pfds)
         else:
-            list_of_predicts = np.transpose([clf.predict(pfds)\
-                                                 for clf in self.list_of_AIs]) #nsamples x npred
+            if InteractivePy or (len(pfds) < 5*num_workers):
+                list_of_predicts = np.transpose([clf.predict(pfds)\
+                                                     for clf in self.list_of_AIs]) #nsamples x npred
+            else:
+                list_of_predicts = threadpredict(self.list_of_AIs, pfds)
 
         self.list_of_predicts = list_of_predicts
 
@@ -225,6 +239,10 @@ class combinedAI(object):
         if not type(pfds) in [list, np.ndarray]:
             pfds = [pfds]        
 
+        if not InteractivePy:
+            #extract pfd features beforehand
+            extractfeatures(self.list_of_AIs, pfds)
+
         if self.strategy not in self.AIonAIs:
             result = np.array([clf.predict_proba(pfds)\
                                  for clf in self.list_of_AIs]) #npreds x nsamples x nclasses
@@ -233,11 +251,17 @@ class combinedAI(object):
         else:
             #note: adaboost.predict_proba now accepts predict_proba inputs
             if self.strategy in self.req_predict and self.strategy != 'adaboost':
-                predicts = np.transpose([clf.predict(pfds)\
-                                             for clf in self.list_of_AIs]) #nsamples x nclasses
+                if InteractivePy or (len(pfds) < 5*num_workers):
+                    predicts = np.transpose([clf.predict(pfds)\
+                                                 for clf in self.list_of_AIs]) #nsamples x nclasses
+                else:
+                    predicts = threadpredict(self.list_of_AIs, pfds)
             else:
-                predicts = np.hstack([clf.predict_proba(pfds)\
-                                          for clf in self.list_of_AIs]) #nsamples x (npreds x nclasses)
+                if InteractivePy or (len(pfds) < 5*num_workers):
+                    predicts = np.hstack([clf.predict_proba(pfds)\
+                                              for clf in self.list_of_AIs]) #nsamples x (npreds x nclasses)
+                else:
+                    predicts = threadpredict_proba(self.list_of_AIs, pfds)
 
             result = self.AIonAI.predict_proba(predicts) #nsamples x nclasses
 
@@ -684,7 +708,146 @@ class adaboost(object):
             #use sigmoid to get final predict_proba
             return 1./(1.0 + np.exp(-f))
 
+def extractfeatures(AIlist, pfds):
+    """
+    given a list of AIs (eg. combinedAI.list_of_AIs)
+    and a list of pfds (class pfdreader),
+    pre-extract all the useful features.
+    This is meant to reduce disk i/o and calls to pfd.dedisperse()
+    """
+    def worker(q, retq, rptdf, **features):
+        while True:
+            item = q.get()
+            if item is not None:
+                n, pfd = item.items()[0]
+                pfd.getdata(*rptdf, **features)
+                retq.put({n:pfd})
+            else:
+                break
+            q.task_done()
+        q.task_done()
 
+    #determine features to extract from pfd
+    features = {}
+    rptdf = []
+    for clf in AIlist:
+        f, v = clf.feature.items()[0]
+        if f in features:
+            rptdf.append(clf.feature)
+        else:
+            features[f] = v
+
+    #extract the features in parallel
+    q = MP.JoinableQueue()
+    retq = MP.Queue()
+    procs = []
+    for i in range(num_workers):
+        p = MP.Process(target=worker,
+                       args=(q, retq, rptdf),
+                       kwargs=features)
+        p.daemon = True
+        p.start()
+        procs.append(p)
+
+    for n, pfd in enumerate(pfds):
+        q.put({n:pfd})
+
+    for p in range(num_workers):
+        #add termination sentinel, one for each process
+        q.put(None)
+    q.join()
+    resultdict = {}
+    for i in range(len(pfds)):
+        resultdict.update(retq.get())
+    for p in procs:
+        p.join()
+    for n, pfd in resultdict.iteritems():
+        pfds[n] = pfd
+
+def threadpredict(AIlist, pfds):
+    """
+    Args:
+    AIlist : list of trained classifiers
+    pfds : list of pfds
+    out : output format, one of 'transpose' or 'hstack'
+    """
+    def worker(q, retq, pfds):
+        while True:
+            item = q.get()
+            if item is not None:
+                n, clf = item.items()[0]
+                preds = clf.predict(pfds)
+                retq.put({n:preds})
+            else:
+                break
+            q.task_done()
+        q.task_done()
+    
+    q = MP.JoinableQueue()
+    retq = MP.Queue()
+    procs = []
+    for i in range(num_workers):
+        p = MP.Process(target=worker,
+                       args=(q, retq, pfds))
+        p.daemon = True
+        p.start()
+        procs.append(p)
+        
+    for n, clf in enumerate(AIlist):
+        q.put({n:clf})
+
+    for p in range(num_workers):
+        #add termination sentinal, one for each process
+        q.put(None)
+    q.join()
+    resultdict = {}
+    for i in range(len(AIlist)):
+        resultdict.update(retq.get())
+    for p in procs:
+        p.join()
+    return np.transpose([resultdict[n] for n in range(len(AIlist))])
+        
+def threadpredict_proba(AIlist, pfds):
+    """
+    Args:
+    AIlist : list of trained classifiers
+    pfds : list of pfds
+    """
+    def worker(q, retq, pfds):
+        while True:
+            item = q.get()
+            if item is not None:
+                n, clf = item.items()[0]
+                preds = clf.predict_proba(pfds)
+                retq.put({n:preds})
+            else:
+                break
+            q.task_done()
+        q.task_done()
+    
+    q = MP.JoinableQueue()
+    retq = MP.Queue()
+    procs = []
+    for i in range(num_workers):
+        p = MP.Process(target=worker,
+                       args=(q, retq, pfds))
+        p.daemon = True
+        p.start()
+        procs.append(p)
+        
+    for n, clf in enumerate(AIlist):
+        q.put({n:clf})
+
+    for p in range(num_workers):
+        #send termination sentinal, one for each process
+        q.put(None)
+    q.join()
+    resultdict = {}
+    for i in range(len(AIlist)):
+        resultdict.update(retq.get())
+    for p in procs:
+        p.join()
+    return np.hstack([resultdict[n] for n in range(len(AIlist))])
 
 
 class MyError(Exception):

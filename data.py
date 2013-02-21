@@ -38,11 +38,9 @@ class pfdreader(object):
                 print pfdfile, self.PSRclass, self.DMCclass
                 raise NameError, "did not file the file %s" % pfdfile
 
-    def getdata(self, **features):
+    def getdata(self, *fargs, **features):
         pfd = pfddata(self.pfdfile, align=True)
-        data = np.array([])
-        for key in features:
-            value = features[key]
+        def extract(pfd, key, value):
             feature = '%s:%s' % (key, value)
             if feature in self.extracted_feature:
                 #print 'use extracted feature %s' % feature
@@ -51,10 +49,18 @@ class pfdreader(object):
                 #print 'extracting new feature %' % feature
                 newdata = pfd.getdata(**{key:value})
                 self.extracted_feature.update({feature:newdata})
-            data = np.append(data, newdata)
+            return newdata
+
+        data = np.array([])
+        #process the args (a list of single-item dictionaries)
+        for i in fargs:
+            key, value = i.items()[0]
+            data = np.append(data, extract(pfd, key, value))
+        #process the kwargs
+        for key, value in features.iteritems():
+            data = np.append(data, extract(pfd, key, value))
         del pfd
         return data
-
 
 def singleclass_score(classifier, test_pfds, test_target, verbose=False):
     pulsar = set([])

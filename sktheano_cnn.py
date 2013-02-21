@@ -545,7 +545,10 @@ class MetaCNN(BaseEstimator):
             self.__class__ = cc
         else:
             params = self.get_params()  #sklearn.BaseEstimator
-        weights = [p.get_value() for p in self.cnn.params]
+        if hasattr(self, 'cnn'):
+            weights = [p.get_value() for p in self.cnn.params]
+        else:
+            weights = []
         state = (params, weights)
         return state
 
@@ -556,9 +559,9 @@ class MetaCNN(BaseEstimator):
             W, W_in, W_out, h0, bh, by
         """
         i = iter(weights)
-
-        for param in self.cnn.params:
-            param.set_value(i.next())
+        if hasattr(self, 'cnn'):
+            for param in self.cnn.params:
+                param.set_value(i.next())
 
     def __setstate__(self, state):
         """ Set parameters from state sequence.
@@ -580,7 +583,8 @@ class MetaCNN(BaseEstimator):
             self.__class__ = oc
             self.set_params(**params)
             self.ready()
-            self._set_weights(weights)
+            if len(weights) > 0:
+                self._set_weights(weights)
             self.__class__ = cc
         else:
             self.set_params(**params)
