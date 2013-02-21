@@ -19,6 +19,7 @@ else:
     print "running in interactive python mode, multiprocessing disabled"
     InteractivePy = True
 num_workers = max(1, MP.cpu_count() - 2)
+if num_workers == 1: InteractivePy = True
 equaleval = "%s"
 
 class combinedAI(object):
