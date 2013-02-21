@@ -116,10 +116,53 @@ class combinedAI(object):
             #extract pfd features beforehand
             extractfeatures(self.list_of_AIs, pfds)
 
-        for clf in self.list_of_AIs:
+            def worker(q, retq):
+                while True:
+                    item = q.get()
+                    if item is not None:
+                        n = item['n']
+                        clf = self.list_of_AIs[n]
+                        pfds = item['pfds']
+                        targets = item['targets']
+                        clf.fit(pfds, targets)
+                        retq.put({n:clf})
+                    else:
+                        break
+                    q.task_done()
+                q.task_done()
+
+            q = MP.JoinableQueue()
+            retq = MP.Queue()
+            procs = []
+            #start the worker threads
+            for i in range(num_workers):
+                p = MP.Process(target=worker,
+                               args=(q, retq))
+                p.daemon = True
+                p.start()
+                procs.append(p)
+
+        for n, clf in enumerate(self.list_of_AIs):
             tr_pfds, tr_target, te_pfds, te_target = split_data(pfds, target, pct=0.75)
-#            clf.fit(pfds, target, **kwds)
-            clf.fit(tr_pfds, tr_target, **kwds)
+            if InteractivePy:
+                clf.fit(tr_pfds, tr_target, **kwds)
+            else:
+                q.put({'n':n, 'pfds':tr_pfds, 'targets':tr_target})
+        
+        if not InteractivePy:
+            #add termination sentinel, one for each process
+            for p in range(num_workers):
+                q.put(None)
+            q.join()
+            resultdict = {}
+            for i in range(len(self.list_of_AIs)):
+                resultdict.update(retq.get())
+            for p in procs:
+                p.join()
+
+            #now put the thread-trained classifiers back into our list_of_AIs
+            for n, clf in resultdict.iteritems():
+                self.list_of_AIs[n] = clf
 
         self.nclasses = len(np.unique(target))
         if self.nclasses > 2 and self.strategy == 'adaboost':
