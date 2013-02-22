@@ -39,8 +39,8 @@ class pfdreader(object):
                 raise NameError, "did not file the file %s" % pfdfile
 
     def getdata(self, *fargs, **features):
-        pfd = pfddata(self.pfdfile, align=True)
-        def extract(pfd, key, value):
+        pfd = None
+        def extract(key, value, pfd):
             feature = '%s:%s' % (key, value)
             if feature in self.extracted_feature:
                 #print 'use extracted feature %s' % feature
@@ -50,16 +50,22 @@ class pfdreader(object):
                 newdata = pfd.getdata(**{key:value})
                 self.extracted_feature.update({feature:newdata})
             return newdata
-
+        
         data = np.array([])
         #process the args (a list of single-item dictionaries)
         for i in fargs:
             key, value = i.items()[0]
-            data = np.append(data, extract(pfd, key, value))
+            feature = '%s:%s' % (key, value)
+            if (feature not in self.extracted_feature) and (pfd is None):
+                pfd = pfddata(self.pfdfile, align=True) 
+            data = np.append(data, extract(key, value, pfd))
         #process the kwargs
         for key, value in features.iteritems():
-            data = np.append(data, extract(pfd, key, value))
-        del pfd
+            feature = '%s:%s' % (key, value) 
+            if (feature not in self.extracted_feature) and (pfd is None):
+                pfd = pfddata(self.pfdfile, align=True)
+            data = np.append(data, extract(key, value, pfd))
+        del(pfd)
         return data
 
 def singleclass_score(classifier, test_pfds, test_target, verbose=False):
