@@ -2535,7 +2535,7 @@ def load_data(fname):
             ncol = len(cols)
             if ncol > 1:
                 colnames = ['fname']
-                coltypes = ['|S130']
+                coltypes = ['|S230']
                 for ni, nv in enumerate(cols[1:]):#range(ncol-1):
 #                    nv = cols[ni+1]
                     try:
@@ -2550,12 +2550,12 @@ def load_data(fname):
                         has_fl_tuple = True
             else:
                 colnames = ['fname']
-                coltypes = ['|S130']
+                coltypes = ['|S230']
         else:
             l1 = l1.strip('#')
             colnames = l1.split()
             #fname
-            coltypes = ['|S130']
+            coltypes = ['|S230']
             for ni, nv in enumerate(colnames[1:]):
                 if nv.endswith('_FL'):
                     coltypes.append("|S11")
