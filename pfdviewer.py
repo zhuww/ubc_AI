@@ -1468,7 +1468,7 @@ class MainFrameGTK(Gtk.Window):
             if self.data is not None:
                 if act_name not in self.data.dtype.names:
                     self.data = add_voter(act_name, self.data, this_dtype='5i8')
-            print self.data[act_name]
+            #print self.data[act_name]
 
 
 ############################
