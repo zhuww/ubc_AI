@@ -10,7 +10,6 @@ from ubc_AI import sktheano_cnn as skcnn
 
 #multiprocess only works in non-interactive mode:
 import multiprocessing as MP
-from operator import itemgetter
 import __main__ as MAIN
 if hasattr(MAIN, '__file__'):
     InteractivePy = False
@@ -18,6 +17,7 @@ if hasattr(MAIN, '__file__'):
 else:
     print "running in interactive python mode, multiprocessing disabled"
     InteractivePy = True
+
 num_workers = max(1, MP.cpu_count() - 2)
 if num_workers == 1: InteractivePy = True
 equaleval = "%s"
@@ -26,7 +26,7 @@ class combinedAI(object):
     """
     A class to combine different AIs, and have them operate as one
     """
-    def __init__(self, list_of_AIs, strategy='vote', nvote=None, score_mapper=equaleval, **kwds):
+    def __init__(self, list_of_AIs, strategy='lr', nvote=None, score_mapper=equaleval, **kwds):
         """
         inputs
         list_of_AIs: list of classifiers
@@ -764,8 +764,11 @@ def extractfeatures(AIlist, pfds):
             item = q.get()
             if item is not None:
                 n, pfd = item.items()[0]
-                pfd.getdata(*rptdf, **features)
-                retq.put({n:pfd})
+                try:
+                    pfd.getdata(*rptdf, **features)
+                    retq.put({n:pfd})
+                except ZeroDivisionError:
+                    retq.put({n:None})
             else:
                 break
             q.task_done()
@@ -806,6 +809,9 @@ def extractfeatures(AIlist, pfds):
     for p in procs:
         p.join()
     for n, pfd in resultdict.iteritems():
+        if pfd == None:
+            print 'ZeroDivisionError: ', pfds[n].pfdfile
+            raise ZeroDivisionError
         pfds[n] = pfd
 
 def threadpredict(AIlist, pfds):
@@ -862,8 +868,12 @@ def threadpredict_proba(AIlist, pfds):
             item = q.get()
             if item is not None:
                 n, clf = item.items()[0]
-                preds = clf.predict_proba(pfds)
-                retq.put({n:preds})
+                try:
+                    preds = clf.predict_proba(pfds)
+                    retq.put({n:preds})
+                except ZeroDivisionError:
+                    retq.put({n:-1})
+
             else:
                 break
             q.task_done()
@@ -891,6 +901,8 @@ def threadpredict_proba(AIlist, pfds):
         resultdict.update(retq.get())
     for p in procs:
         p.join()
+    #if -1 in [resultdict[i] for i in resultdict]:
+        #raise ZeroDivisionError
     return np.hstack([resultdict[n] for n in range(len(AIlist))])
 
 
