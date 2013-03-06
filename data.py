@@ -106,11 +106,48 @@ def singleclass_score(classifier, test_pfds, test_target, verbose=False):
    
     return F1
 
+import multiprocessing as MP
+num_workers = max(1, MP.cpu_count() - 1)
+
+def threadit(func, arglist):
+    def worker(q,retq, func, arglist):
+        while True:
+            idx = q.get()
+            if idx is not None:
+                retq.put({idx:func(*(arglist[idx]))})
+            else:
+                break
+            q.task_done()
+        q.task_done()
+    q=MP.JoinableQueue()
+    retq=MP.Queue()
+    procs = []
+    for i in range(num_workers):
+        p = MP.Process(target=worker, args=(q, retq, func, arglist))
+        p.daemon = True
+        p.start()
+        procs.append(p)
+
+    for i in range(len(arglist)):
+        q.put(i)
+
+    for p in range(num_workers):
+        q.put(None)
+    q.join()
+    resultdict = {}
+    for i in range(len(arglist)):
+        resultdict.update(retq.get())
+    for p in procs:
+        p.join()
+    return resultdict
+
+
 def cross_validation(classifier, pfds, target, cv=5, verbose=False):
     #classifier = classifier()
     nclasses = len(np.unique(target))
     if verbose:cv = 1
     scores = np.array([])
+    arglists = []
     for i in range(cv):
         L = len(pfds)
         pfds = np.array(pfds)
@@ -131,15 +168,24 @@ def cross_validation(classifier, pfds, target, cv=5, verbose=False):
         n_samples = len(training_pfds)
         #training_pfds = training_pfds.reshape((n_samples, -1))
         #classifier = svm.SVC(gamma=0.1, scale_C=False)
-        classifier.fit(training_pfds, training_target)
+        arglists.append([classifier, training_pfds, training_target, test_pfds, test_target])
+        #classifier.fit(training_pfds, training_target)
 
-        if nclasses == 2:
-            F1 = singleclass_score(classifier, test_pfds, test_target, verbose=verbose)
-        else:
-            raise "not yet implemented multiclass_score"
-            #F1 = multiclass_score(classifier, test_pfds, test_target,
-                                  #nclasses = nclasses, verbose=verbose)
-        scores = np.append(scores, F1)
+    def getF1(clf, training_pfds, training_target, test_pfds, test_target):
+        clf.fit(training_pfds, training_target)
+        F1 = singleclass_score(clf, test_pfds, test_target, verbose=verbose)
+        return F1
+
+    if not nclasses == 2:
+        raise "not yet implemented multiclass_score"
+        #F1 = multiclass_score(classifier, test_pfds, test_target,
+                              #nclasses = nclasses, verbose=verbose)
+    else:
+        #F1 = singleclass_score(classifier, test_pfds, test_target, verbose=verbose)
+        F1dict = threadit(getF1, arglists)
+    #scores = np.append(scores, F1)
+    #print F1dict
+    scores = np.array([F1dict[i] for i in F1dict])
 
     return scores
 
