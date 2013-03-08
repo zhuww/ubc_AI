@@ -519,7 +519,7 @@ class MainFrameGTK(Gtk.Window):
                 if key in ['1', 'p', 'm', '5', 'h', 'k']:
                     if FL and self.fl_nvote == 0:
                         self.add_candidate_to_knownpulsars(fname)
-                    else:
+                    elif not(FL):
                         self.add_candidate_to_knownpulsars(fname)
                 if FL and value in [0,1]:
                     o = self.builder.get_object(FL_votes[self.fl_nvote])
@@ -1637,17 +1637,17 @@ class MainFrameGTK(Gtk.Window):
                                            (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
                                             Gtk.STOCK_OPEN, Gtk.ResponseType.OK))
             if self.loadfile:
-                suggest = os.path.splitext(self.loadfile)[0] + '.npy'
+                suggest = os.path.splitext(self.loadfile)[0] + '.txt'
             else:
-                suggest = 'voter_rankings.npy'
+                suggest = 'voter_rankings.txt'
             dialog.set_current_name(suggest)
+            filter = Gtk.FileFilter()
+            filter.set_name("text file (.txt)")
+            filter.add_pattern("*.txt")
+            dialog.add_filter(filter)
             filter = Gtk.FileFilter()
             filter.set_name("numpy file (*.npy)")
             filter.add_pattern("*.npy")
-            dialog.add_filter(filter)
-            filter = Gtk.FileFilter()
-            filter.set_name("text file (.dat)")
-            filter.add_pattern("*.dat")
             dialog.add_filter(filter)
             filter = Gtk.FileFilter()
             filter.set_name("All *")
@@ -1674,7 +1674,6 @@ class MainFrameGTK(Gtk.Window):
                 print note
             self.statusbar.push(0,note)
         else:
-            print "please consider saving to a .npy file"
             note = 'Saved to textfile %s' % self.savefile
             fout = open(self.savefile,'w')
             l1 = '#'
@@ -1684,12 +1683,18 @@ class MainFrameGTK(Gtk.Window):
             for n, row in enumerate(self.data):
                 if self.data_fromQry:
                     if self.qry_results['keep'][n]:
-                        for r in row:
-                            fout.write("%s " % r)
+                        for ri, rv in enumerate(row):
+                            if ri > 0:
+                                fout.write("%s " % ",".join(rv.astype('str').tolist()))
+                            else:
+                                fout.write("%s " % rv)
                         fout.write("\n")
                 else:
-                    for r in row:
-                        fout.write("%s " % r)
+                    for ri, rv in enumerate(row):
+                        if ri > 0:
+                            fout.write("%s " % ",".join(rv.astype('str').tolist()))
+                        else:
+                            fout.write("%s " % rv)
                     fout.write("\n")
             fout.close()
             if not self.autosave.get_active():
@@ -2556,7 +2561,7 @@ def load_data(fname):
             coltypes = ['|S230']
             for ni, nv in enumerate(colnames[1:]):
                 if nv.endswith('_FL'):
-                    coltypes.append("|S11")
+                    coltypes.append("|S15")
                     has_fl_tuple = True
                 else:
                     coltypes.append('f8')
@@ -2570,10 +2575,10 @@ def load_data(fname):
                 dtypes = data.dtype.descr
                 new_dtypes = []
                 for k, v in dtypes:
-                    new_dtypes.append((k,v.replace('|S11','5i8')))
+                    new_dtypes.append((k,v.replace('|S15','5i8')))
                 new_data = np.recarray(data.size, dtype=new_dtypes)
                 for k, v in dtypes:
-                    if v != '|S11':
+                    if v != '|S15':
                         new_data[k] = data[k]
                     else:
                         for i in xrange(data.size):
