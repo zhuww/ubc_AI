@@ -69,8 +69,9 @@ class CNN(object):
         :type nkerns: list of ints
         :param nkerns: number of kernels on each layer
         
-        :type filters: list of ints
-        :param filters: width of convolution
+        :type filters: list of ints, or 2-tuples
+        :param filters: width of convolution. 
+                        if 2-tuples, filter size can be different in x and y direction
 
         :type poolsize: list of 2-tuples
         :param poolsize: maxpooling in convolution layer (index-0),
@@ -104,25 +105,37 @@ class CNN(object):
         layer0_input = input.reshape((batch_size, 1, nx, ny))
 
         # Construct the first convolutional pooling layer:
-        # filtering reduces the image size to (nx-5+1,ny-5+1)=(24,24)
-        # maxpooling reduces this further to (nx/2,ny/2) = (12,12)
-        # 4D output tensor is thus of shape (batch_size,nkerns[0],12,12)
+        # filtering reduces the image size to (nx-filx+1,ny-fily+1)
+        # maxpooling reduces this further to (nx/poosize[0][0],ny/poolsize[0][1]) 
+        # 4D output tensor is thus of shape (batch_size,nkerns[0],xx,yy)
         nim = filters[0]
+        if isinstance(nim, int):
+            fil1x = nim
+            fil1y = nim
+        else:
+            fil1x = nim[0]
+            fil1y = nim[1]
         rng = np.random.RandomState(23455)
         self.layer0 = LeNetConvPoolLayer(rng, input=layer0_input,
                                   image_shape=(batch_size, 1, nx, ny),
-                                  filter_shape=(nkerns[0], 1, nim, nim),
+                                  filter_shape=(nkerns[0], 1, fil1x, fil1y),
                                          poolsize=poolsize[0])
         # Construct the second convolutional pooling layer
         # filtering reduces the image size to (nbin-nim+1,nbin-nim+1) = x
         # maxpooling reduces this further to (x/2,x/2) = y
         # 4D output tensor is thus of shape (nkerns[0],nkerns[1],y,y)
-        poox = (nx - nim + 1)/poolsize[0][0]
-        pooy = (ny - nim + 1)/poolsize[0][1]
+        poox = (nx - fil1x + 1)/poolsize[0][0]
+        pooy = (ny - fil1y + 1)/poolsize[0][1]
         nconf = filters[1]
+        if isinstance(nconf, int):
+            fil2x = nconf
+            fil2y = nconf
+        else:
+            fil2x = nconf[0]
+            fil2y = nconf[1]
         self.layer1 = LeNetConvPoolLayer(rng, input=self.layer0.output,
                 image_shape=(batch_size, nkerns[0], poox, pooy),
-                filter_shape=(nkerns[1], nkerns[0], nconf, nconf),
+                filter_shape=(nkerns[1], nkerns[0], fil2x, fil2y),
                                          poolsize=poolsize[1])
 
         # the TanhLayer being fully-connected, it operates on 2D matrices of
@@ -131,8 +144,8 @@ class CNN(object):
         layer2_input = self.layer1.output.flatten(2)
 
        # construct a fully-connected sigmoidal layer
-        poo2x = (poox-nconf+1)/poolsize[1][0]
-        poo2y = (pooy-nconf+1)/poolsize[1][1]
+        poo2x = (poox - fil2x + 1)/poolsize[1][0]
+        poo2y = (pooy - fil2y + 1)/poolsize[1][1]
         self.layer2 = HiddenLayer(rng, input=layer2_input,
                                   n_in=nkerns[1]*poo2x*poo2y,
                                   n_out=n_hidden, activation=T.tanh)
