@@ -208,21 +208,31 @@ class dataloader(object):
         classmap: mapping for different classes
         """
         self.trainclassifiers = {}
-        with open(filename, 'r') as fileobj:
-            originaldata = cPickle.load(fileobj)
-            self.pfds = originaldata['pfds']
-            if type(originaldata['target']) in [list] or originaldata['target'].ndim == 1:
-                self.orig_target = originaldata['target']
-                if classmap == None:
-                    self.classmap = {0:[4,5], 1:[6,7]}
+        if filename.endswith('.pkl'):
+            with open(filename, 'r') as fileobj:
+                originaldata = cPickle.load(fileobj)
+                self.pfds = originaldata['pfds']
+                if type(originaldata['target']) in [list] or originaldata['target'].ndim == 1:
+                    self.orig_target = originaldata['target']
+                    if classmap == None:
+                        self.classmap = {0:[4,5], 1:[6,7]}
+                    else:
+                        self.classmap = classmap
+                    self.target = self.orig_target[:]
+                    for k, v in self.classmap.iteritems():
+                        for val in v:
+                            self.target[self.orig_target == val] = k 
                 else:
-                    self.classmap = classmap
-                self.target = self.orig_target[:]
-                for k, v in self.classmap.iteritems():
-                    for val in v:
-                        self.target[self.orig_target == val] = k 
-            else:
-                self.target = originaldata['target']
+                    self.target = originaldata['target']
+        elif filename.endswith('.txt'):
+            data = np.loadtxt(filename, dtype=[('fname', '|S200'), ('Overall', int), ('Profile', int), ('Interval', int), ('Subband',int), ('DMCurve', int)], comments='#')
+            self.pfds = [ pfdreader(f) for f in data['fname']]
+            self.target = np.vstack((data['Overall'], data['Profile'], data['DMCurve'], data['Interval'], data['Subband'])).T
+
+        else:
+            print "Don't recognize the file surfix."
+            raise Error
+
 
     def update_classmap(self,classmap):
         """

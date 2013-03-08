@@ -2231,6 +2231,12 @@ class MainFrameGTK(Gtk.Window):
             self.qry_results['keep'][idx] = True
             pfdname = self.qry_results['filename'][idx]
             pfdloc = self.qry_results['location'][idx]
+        elif len(idx) > 1:
+            self.qry_results['keep'][idx] = True
+            pfdname = self.qry_results['filename'][idx[0]]
+            pfdloc = self.qry_results['location'][idx[0]]
+        else:
+            return 
             
         if isinstance(pfdname, str):
             pfdname = [pfdname]
@@ -2387,6 +2393,7 @@ def palfa_query(conn, qry, fin, loc_qry):
             else:
                 #the original query was a 'loc_qry'-->candid=element(2)
                 filename, location = i[3], i[4]
+                #print filename, location
                 location = '/' + location
                 loc_list.append(location)
                 fn_list.append(filename)
