@@ -377,7 +377,7 @@ class MainFrameGTK(Gtk.Window):
         if self.fl_voting_tog.get_active():
             FL = True
 
-#key codes which change the voting data
+        #key codes which change the voting data
         votes = {'1':1., 'p':1.,    #pulsar
                  'r': np.nan,      #reset to np.nan
                  '5':.5, 'm':.5,   #50/50 pulsar/rfi
@@ -521,7 +521,6 @@ class MainFrameGTK(Gtk.Window):
                         self.add_candidate_to_knownpulsars(fname)
                     else:
                         self.add_candidate_to_knownpulsars(fname)
-                
                 if FL and value in [0,1]:
                     o = self.builder.get_object(FL_votes[self.fl_nvote])
                     o.modify_bg(Gtk.StateType.NORMAL, Gdk.color_parse('white'))
@@ -2009,7 +2008,6 @@ class MainFrameGTK(Gtk.Window):
                     kv = self.data[act_name][idx][0]
                     for i, v in enumerate(['FL_overall', 'FL_profile', 'FL_intervals',\
                                                'FL_subbands','FL_DMcurve']):
-                        o = self.builder.get_object(v)
                         o = self.builder.get_object(v)
                         o.set_active(kv[i])
                         if i == 0:
