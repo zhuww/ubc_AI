@@ -9,6 +9,7 @@ from ubc_AI import pulsar_nnetwork as pnn
 from ubc_AI import sktheano_cnn as skcnn
 
 #multiprocess only works in non-interactive mode:
+from ubc_AI.data import threadit
 import multiprocessing as MP
 import __main__ as MAIN
 if hasattr(MAIN, '__file__'):
@@ -117,49 +118,56 @@ class combinedAI(object):
             #extract pfd features beforehand
             extractfeatures(self.list_of_AIs, pfds)
 
-            def worker(q, retq):
-                while True:
-                    item = q.get()
-                    if item is not None:
-                        n = item['n']
-                        clf = self.list_of_AIs[n]
-                        pfds = item['pfds']
-                        targets = item['targets']
-                        clf.fit(pfds, targets)
-                        retq.put({n:clf})
-                    else:
-                        break
-                    q.task_done()
-                q.task_done()
+            #def worker(q, retq):
+                #while True:
+                    #item = q.get()
+                    #if item is not None:
+                        #n = item['n']
+                        #clf = self.list_of_AIs[n]
+                        #pfds = item['pfds']
+                        #targets = item['targets']
+                        #clf.fit(pfds, targets)
+                        #retq.put({n:clf})
+                    #else:
+                        #break
+                    #q.task_done()
+                #q.task_done()
 
-            q = MP.JoinableQueue()
-            retq = MP.Queue()
-            procs = []
-            #start the worker threads
-            for i in range(num_workers):
-                p = MP.Process(target=worker,
-                               args=(q, retq))
-                p.daemon = True
-                p.start()
-                procs.append(p)
+            #q = MP.JoinableQueue()
+            #retq = MP.Queue()
+            #procs = []
+            ##start the worker threads
+            #for i in range(num_workers):
+                #p = MP.Process(target=worker,
+                               #args=(q, retq))
+                #p.daemon = True
+                #p.start()
+                #procs.append(p)
 
+        input_data = []
         for n, clf in enumerate(self.list_of_AIs):
             tr_pfds, tr_target, te_pfds, te_target = split_data(pfds, target, pct=0.75)
             if InteractivePy:
                 clf.fit(tr_pfds, tr_target, **kwds)
             else:
-                q.put({'n':n, 'pfds':tr_pfds, 'targets':tr_target})
+                #q.put({'n':n, 'pfds':tr_pfds, 'targets':tr_target})
+                input_data.append([clf, tr_pfds, tr_target])
         
         if not InteractivePy:
             #add termination sentinel, one for each process
-            for p in range(num_workers):
-                q.put(None)
-            q.join()
-            resultdict = {}
-            for i in range(len(self.list_of_AIs)):
-                resultdict.update(retq.get())
-            for p in procs:
-                p.join()
+            #for p in range(num_workers):
+                #q.put(None)
+            #q.join()
+            #resultdict = {}
+            #for i in range(len(self.list_of_AIs)):
+                #resultdict.update(retq.get())
+            #for p in procs:
+                #p.join()
+            def threadfit(clf, tr_pfd, tr_target):
+                clf.fit(tr_pfds, tr_target)
+                return clf
+
+            resultdict = threadit(threadfit, input_data)
 
             #now put the thread-trained classifiers back into our list_of_AIs
             for n, clf in resultdict.iteritems():
@@ -759,55 +767,63 @@ def extractfeatures(AIlist, pfds):
     pre-extract all the useful features.
     This is meant to reduce disk i/o and calls to pfd.dedisperse()
     """
-    def worker(q, retq, rptdf, **features):
-        while True:
-            item = q.get()
-            if item is not None:
-                n, pfd = item.items()[0]
-                try:
-                    pfd.getdata(*rptdf, **features)
-                    retq.put({n:pfd})
-                except ZeroDivisionError:
-                    retq.put({n:None})
-            else:
-                break
-            q.task_done()
-        q.task_done()
+    #def worker(q, retq, rptdf, **features):
+        #while True:
+            #item = q.get()
+            #if item is not None:
+                #n, pfd = item.items()[0]
+                #try:
+                    #pfd.getdata(*rptdf, **features)
+                    #retq.put({n:pfd})
+                #except ZeroDivisionError:
+                    #retq.put({n:None})
+            #else:
+                #break
+            #q.task_done()
+        #q.task_done()
 
-    #determine features to extract from pfd
-    features = {}
-    rptdf = []
-    for clf in AIlist:
-        f, v = clf.feature.items()[0]
-        if f in features:
-            rptdf.append(clf.feature)
-        else:
-            features[f] = v
+    ##determine features to extract from pfd
+    #features = {}
+    #rptdf = []
+    #for clf in AIlist:
+        #f, v = clf.feature.items()[0]
+        #if f in features:
+            #rptdf.append(clf.feature)
+        #else:
+            #features[f] = v
 
-    #extract the features in parallel
-    q = MP.JoinableQueue()
-    retq = MP.Queue()
-    procs = []
-    for i in range(num_workers):
-        p = MP.Process(target=worker,
-                       args=(q, retq, rptdf),
-                       kwargs=features)
-        p.daemon = True
-        p.start()
-        procs.append(p)
+    ##extract the features in parallel
+    #q = MP.JoinableQueue()
+    #retq = MP.Queue()
+    #procs = []
+    #for i in range(num_workers):
+        #p = MP.Process(target=worker,
+                       #args=(q, retq, rptdf),
+                       #kwargs=features)
+        #p.daemon = True
+        #p.start()
+        #procs.append(p)
 
-    for n, pfd in enumerate(pfds):
-        q.put({n:pfd})
+    #for n, pfd in enumerate(pfds):
+        #q.put({n:pfd})
 
-    for p in range(num_workers):
-        #add termination sentinel, one for each process
-        q.put(None)
-    q.join()
-    resultdict = {}
-    for i in range(len(pfds)):
-        resultdict.update(retq.get())
-    for p in procs:
-        p.join()
+    #for p in range(num_workers):
+        ##add termination sentinel, one for each process
+        #q.put(None)
+    #q.join()
+    #resultdict = {}
+    #for i in range(len(pfds)):
+        #resultdict.update(retq.get())
+    #for p in procs:
+        #p.join()
+    features = [ai.feature for ai in AIlist ]
+    def getfeature(pfd):
+        for f in features:
+            pfd.getdata(**f)
+        return pfd
+
+    resultdict = threadit(getfeature, [[p] for p in pfds])
+
     for n, pfd in resultdict.iteritems():
         if pfd == None:
             print 'ZeroDivisionError: ', pfds[n].pfdfile
@@ -821,40 +837,43 @@ def threadpredict(AIlist, pfds):
     pfds : list of pfds
     out : output format, one of 'transpose' or 'hstack'
     """
-    def worker(q, retq, pfds):
-        while True:
-            item = q.get()
-            if item is not None:
-                n, clf = item.items()[0]
-                preds = clf.predict(pfds)
-                retq.put({n:preds})
-            else:
-                break
-            q.task_done()
-        q.task_done()
+    #def worker(q, retq, pfds):
+        #while True:
+            #item = q.get()
+            #if item is not None:
+                #n, clf = item.items()[0]
+                #preds = clf.predict(pfds)
+                #retq.put({n:preds})
+            #else:
+                #break
+            #q.task_done()
+        #q.task_done()
     
-    q = MP.JoinableQueue()
-    retq = MP.Queue()
-    procs = []
-    for i in range(num_workers):
-        p = MP.Process(target=worker,
-                       args=(q, retq, pfds))
-        p.daemon = True
-        p.start()
-        procs.append(p)
+    #q = MP.JoinableQueue()
+    #retq = MP.Queue()
+    #procs = []
+    #for i in range(num_workers):
+        #p = MP.Process(target=worker,
+                       #args=(q, retq, pfds))
+        #p.daemon = True
+        #p.start()
+        #procs.append(p)
         
-    for n, clf in enumerate(AIlist):
-        q.put({n:clf})
+    #for n, clf in enumerate(AIlist):
+        #q.put({n:clf})
 
-    for p in range(num_workers):
-        #add termination sentinal, one for each process
-        q.put(None)
-    q.join()
-    resultdict = {}
-    for i in range(len(AIlist)):
-        resultdict.update(retq.get())
-    for p in procs:
-        p.join()
+    #for p in range(num_workers):
+        ##add termination sentinal, one for each process
+        #q.put(None)
+    #q.join()
+    #resultdict = {}
+    #for i in range(len(AIlist)):
+        #resultdict.update(retq.get())
+    #for p in procs:
+        #p.join()
+    def predictfunc(pfds, clf):
+        return clf.predict(pfds)
+    resultdict = threadit(predictfunc, [[pfds, clf] for clf in AIlist])
     return np.transpose([resultdict[n] for n in range(len(AIlist))])
         
 def threadpredict_proba(AIlist, pfds):
@@ -863,46 +882,50 @@ def threadpredict_proba(AIlist, pfds):
     AIlist : list of trained classifiers
     pfds : list of pfds
     """
-    def worker(q, retq, pfds):
-        while True:
-            item = q.get()
-            if item is not None:
-                n, clf = item.items()[0]
-                try:
-                    preds = clf.predict_proba(pfds)
-                    retq.put({n:preds})
-                except ZeroDivisionError:
-                    retq.put({n:-1})
+    #print [type(c) for c in AIlist]
+    #def worker(q, retq, pfds):
+        #while True:
+            #item = q.get()
+            #if item is not None:
+                #n, clf = item.items()[0]
+                #try:
+                    #preds = clf.predict_proba(pfds)
+                    #retq.put({n:preds})
+                #except ZeroDivisionError:
+                    #retq.put({n:-1})
 
-            else:
-                break
-            q.task_done()
-        q.task_done()
+            #else:
+                #break
+            #q.task_done()
+        #q.task_done()
     
-    q = MP.JoinableQueue()
-    retq = MP.Queue()
-    procs = []
-    for i in range(num_workers):
-        p = MP.Process(target=worker,
-                       args=(q, retq, pfds))
-        p.daemon = True
-        p.start()
-        procs.append(p)
+    #q = MP.JoinableQueue()
+    #retq = MP.Queue()
+    #procs = []
+    #for i in range(num_workers):
+        #p = MP.Process(target=worker,
+                       #args=(q, retq, pfds))
+        #p.daemon = True
+        #p.start()
+        #procs.append(p)
         
-    for n, clf in enumerate(AIlist):
-        q.put({n:clf})
+    #for n, clf in enumerate(AIlist):
+        #q.put({n:clf})
 
-    for p in range(num_workers):
-        #send termination sentinal, one for each process
-        q.put(None)
-    q.join()
-    resultdict = {}
-    for i in range(len(AIlist)):
-        resultdict.update(retq.get())
-    for p in procs:
-        p.join()
-    #if -1 in [resultdict[i] for i in resultdict]:
-        #raise ZeroDivisionError
+    #for p in range(num_workers):
+        ##send termination sentinal, one for each process
+        #q.put(None)
+    #q.join()
+    #resultdict = {}
+    #for i in range(len(AIlist)):
+        #resultdict.update(retq.get())
+    #for p in procs:
+        #p.join()
+    ##if -1 in [resultdict[i] for i in resultdict]:
+        ##raise ZeroDivisionError
+    def predictfunc(pfds, clf):
+        return clf.predict_proba(pfds)
+    resultdict = threadit(predictfunc, [[pfds, clf] for clf in AIlist])
     return np.hstack([resultdict[n] for n in range(len(AIlist))])
 
 
