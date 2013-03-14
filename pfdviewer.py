@@ -2534,6 +2534,20 @@ def load_data(fname):
             else:
                 newdtype.append(d)
         data = data.astype(newdtype)
+    elif fname.endswith('.txt'):
+        fin = open(fname, 'r')
+        header = fin.readline()
+        if not header.startswith('#'):raise MyError('not reading a #header!')
+        cols = header.strip('#').split()
+        namemap = {'fname':'|S200', 'Scores':float, 'scores':float, 'Score':float, 'score':float}
+        dtype = []
+        for col in cols:
+            if col in namemap:
+                dtype.append((col, namemap[col]))
+            else:
+                dtype.append((col, int))
+        data = np.loadtxt(fin, dtype=dtype)
+        fin.close()
     else:
         f = open(fname,'r')
         l1 = f.readline()
