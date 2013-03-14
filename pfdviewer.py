@@ -489,6 +489,13 @@ class MainFrameGTK(Gtk.Window):
                 fname = self.pfdstore[this_iter][1]
                 if not os.path.exists(os.path.join(self.qrybasedir,fname)):
                     self.PALFA_download_qry(fname)
+        elif key == 'Delete':
+            # remove this file from the list of tracked files
+            if this_iter is not None:
+                fname = self.pfdstore[this_iter][1]
+                next_path = model.get_path(next_iter)
+                self.remove_fname(fname) #XX
+                self.pfdtree.set_cursor(next_path)
 
         #data-related (needs to be loaded)
         if self.data != None:
@@ -1619,7 +1626,8 @@ class MainFrameGTK(Gtk.Window):
         note += "\tKey : b/n  -- display the previous/next candidate\n"
         note += "\tKey : c  -- cycle through possible matches\n"
         note += "\tKey : a -- toggle AIview\n"
-        note += "\tKey : d -- download candidate from PALFA database (after query)"
+        note += "\tKey : d -- download candidate from PALFA database (after query)\n"
+        note += "\tKey : Delete -- remove candidate from file/list"
         
         dialog = Gtk.MessageDialog(self, 0, Gtk.MessageType.INFO,
                                    Gtk.ButtonsType.OK, note)
@@ -2297,8 +2305,6 @@ class MainFrameGTK(Gtk.Window):
             self.update_tmpAI_votemat(avgs)
             self.find_matches()
 
-
-
     def on_PALFAqry_toggled(self, event):
         """
         get status of checkbox, and display
@@ -2310,8 +2316,14 @@ class MainFrameGTK(Gtk.Window):
         else:
             self.palfaqry_win.hide()
 
-
-
+    def remove_fname(self, fname):
+        """
+        hitting 'Delete' key removes this fname from the 
+        list of pfd's to save
+        """
+        tokeep = self.data['fname'] != fname
+        self.data = self.data[tokeep]
+        self.dataload_update()
 ####### end MainFrame class ####
 
 ################################
@@ -2490,7 +2502,7 @@ def convert(fin):
                             stdout=open('/dev/null','w'))
     return fout
 
-
+    
 def load_data(fname):
     """
     read data stored in a simple txt file or numpy recarry with (at least) one column:
