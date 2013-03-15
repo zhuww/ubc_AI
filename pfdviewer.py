@@ -475,9 +475,23 @@ class MainFrameGTK(Gtk.Window):
         elif key == 'l' and self.modifier in ['Control_L', 'Control_R', 'Primary']:
             self.on_open()
         elif key == 'n':   
-            self.pfdtree_next(model, next_iter, FL=FL)
+            if FL:
+                o = self.builder.get_object(FL_votes[self.fl_nvote])
+                o.modify_bg(Gtk.StateType.NORMAL, Gdk.color_parse('white'))
+                self.fl_nvote = (self.fl_nvote + 1) % 5
+                o = self.builder.get_object(FL_votes[self.fl_nvote])
+                o.modify_bg(Gtk.StateType.NORMAL, Gdk.color_parse('red'))
+            else:
+                self.pfdtree_next(model, next_iter, FL=FL)
         elif key == 'b':
-            self.pfdtree_prev(FL=FL)
+            if FL:
+                o = self.builder.get_object(FL_votes[self.fl_nvote])
+                o.modify_bg(Gtk.StateType.NORMAL, Gdk.color_parse('white'))
+                self.fl_nvote = (self.fl_nvote - 1) % 5
+                o = self.builder.get_object(FL_votes[self.fl_nvote])
+                o.modify_bg(Gtk.StateType.NORMAL, Gdk.color_parse('red'))
+            else:
+                self.pfdtree_prev(FL=FL)
         elif key == 'a':
             #toggle aiview
             d = self.aiview_tog.get_active()
