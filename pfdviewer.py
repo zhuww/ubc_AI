@@ -152,6 +152,7 @@ class MainFrameGTK(Gtk.Window):
         #feature-labelling stuff
         self.builder.get_object('FL_grid').hide()
         self.fl_voting_tog = self.builder.get_object('FL_voting_tog')
+        self.FL_text = self.builder.get_object('FL_label')
         #when feature-labeling, do 5 votes.
         self.fl_nvote = 0
 
@@ -475,23 +476,9 @@ class MainFrameGTK(Gtk.Window):
         elif key == 'l' and self.modifier in ['Control_L', 'Control_R', 'Primary']:
             self.on_open()
         elif key == 'n':   
-            if FL:
-                o = self.builder.get_object(FL_votes[self.fl_nvote])
-                o.modify_bg(Gtk.StateType.NORMAL, Gdk.color_parse('white'))
-                self.fl_nvote = (self.fl_nvote + 1) % 5
-                o = self.builder.get_object(FL_votes[self.fl_nvote])
-                o.modify_bg(Gtk.StateType.NORMAL, Gdk.color_parse('red'))
-            else:
-                self.pfdtree_next(model, next_iter, FL=FL)
+            self.pfdtree_next(model, next_iter, FL=FL)
         elif key == 'b':
-            if FL:
-                o = self.builder.get_object(FL_votes[self.fl_nvote])
-                o.modify_bg(Gtk.StateType.NORMAL, Gdk.color_parse('white'))
-                self.fl_nvote = (self.fl_nvote - 1) % 5
-                o = self.builder.get_object(FL_votes[self.fl_nvote])
-                o.modify_bg(Gtk.StateType.NORMAL, Gdk.color_parse('red'))
-            else:
-                self.pfdtree_prev(FL=FL)
+            self.pfdtree_prev(FL=FL)
         elif key == 'a':
             #toggle aiview
             d = self.aiview_tog.get_active()
@@ -508,9 +495,20 @@ class MainFrameGTK(Gtk.Window):
             if this_iter is not None:
                 fname = self.pfdstore[this_iter][1]
                 next_path = model.get_path(next_iter)
-                self.remove_fname(fname) #XX
+                self.remove_fname(fname) 
                 self.pfdtree.set_cursor(next_path)
-
+        elif key in ['Left', 'Right']:
+            # FL and 'left' goes back a FL 
+            o = self.builder.get_object(FL_votes[self.fl_nvote])
+            o.modify_fg(Gtk.StateType.NORMAL, Gdk.color_parse('black'))
+            if key == 'Left':
+                self.fl_nvote = (self.fl_nvote - 1) % 5
+            else:
+                self.fl_nvote = (self.fl_nvote + 1) % 5
+            a = FL_votes[self.fl_nvote].strip('FL_')
+            self.FL_text.set_text('feature label voting:\n %s' % a)
+            o = self.builder.get_object(FL_votes[self.fl_nvote])
+            o.modify_fg(Gtk.StateType.NORMAL, Gdk.color_parse('red'))
         #data-related (needs to be loaded)
         if self.data != None:
             if key in votes:
@@ -544,18 +542,21 @@ class MainFrameGTK(Gtk.Window):
                         self.add_candidate_to_knownpulsars(fname)
                 if FL and value in [0,1]:
                     o = self.builder.get_object(FL_votes[self.fl_nvote])
-                    o.modify_bg(Gtk.StateType.NORMAL, Gdk.color_parse('white'))
+                    o.modify_fg(Gtk.StateType.NORMAL, Gdk.color_parse('black'))
                     self.fl_nvote = (self.fl_nvote + 1) % 5
                     o = self.builder.get_object(FL_votes[self.fl_nvote])
-                    o.modify_bg(Gtk.StateType.NORMAL, Gdk.color_parse('red'))
+                    o.modify_fg(Gtk.StateType.NORMAL, Gdk.color_parse('red'))
+                    a = FL_votes[self.fl_nvote].strip('FL_')
+                    self.FL_text.set_text('feature label voting:\n %s' % a)
+
 
                 #advance to the next candidate?
                 if next_iter is not None:
-                    if FL:
+                    if FL and value in [0, 1]:
                         if (self.fl_nvote % 5 == 0):
                         #then we've done all the FL voting
                             self.pfdtree_next(model, next_iter, FL=FL)
-                    else:
+                    elif (not FL):
                         self.pfdtree_next(model, next_iter, FL=FL)
 
             elif key == 'c':
@@ -852,10 +853,9 @@ class MainFrameGTK(Gtk.Window):
                     o = self.builder.get_object(v)
                     o.set_active(kv[i])
                     if i == 0:
-                        o.modify_bg(Gtk.StateType.NORMAL, Gdk.color_parse('red'))
+                        o.modify_fg(Gtk.StateType.NORMAL, Gdk.color_parse('red'))
                     else:
-                        o.modify_bg(Gtk.StateType.NORMAL, Gdk.color_parse('white'))
-
+                        o.modify_fg(Gtk.StateType.NORMAL, Gdk.color_parse('black'))
             self.find_matches()
 
     def create_png(self, fname):
@@ -1379,7 +1379,8 @@ class MainFrameGTK(Gtk.Window):
             #set the current vote box to 'red'
             self.fl_nvote = 0
             o = self.builder.get_object('FL_overall')
-            o.modify_bg(Gtk.StateType.NORMAL, Gdk.color_parse('red'))
+            o.modify_fg(Gtk.StateType.NORMAL, Gdk.color_parse('red'))
+            self.FL_text.set_text('feature label voting:\n Overall')
         else:
             o.hide()
         pass
@@ -2014,9 +2015,9 @@ class MainFrameGTK(Gtk.Window):
                     o = self.builder.get_object(v)
                     o.set_active(kv[i])
                     if i == 0:
-                        o.modify_bg(Gtk.StateType.NORMAL, Gdk.color_parse('red'))
+                        o.modify_fg(Gtk.StateType.NORMAL, Gdk.color_parse('red'))
                     else:
-                        o.modify_bg(Gtk.StateType.NORMAL, Gdk.color_parse('white'))
+                        o.modify_fg(Gtk.StateType.NORMAL, Gdk.color_parse('black'))
     def pfdtree_prev(self, FL=False):
         """
         select prev row in pfdtree
@@ -2046,9 +2047,9 @@ class MainFrameGTK(Gtk.Window):
                         o = self.builder.get_object(v)
                         o.set_active(kv[i])
                         if i == 0:
-                            o.modify_bg(Gtk.StateType.NORMAL, Gdk.color_parse('red'))
+                            o.modify_fg(Gtk.StateType.NORMAL, Gdk.color_parse('red'))
                         else:
-                            o.modify_bg(Gtk.StateType.NORMAL, Gdk.color_parse('white'))
+                            o.modify_fg(Gtk.StateType.NORMAL, Gdk.color_parse('black'))
         else:
             self.statusbar.push(0,"Please select a row")
 #        self.find_matches()

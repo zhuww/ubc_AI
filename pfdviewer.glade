@@ -1802,7 +1802,7 @@ as each subplot. We record results in a new column appended with '_FL'</property
           <object class="GtkBox" id="FL_grid">
             <property name="can_focus">False</property>
             <child>
-              <object class="GtkLabel" id="label24">
+              <object class="GtkLabel" id="FL_label">
                 <property name="can_focus">False</property>
                 <property name="tooltip_text" translatable="yes">feature labelling is turned on. </property>
                 <property name="label" translatable="yes">feature label voting:</property>
@@ -1817,7 +1817,7 @@ as each subplot. We record results in a new column appended with '_FL'</property
               <object class="GtkCheckButton" id="FL_overall">
                 <property name="label" translatable="yes">Overall vote (Pulsar/RFI)</property>
                 <property name="use_action_appearance">False</property>
-                <property name="sensitive">False</property>
+                <property name="app_paintable">True</property>
                 <property name="can_focus">False</property>
                 <property name="receives_default">False</property>
                 <property name="tooltip_text" translatable="yes">Overall vote for candidate</property>
@@ -1834,13 +1834,13 @@ as each subplot. We record results in a new column appended with '_FL'</property
             </child>
             <child>
               <object class="GtkGrid" id="grid6">
-                <property name="sensitive">False</property>
+                <property name="app_paintable">True</property>
                 <property name="can_focus">False</property>
                 <child>
                   <object class="GtkCheckButton" id="FL_profile">
                     <property name="label" translatable="yes">Profile vote</property>
                     <property name="use_action_appearance">False</property>
-                    <property name="sensitive">False</property>
+                    <property name="app_paintable">True</property>
                     <property name="can_focus">False</property>
                     <property name="receives_default">False</property>
                     <property name="tooltip_text" translatable="yes">checkmark: this is a good 'profile'</property>
@@ -1861,7 +1861,7 @@ as each subplot. We record results in a new column appended with '_FL'</property
                   <object class="GtkCheckButton" id="FL_intervals">
                     <property name="label" translatable="yes">Intervals vote</property>
                     <property name="use_action_appearance">False</property>
-                    <property name="sensitive">False</property>
+                    <property name="app_paintable">True</property>
                     <property name="can_focus">False</property>
                     <property name="receives_default">False</property>
                     <property name="tooltip_text" translatable="yes">checkmark: good interval subplot</property>
@@ -1882,7 +1882,7 @@ as each subplot. We record results in a new column appended with '_FL'</property
                   <object class="GtkCheckButton" id="FL_subbands">
                     <property name="label" translatable="yes">Subbands vote</property>
                     <property name="use_action_appearance">False</property>
-                    <property name="sensitive">False</property>
+                    <property name="app_paintable">True</property>
                     <property name="can_focus">False</property>
                     <property name="receives_default">False</property>
                     <property name="tooltip_text" translatable="yes">checkmark: good frequency subbands plot</property>
@@ -1903,7 +1903,7 @@ as each subplot. We record results in a new column appended with '_FL'</property
                   <object class="GtkCheckButton" id="FL_DMcurve">
                     <property name="label" translatable="yes">DMcurve vote</property>
                     <property name="use_action_appearance">False</property>
-                    <property name="sensitive">False</property>
+                    <property name="app_paintable">True</property>
                     <property name="can_focus">False</property>
                     <property name="receives_default">False</property>
                     <property name="tooltip_text" translatable="yes">checkmark: good DM curve plot</property>
