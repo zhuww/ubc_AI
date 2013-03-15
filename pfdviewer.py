@@ -499,16 +499,14 @@ class MainFrameGTK(Gtk.Window):
                 self.pfdtree.set_cursor(next_path)
         elif key in ['Left', 'Right']:
             # FL and 'left' goes back a FL 
-            o = self.builder.get_object(FL_votes[self.fl_nvote])
-            o.modify_fg(Gtk.StateType.NORMAL, Gdk.color_parse('black'))
             if key == 'Left':
-                self.fl_nvote = (self.fl_nvote - 1) % 5
-            else:
-                self.fl_nvote = (self.fl_nvote + 1) % 5
+                self.fl_nvote = max(0, self.fl_nvote - 1)
+            elif key == 'Right':
+                self.fl_nvote = min(4, self.fl_nvote + 1)
+            self.FL_color()
             a = FL_votes[self.fl_nvote].strip('FL_')
-            self.FL_text.set_text('feature label voting:\n %s' % a)
-            o = self.builder.get_object(FL_votes[self.fl_nvote])
-            o.modify_fg(Gtk.StateType.NORMAL, Gdk.color_parse('red'))
+            self.FL_text.set_text('FL vote:\n (%s)' % a)
+
         #data-related (needs to be loaded)
         if self.data != None:
             if key in votes:
@@ -541,13 +539,10 @@ class MainFrameGTK(Gtk.Window):
                     elif not(FL):
                         self.add_candidate_to_knownpulsars(fname)
                 if FL and value in [0,1]:
-                    o = self.builder.get_object(FL_votes[self.fl_nvote])
-                    o.modify_fg(Gtk.StateType.NORMAL, Gdk.color_parse('black'))
                     self.fl_nvote = (self.fl_nvote + 1) % 5
-                    o = self.builder.get_object(FL_votes[self.fl_nvote])
-                    o.modify_fg(Gtk.StateType.NORMAL, Gdk.color_parse('red'))
+                    self.FL_color()
                     a = FL_votes[self.fl_nvote].strip('FL_')
-                    self.FL_text.set_text('feature label voting:\n %s' % a)
+                    self.FL_text.set_text('FL vote:\n (%s)' % a)
 
 
                 #advance to the next candidate?
@@ -852,10 +847,7 @@ class MainFrameGTK(Gtk.Window):
                                            'FL_subbands','FL_DMcurve']):
                     o = self.builder.get_object(v)
                     o.set_active(kv[i])
-                    if i == 0:
-                        o.modify_fg(Gtk.StateType.NORMAL, Gdk.color_parse('red'))
-                    else:
-                        o.modify_fg(Gtk.StateType.NORMAL, Gdk.color_parse('black'))
+                self.FL_color()
             self.find_matches()
 
     def create_png(self, fname):
@@ -1353,6 +1345,12 @@ class MainFrameGTK(Gtk.Window):
             self.tmpAI_overall.set_text('overall voting performance: N/A')
 
     def on_FL_voting_toggled(self, event):
+        FL_votes = {0: 'FL_overall',
+                    1: 'FL_profile',
+                    2: 'FL_intervals',
+                    3: 'FL_subbands',
+                    4: 'FL_DMcurve'
+                    }
         #if we're turning this on, make sure the current voter has a '_FL' column
         if self.active_voter:
             act_name = self.voters[self.active_voter]
@@ -1373,17 +1371,33 @@ class MainFrameGTK(Gtk.Window):
                 idx = self.data['fname'] == fname
                 act_name = self.voters[self.active_voter] + '_FL'
                 kv = self.data[act_name][idx][0]
+                self.fl_nvote = 0
                 for i, v in enumerate(['FL_overall', 'FL_profile', 'FL_intervals',\
                                            'FL_subbands','FL_DMcurve']):
-                    self.builder.get_object(v).set_active(kv[i])
-            #set the current vote box to 'red'
-            self.fl_nvote = 0
-            o = self.builder.get_object('FL_overall')
-            o.modify_fg(Gtk.StateType.NORMAL, Gdk.color_parse('red'))
-            self.FL_text.set_text('feature label voting:\n Overall')
+                    o = self.builder.get_object(v)
+                    o.set_active(kv[i])
+                self.FL_color()
+            self.FL_text.set_text('FL vote:\n (Overall)')
         else:
             o.hide()
         pass
+
+    def FL_color(self):
+        """
+        set the color of the active FL vote
+        
+        Note: we turn this off for now b/c the behaviour isn't good
+        """
+        if False:
+          for i, v in enumerate(['FL_overall', 'FL_profile', 'FL_intervals',\
+                                           'FL_subbands','FL_DMcurve']):
+            o = self.builder.get_object(v)
+            if i == self.fl_nvote:
+                o.modify_fg(Gtk.StateType.NORMAL, Gdk.color_parse('red'))
+            else:
+                o.modify_fg(Gtk.StateType.NORMAL, Gdk.color_parse('black'))
+
+
 
     def on_aiview_toggled(self, event):
         """
@@ -1642,7 +1656,9 @@ class MainFrameGTK(Gtk.Window):
         note += "\tKey : c  -- cycle through possible matches\n"
         note += "\tKey : a -- toggle AIview\n"
         note += "\tKey : d -- download candidate from PALFA database (after query)\n"
-        note += "\tKey : Delete -- remove candidate from file/list"
+        note += "\tKey : Delete -- remove candidate from file/list\n"
+        note += "\tKey : Left -- Go to previous sub-vote in FL voting\n"
+        note += "\tKey : Right -- Go to next sub-vote in FL voting"
         
         dialog = Gtk.MessageDialog(self, 0, Gtk.MessageType.INFO,
                                    Gtk.ButtonsType.OK, note)
@@ -1704,9 +1720,9 @@ class MainFrameGTK(Gtk.Window):
             if 'featurevoter_FL' in self.data.dtype.names:
                 self.data['Overall'] = self.data['featurevoter_FL'][...,0]
                 self.data['Profile'] = self.data['featurevoter_FL'][...,1]
-                self.data['Interval'] = self.data['featurevoter_FL'][...,3]
-                self.data['Subband'] = self.data['featurevoter_FL'][...,4]
-                self.data['DMCurve'] = self.data['featurevoter_FL'][...,2]
+                self.data['Interval'] = self.data['featurevoter_FL'][...,2]
+                self.data['Subband'] = self.data['featurevoter_FL'][...,3]
+                self.data['DMCurve'] = self.data['featurevoter_FL'][...,4]
             outputdata = self.data[names]
             l1 += ' '.join(names)
             l1 += '\n'
@@ -1996,28 +2012,24 @@ class MainFrameGTK(Gtk.Window):
             next_path = model.get_path(next_iter)
             self.pfdtree.set_cursor(next_path) 
             self.statusbar.push(0, "")
-            #reset the number of FL votes, and the checkboxes to zero
-            FL_votes = {0: 'FL_overall',
-                        1: 'FL_profile',
-                        2: 'FL_intervals',
-                        3: 'FL_subbands',
-                        4: 'FL_DMcurve'
-                        }
-
-            self.fl_nvote = 0
+            #reset the number of FL votes, and the checkboxes to voter-defined state
             if FL:
+                FL_votes = ['FL_overall', 'FL_profile', 'FL_intervals',\
+                                'FL_subbands','FL_DMcurve']
+                self.fl_nvote = 0
                 fname = model.get_value(next_iter, 1)
                 idx = np.where(self.data['fname'] == fname)
                 act_name = self.voters[self.active_voter] + '_FL'
                 kv = self.data[act_name][idx][0]
-                for i, v in enumerate(['FL_overall', 'FL_profile', 'FL_intervals',\
-                                           'FL_subbands','FL_DMcurve']):
+                for i, v in enumerate(FL_votes):
                     o = self.builder.get_object(v)
                     o.set_active(kv[i])
-                    if i == 0:
-                        o.modify_fg(Gtk.StateType.NORMAL, Gdk.color_parse('red'))
-                    else:
-                        o.modify_fg(Gtk.StateType.NORMAL, Gdk.color_parse('black'))
+                a = FL_votes[self.fl_nvote].strip('FL_')
+                self.FL_text.set_text('FL vote:\n (%s)' % a)
+                self.FL_color()
+        else:
+            self.statusbar.push(0,"Please select a row")
+
     def pfdtree_prev(self, FL=False):
         """
         select prev row in pfdtree
@@ -2035,21 +2047,21 @@ class MainFrameGTK(Gtk.Window):
             if prevn:
                 prevpath = model.get_path(prevn)
                 self.pfdtree.set_cursor(prevpath)
-                self.fl_nvote = 0
 
                 if FL:
+                    FL_votes = ['FL_overall', 'FL_profile', 'FL_intervals',\
+                                    'FL_subbands','FL_DMcurve']
+                    self.fl_nvote = 0
                     fname = model.get_value(prevn, 1)
                     idx = np.where(self.data['fname'] == fname)
                     act_name = self.voters[self.active_voter] + '_FL'
                     kv = self.data[act_name][idx][0]
-                    for i, v in enumerate(['FL_overall', 'FL_profile', 'FL_intervals',\
-                                               'FL_subbands','FL_DMcurve']):
+                    for i, v in enumerate(FL_votes):
                         o = self.builder.get_object(v)
                         o.set_active(kv[i])
-                        if i == 0:
-                            o.modify_fg(Gtk.StateType.NORMAL, Gdk.color_parse('red'))
-                        else:
-                            o.modify_fg(Gtk.StateType.NORMAL, Gdk.color_parse('black'))
+                    a = FL_votes[self.fl_nvote].strip('FL_')
+                    self.FL_text.set_text('FL vote:\n (%s)' % a)
+                    self.FL_color()
         else:
             self.statusbar.push(0,"Please select a row")
 #        self.find_matches()
@@ -2220,7 +2232,8 @@ class MainFrameGTK(Gtk.Window):
 
     def on_fl_toggle(self, widget, event=None):
         """
-        respond to FL votes done by mouse-click
+        respond to FL votes done by mouse-click, 
+   	updating the vote
 
         """
         if self.active_voter is None:
@@ -2641,7 +2654,7 @@ def load_data(fname):
                             new_data[k][i] = eval(data[k][i])
                 data = new_data
             if 'DMCurve' in data.dtype.names:
-                FLdata = data[['Overall','Profile','DMCurve','Interval','Subband']]
+                FLdata = data[['Overall','Profile','Interval','Subband','DMCurve']]
                 data = add_voter('featurevoter_FL', data, this_dtype='5i8')
                 data = add_voter('featurevoter', data)
                 data['featurevoter_FL'] = FLdata.tolist()

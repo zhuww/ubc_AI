@@ -1767,6 +1767,22 @@ as each subplot. We record results in a new column appended with '_FL'</property
       <column type="gdouble"/>
     </columns>
   </object>
+  <object class="GtkListStore" id="pmatch_store">
+    <columns>
+      <!-- column-name name -->
+      <column type="gchararray"/>
+      <!-- column-name P0 -->
+      <column type="gchararray"/>
+      <!-- column-name DM -->
+      <column type="gdouble"/>
+      <!-- column-name RA -->
+      <column type="gchararray"/>
+      <!-- column-name DEC -->
+      <column type="gchararray"/>
+      <!-- column-name vote -->
+      <column type="gdouble"/>
+    </columns>
+  </object>
   <object class="GtkWindow" id="pfdwin">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
@@ -1803,8 +1819,11 @@ as each subplot. We record results in a new column appended with '_FL'</property
             <property name="can_focus">False</property>
             <child>
               <object class="GtkLabel" id="FL_label">
+                <property name="width_request">100</property>
                 <property name="can_focus">False</property>
+                <property name="events">GDK_STRUCTURE_MASK | GDK_PROPERTY_CHANGE_MASK</property>
                 <property name="tooltip_text" translatable="yes">feature labelling is turned on. </property>
+                <property name="valign">end</property>
                 <property name="label" translatable="yes">feature label voting:</property>
               </object>
               <packing>
@@ -1820,6 +1839,7 @@ as each subplot. We record results in a new column appended with '_FL'</property
                 <property name="app_paintable">True</property>
                 <property name="can_focus">False</property>
                 <property name="receives_default">False</property>
+                <property name="events">GDK_STRUCTURE_MASK | GDK_PROPERTY_CHANGE_MASK</property>
                 <property name="tooltip_text" translatable="yes">Overall vote for candidate</property>
                 <property name="use_action_appearance">False</property>
                 <property name="xalign">0</property>
@@ -1836,6 +1856,7 @@ as each subplot. We record results in a new column appended with '_FL'</property
               <object class="GtkGrid" id="grid6">
                 <property name="app_paintable">True</property>
                 <property name="can_focus">False</property>
+                <property name="events">GDK_STRUCTURE_MASK | GDK_PROPERTY_CHANGE_MASK</property>
                 <child>
                   <object class="GtkCheckButton" id="FL_profile">
                     <property name="label" translatable="yes">Profile vote</property>
@@ -1843,6 +1864,7 @@ as each subplot. We record results in a new column appended with '_FL'</property
                     <property name="app_paintable">True</property>
                     <property name="can_focus">False</property>
                     <property name="receives_default">False</property>
+                    <property name="events">GDK_STRUCTURE_MASK | GDK_PROPERTY_CHANGE_MASK</property>
                     <property name="tooltip_text" translatable="yes">checkmark: this is a good 'profile'</property>
                     <property name="use_action_appearance">False</property>
                     <property name="focus_on_click">False</property>
@@ -1864,6 +1886,7 @@ as each subplot. We record results in a new column appended with '_FL'</property
                     <property name="app_paintable">True</property>
                     <property name="can_focus">False</property>
                     <property name="receives_default">False</property>
+                    <property name="events">GDK_STRUCTURE_MASK | GDK_PROPERTY_CHANGE_MASK</property>
                     <property name="tooltip_text" translatable="yes">checkmark: good interval subplot</property>
                     <property name="use_action_appearance">False</property>
                     <property name="focus_on_click">False</property>
@@ -1885,6 +1908,7 @@ as each subplot. We record results in a new column appended with '_FL'</property
                     <property name="app_paintable">True</property>
                     <property name="can_focus">False</property>
                     <property name="receives_default">False</property>
+                    <property name="events">GDK_STRUCTURE_MASK | GDK_PROPERTY_CHANGE_MASK</property>
                     <property name="tooltip_text" translatable="yes">checkmark: good frequency subbands plot</property>
                     <property name="use_action_appearance">False</property>
                     <property name="focus_on_click">False</property>
@@ -1906,6 +1930,7 @@ as each subplot. We record results in a new column appended with '_FL'</property
                     <property name="app_paintable">True</property>
                     <property name="can_focus">False</property>
                     <property name="receives_default">False</property>
+                    <property name="events">GDK_STRUCTURE_MASK | GDK_PROPERTY_CHANGE_MASK</property>
                     <property name="tooltip_text" translatable="yes">checkmark: good DM curve plot</property>
                     <property name="use_action_appearance">False</property>
                     <property name="focus_on_click">False</property>
@@ -2076,22 +2101,6 @@ as each subplot. We record results in a new column appended with '_FL'</property
         </child>
       </object>
     </child>
-  </object>
-  <object class="GtkListStore" id="pmatch_store">
-    <columns>
-      <!-- column-name name -->
-      <column type="gchararray"/>
-      <!-- column-name P0 -->
-      <column type="gchararray"/>
-      <!-- column-name DM -->
-      <column type="gdouble"/>
-      <!-- column-name RA -->
-      <column type="gchararray"/>
-      <!-- column-name DEC -->
-      <column type="gchararray"/>
-      <!-- column-name vote -->
-      <column type="gdouble"/>
-    </columns>
   </object>
   <object class="GtkWindow" id="pmatch_win">
     <property name="can_focus">False</property>
