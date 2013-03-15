@@ -1703,9 +1703,9 @@ class MainFrameGTK(Gtk.Window):
             if 'featurevoter_FL' in self.data.dtype.names:
                 self.data['Overall'] = self.data['featurevoter_FL'][...,0]
                 self.data['Profile'] = self.data['featurevoter_FL'][...,1]
-                self.data['Interval'] = self.data['featurevoter_FL'][...,2]
-                self.data['Subband'] = self.data['featurevoter_FL'][...,3]
-                self.data['DMCurve'] = self.data['featurevoter_FL'][...,4]
+                self.data['Interval'] = self.data['featurevoter_FL'][...,3]
+                self.data['Subband'] = self.data['featurevoter_FL'][...,4]
+                self.data['DMCurve'] = self.data['featurevoter_FL'][...,2]
             outputdata = self.data[names]
             l1 += ' '.join(names)
             l1 += '\n'
@@ -2640,7 +2640,7 @@ def load_data(fname):
                             new_data[k][i] = eval(data[k][i])
                 data = new_data
             if 'DMCurve' in data.dtype.names:
-                FLdata = data[['Overall','Profile','Interval','Subband','DMCurve']]
+                FLdata = data[['Overall','Profile','DMCurve','Interval','Subband']]
                 data = add_voter('featurevoter_FL', data, this_dtype='5i8')
                 data = add_voter('featurevoter', data)
                 data['featurevoter_FL'] = FLdata.tolist()
