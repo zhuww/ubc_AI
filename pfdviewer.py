@@ -1685,10 +1685,18 @@ class MainFrameGTK(Gtk.Window):
             note = 'Saved to textfile %s' % self.savefile
             fout = open(self.savefile,'w')
             l1 = '#'
-            l1 += ' '.join(self.data.dtype.names)
+            names = [name for name in self.data.dtype.names if not name in ['featurevoter_FL', 'featurevoter' ]]
+            if 'featurevoter_FL' in self.data.dtype.names:
+                self.data['Overall'] = self.data['featurevoter_FL'][...,0]
+                self.data['Profile'] = self.data['featurevoter_FL'][...,1]
+                self.data['Interval'] = self.data['featurevoter_FL'][...,2]
+                self.data['Subband'] = self.data['featurevoter_FL'][...,3]
+                self.data['DMCurve'] = self.data['featurevoter_FL'][...,4]
+            outputdata = self.data[names]
+            l1 += ' '.join(names)
             l1 += '\n'
             fout.writelines(l1)
-            for n, row in enumerate(self.data):
+            for n, row in enumerate(outputdata):
                 if self.data_fromQry:
                     if self.qry_results['keep'][n]:
                         for ri, rv in enumerate(row):
@@ -2546,20 +2554,20 @@ def load_data(fname):
             else:
                 newdtype.append(d)
         data = data.astype(newdtype)
-    elif fname.endswith('.txt'):
-        fin = open(fname, 'r')
-        header = fin.readline()
-        if not header.startswith('#'):raise MyError('not reading a #header!')
-        cols = header.strip('#').split()
-        namemap = {'fname':'|S200', 'Scores':float, 'scores':float, 'Score':float, 'score':float}
-        dtype = []
-        for col in cols:
-            if col in namemap:
-                dtype.append((col, namemap[col]))
-            else:
-                dtype.append((col, int))
-        data = np.loadtxt(fin, dtype=dtype)
-        fin.close()
+    #elif fname.endswith('.txt'):
+        #fin = open(fname, 'r')
+        #header = fin.readline()
+        #if not header.startswith('#'):raise MyError('not reading a #header!')
+        #cols = header.strip('#').split()
+        #namemap = {'fname':'|S200', 'Scores':float, 'scores':float, 'Score':float, 'score':float}
+        #dtype = []
+        #for col in cols:
+            #if col in namemap:
+                #dtype.append((col, namemap[col]))
+            #else:
+                #dtype.append((col, float))
+        #data = np.loadtxt(fin, dtype=dtype)
+        #fin.close()
     else:
         f = open(fname,'r')
         l1 = f.readline()
@@ -2617,6 +2625,12 @@ def load_data(fname):
                         for i in xrange(data.size):
                             new_data[k][i] = eval(data[k][i])
                 data = new_data
+            if 'DMCurve' in data.dtype.names:
+                FLdata = data[['Overall','Profile','Interval','Subband','DMCurve']]
+                data = add_voter('featurevoter_FL', data, this_dtype='5i8')
+                data = add_voter('featurevoter', data)
+                data['featurevoter_FL'] = FLdata.tolist()
+
 
     if data is not None:
         if len(data.dtype.names) == 1: #fname alone!
