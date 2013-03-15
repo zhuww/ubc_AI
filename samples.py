@@ -13,13 +13,16 @@ def normalize(data):
             result.append(normalize(a))
         return result
     else:
-        shape = data.shape
-        data = data.reshape((-1,1))
-        #mean = np.mean(data)
-        mean = np.median(data)
-        var = np.std(data)
-        data = (data-mean)/var
-        data = data.reshape(shape)
+        if data.ndim > 1:
+            N_row = data.shape[0]
+            return np.array([normalize(data[i,...]) for i in range(N_row)])
+        else:
+            #shape = data.shape
+            #data = data.reshape((-1,1))
+            mean = np.median(data)
+            var = np.std(data)
+            data = (data-mean)/var
+            #data = data.reshape(shape)
         return data
 
 from scipy.interpolate import RectBivariateSpline as interp2d

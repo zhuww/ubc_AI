@@ -157,7 +157,8 @@ class pfddata(pfd):
                     #while len(S) < M:
                         #np.append(S, 0.)
                     #return S
-                self.extracted_feature[feature] = normalize(downsample(img, M, align=self.align).ravel())
+                #self.extracted_feature[feature] = normalize(downsample(img, M, align=self.align).ravel())#wrong!
+                self.extracted_feature[feature] = normalize(downsample(img, M, align=self.align)).ravel()
             return self.extracted_feature[feature]
 
         def getsubbands(M):
@@ -173,7 +174,8 @@ class pfddata(pfd):
                     #while len(S) < M:
                         #np.append(S, 0.)
                     #return S
-                self.extracted_feature[feature] = normalize(downsample(img, M, align=self.align).ravel())
+                #self.extracted_feature[feature] = normalize(downsample(img, M, align=self.align).ravel())
+                self.extracted_feature[feature] = normalize(downsample(img, M, align=self.align)).ravel()
             return self.extracted_feature[feature]
 
         def getratings(L):
