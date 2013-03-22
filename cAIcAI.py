@@ -20,7 +20,6 @@ def gaussfit(data):
     # p0 is the initial guess for the fitting coefficients
     # (A, mu and sigma above)
     p0 = [1., 0., 1.]
-    return np.array(p0)
     try:
         coeff, var_matrix = curve_fit(gauss, bin_centres, hist, p0=p0)
     except(RuntimeError):
