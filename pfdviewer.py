@@ -34,6 +34,7 @@ import pylab as plt
 
 #next taken from ubc_AI.training and ubc_AI.samples
 from training import pfddata
+from ubc_AI.data import pfdreader 
 from sklearn.decomposition import RandomizedPCA as PCA
 import known_pulsars as KP
 
@@ -774,8 +775,9 @@ class MainFrameGTK(Gtk.Window):
             if exists(fname) and fname.endswith('.pfd') \
                     and (self.tmpAI != None) and self.tmpAI_tog.get_active():
                 if fname not in self.tmpAI_avgs:
-                    pfd = pfddata(fname)
-                    pfd.dedisperse()
+                    pfd = pfdreader(fname)
+                    #pfd = pfddata(fname)
+                    #pfd.dedisperse()
                     avgs = feature_predict(self.tmpAI, pfd)
                     self.tmpAI_avgs[fname] = avgs
                 else:
@@ -968,7 +970,8 @@ class MainFrameGTK(Gtk.Window):
 
         """
         
-        pfd = pfddata(fname)
+        #pfd = pfddata(fname)
+        pfd = pfdreader(fname)
         plt.figure(figsize=(8,5.9))
         vals = [('pprof_nbins', 'pprof_pcacomp','phasebins'), #pulse profile
                 ('si_nbins', 'si_pcacomp', 'subbands'),       #frequency subintervals
@@ -1244,8 +1247,9 @@ class MainFrameGTK(Gtk.Window):
 #are we displaying the prediction from a tmpAI?            
                     if exists(fname) and fname.endswith('.pfd') and (self.tmpAI is not None) and self.tmpAI_tog.get_active():
                         if fname not in self.tmpAI_avgs:
-                            pfd = pfddata(fname)
-                            pfd.dedisperse()
+                            pfd = pfdreader(fname)
+                            #pfd = pfddata(fname)
+                            #pfd.dedisperse()
                             avgs = feature_predict(self.tmpAI, pfd)
                             self.tmpAI_avgs[fname] = avgs
                         else:
@@ -1857,6 +1861,7 @@ class MainFrameGTK(Gtk.Window):
 # see if this path exists, update self.basedir if necessary
 #            self.find_file(fname)
             try:
+                #pfd = pfdreader(fname)
                 pfd = pfddata(fname)
                 pfd.dedisperse()
             except(IOError, ValueError):
@@ -2332,8 +2337,9 @@ class MainFrameGTK(Gtk.Window):
         if exists(savename) and savename.endswith('.pfd') \
                 and (self.tmpAI != None) and self.tmpAI_tog.get_active():
             if savename not in self.tmpAI_avgs:
-                pfd = pfddata(savename)
-                pfd.dedisperse()
+                pfd = pfdreader(savename)
+                #pfd = pfddata(savename)
+                #pfd.dedisperse()
                 avgs = feature_predict(self.tmpAI, pfd)
                 self.tmpAI_avgs[savename] = avgs
             else:

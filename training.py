@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 #from pylab import *
 
 class pfddata(pfd):
+    initialized = False
+    __counter__ = [0]
     def __init__(self, filename, align=True, centre=True):
         """
         pfddata: a wrapper class around prepfold.pfd
@@ -27,6 +29,8 @@ class pfddata(pfd):
             pfd.__init__(self, filename)
         self.dedisperse(DM=self.bestdm, doppler=1)
         self.adjust_period()
+        pfddata.__counter__[0] += 1
+        #print pfddata.__counter__
 
         if centre:
             mx = self.profs.sum(0).sum(0).argmax()
@@ -39,6 +43,7 @@ class pfddata(pfd):
             self.align = self.profs.sum(0).sum(0).argmax()
         else:
             self.align = 0
+        self.initialized = True
         
 
     def getdata(self, phasebins=0, freqbins=0, timebins=0, DMbins=0, intervals=0, subbands=0, bandpass=0, ratings=None):
@@ -58,6 +63,10 @@ class pfddata(pfd):
         if not 'extracted_feature' in self.__dict__:
             self.extracted_feature = {}
         profs = self.profs
+
+        if not self.initialized:
+            print 'pfd not initialized.'
+            self.__init__('self')
 
         def getsumprofs(M):
             feature = '%s:%s' % ('phasebins', M)

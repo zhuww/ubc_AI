@@ -196,8 +196,8 @@ def cross_validation(classifier, pfds, target, cv=5, verbose=False):
                               #nclasses = nclasses, verbose=verbose)
     else:
         #F1 = singleclass_score(classifier, test_pfds, test_target, verbose=verbose)
-        if classifier.__dict__.has_key('strategy'):
-            F1dict = dict([(i,getF1(*al))for i,al in enumerate(arglists)])
+        #if classifier.__dict__.has_key('strategy'):
+            #F1dict = dict([(i,getF1(*al))for i,al in enumerate(arglists)])
         F1dict = threadit(getF1, arglists)
     #scores = np.append(scores, F1)
     #print F1dict

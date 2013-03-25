@@ -110,6 +110,8 @@ class combinedAI(object):
         we train each classifier on a subset of the training data
         
         """
+        #InteractivePy = True #debug test
+        print 'in fit, InteractivePy:', InteractivePy
         if target.ndim == 1:
             psrtarget = target
         else:
@@ -118,53 +120,22 @@ class combinedAI(object):
             #extract pfd features beforehand
             extractfeatures(self.list_of_AIs, pfds)
 
-            #def worker(q, retq):
-                #while True:
-                    #item = q.get()
-                    #if item is not None:
-                        #n = item['n']
-                        #clf = self.list_of_AIs[n]
-                        #pfds = item['pfds']
-                        #targets = item['targets']
-                        #clf.fit(pfds, targets)
-                        #retq.put({n:clf})
-                    #else:
-                        #break
-                    #q.task_done()
-                #q.task_done()
-
-            #q = MP.JoinableQueue()
-            #retq = MP.Queue()
-            #procs = []
-            ##start the worker threads
-            #for i in range(num_workers):
-                #p = MP.Process(target=worker,
-                               #args=(q, retq))
-                #p.daemon = True
-                #p.start()
-                #procs.append(p)
 
         input_data = []
+
+
         for n, clf in enumerate(self.list_of_AIs):
             tr_pfds, tr_target, te_pfds, te_target = split_data(pfds, target, pct=0.75)
             if InteractivePy:
                 clf.fit(tr_pfds, tr_target, **kwds)
+                #print clf.__class__
             else:
                 #q.put({'n':n, 'pfds':tr_pfds, 'targets':tr_target})
-                input_data.append([clf, tr_pfds, tr_target])
+                input_data.append([clf, tr_pfds, tr_target, kwds])
         
         if not InteractivePy:
-            #add termination sentinel, one for each process
-            #for p in range(num_workers):
-                #q.put(None)
-            #q.join()
-            #resultdict = {}
-            #for i in range(len(self.list_of_AIs)):
-                #resultdict.update(retq.get())
-            #for p in procs:
-                #p.join()
-            def threadfit(clf, tr_pfd, tr_target):
-                clf.fit(tr_pfds, tr_target)
+            def threadfit(clf, tr_pfd, tr_target, kwds):
+                clf.fit(tr_pfds, tr_target, **kwds)
                 return clf
 
             resultdict = threadit(threadfit, input_data)
@@ -172,6 +143,7 @@ class combinedAI(object):
             #now put the thread-trained classifiers back into our list_of_AIs
             for n, clf in resultdict.iteritems():
                 self.list_of_AIs[n] = clf
+                #print clf.__class__
 
         self.nclasses = len(np.unique(target))
         if self.nclasses > 2 and self.strategy == 'adaboost':
@@ -187,6 +159,7 @@ class combinedAI(object):
                 if InteractivePy or (len(pfds) < 5*num_workers):
                     predictions = np.hstack([clf.predict_proba(pfds)\
                                                  for clf in self.list_of_AIs]) #nsamples x (npred x nclasses)
+                    #print predictions.shape
                 else:
                     predictions = threadpredict_proba(self.list_of_AIs, pfds)
             else:
@@ -194,6 +167,7 @@ class combinedAI(object):
                 if InteractivePy or (len(pfds) < 5*num_workers):
                     predictions = np.transpose([clf.predict(pfds)\
                                                     for clf in self.list_of_AIs]) #nsamples x npred
+                    print predictions.shape
                 else:
                     predictions = threadpredict(self.list_of_AIs, pfds)
 
@@ -767,59 +741,21 @@ def extractfeatures(AIlist, pfds):
     pre-extract all the useful features.
     This is meant to reduce disk i/o and calls to pfd.dedisperse()
     """
-    #def worker(q, retq, rptdf, **features):
-        #while True:
-            #item = q.get()
-            #if item is not None:
-                #n, pfd = item.items()[0]
-                #try:
-                    #pfd.getdata(*rptdf, **features)
-                    #retq.put({n:pfd})
-                #except ZeroDivisionError:
-                    #retq.put({n:None})
-            #else:
-                #break
-            #q.task_done()
-        #q.task_done()
 
-    ##determine features to extract from pfd
-    #features = {}
-    #rptdf = []
-    #for clf in AIlist:
-        #f, v = clf.feature.items()[0]
-        #if f in features:
-            #rptdf.append(clf.feature)
-        #else:
-            #features[f] = v
-
-    ##extract the features in parallel
-    #q = MP.JoinableQueue()
-    #retq = MP.Queue()
-    #procs = []
-    #for i in range(num_workers):
-        #p = MP.Process(target=worker,
-                       #args=(q, retq, rptdf),
-                       #kwargs=features)
-        #p.daemon = True
-        #p.start()
-        #procs.append(p)
-
-    #for n, pfd in enumerate(pfds):
-        #q.put({n:pfd})
-
-    #for p in range(num_workers):
-        ##add termination sentinel, one for each process
-        #q.put(None)
-    #q.join()
-    #resultdict = {}
-    #for i in range(len(pfds)):
-        #resultdict.update(retq.get())
-    #for p in procs:
-        #p.join()
-    features = [ai.feature for ai in AIlist ]
+    #determine features to extract from pfd
+    features = {}
+    rptdf = []
+    for clf in AIlist:
+        f, v = clf.feature.items()[0]
+        if f in features:
+            rptdf.append(clf.feature)
+        else:
+            features[f] = v
+    #features = [ai.feature for ai in AIlist ]
+    #print 'rptdf, features', rptdf, features
     def getfeature(pfd):
-        for f in features:
-            pfd.getdata(**f)
+        #for f in features:
+        pfd.getdata(*rptdf, **features)
         return pfd
 
     resultdict = threadit(getfeature, [[p] for p in pfds])

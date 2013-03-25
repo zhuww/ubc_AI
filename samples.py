@@ -1,5 +1,6 @@
 import numpy as np
 import os, glob
+#import sklearn.preprocessing as PPC
 
 def normalize(data):
     '''data:input array of 1-3 dimentions
@@ -15,12 +16,20 @@ def normalize(data):
     else:
         if data.ndim > 1:
             N_row = data.shape[0]
-            return np.array([normalize(data[i,...]) for i in range(N_row)])
+            shape = data.shape
+            return np.array(normalize(data.flatten())).reshape(shape)
+            #return np.array([normalize(data[i,...]) for i in range(N_row)])
+            #img = np.array([normalize(data[i,...]) for i in range(N_row)])
+            #return np.where(img>0, img, 0.)
         else:
+            #return PPC.normalize(np.array(data), norm='l1', axis=0)
             #shape = data.shape
             #data = data.reshape((-1,1))
             mean = np.median(data)
+            #mean = np.mean(data)
+            #mean = np.min(data)
             var = np.std(data)
+            #var = np.max(data) - np.min(data)
             data = (data-mean)/var
             #data = data.reshape(shape)
         return data
