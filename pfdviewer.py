@@ -1069,7 +1069,14 @@ class MainFrameGTK(Gtk.Window):
                 ax.plot(data)
                 ax.set_title('DM curve (bins, pca) = (%s,%s)'%(nbins,npca_comp))
             ax.set_yticklabels([])
-            ax.set_xticklabels([])
+            if subplt != 3:
+                majticks = np.linspace(0,nbins,5).astype(int)
+                majlab = [0, .25, .5, .75, 1]
+                ax.set_xticks(majticks)
+                ax.set_xticklabels(majlab)
+            else:
+                ax.set_xticklabels([])
+                
 
         fd, fpng = tempfile.mkstemp(dir=tempdir, suffix='.png')
         plt.savefig(fpng)
