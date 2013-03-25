@@ -110,7 +110,7 @@ class combinedAI(object):
         we train each classifier on a subset of the training data
         
         """
-        #InteractivePy = True #debug test
+        InteractivePy = True #debug test
         print 'in fit, InteractivePy:', InteractivePy
         if target.ndim == 1:
             psrtarget = target
