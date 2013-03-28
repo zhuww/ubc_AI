@@ -17,8 +17,8 @@ def normalize(data):
         if data.ndim > 1:
             N_row = data.shape[0]
             shape = data.shape
-            return np.array(normalize(data.flatten())).reshape(shape)
-            #return np.array([normalize(data[i,...]) for i in range(N_row)])
+            #return np.array(normalize(data.flatten())).reshape(shape)
+            return np.array([normalize(data[i,...]) for i in range(N_row)])
             #img = np.array([normalize(data[i,...]) for i in range(N_row)])
             #return np.where(img>0, img, 0.)
         else:

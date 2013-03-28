@@ -9,7 +9,7 @@ from ubc_AI import pulsar_nnetwork as pnn
 from ubc_AI import sktheano_cnn as skcnn
 
 #multiprocess only works in non-interactive mode:
-from ubc_AI.data import threadit
+from ubc_AI.threadit import threadit
 import multiprocessing as MP
 import __main__ as MAIN
 if hasattr(MAIN, '__file__'):
@@ -19,7 +19,7 @@ else:
     print "running in interactive python mode, multiprocessing disabled"
     InteractivePy = True
 
-num_workers = max(1, MP.cpu_count() - 2)
+num_workers = max(1, MP.cpu_count() - 1)
 if num_workers == 1: InteractivePy = True
 equaleval = "%s"
 
@@ -101,6 +101,8 @@ class combinedAI(object):
         self.nclasses = None #keep track of number of classes (determined in 'fit')
         self.score_mapper = score_mapper
 
+        #initialize a feature list
+
     def fit(self, pfds, target, **kwds):
         """
         args: [list of pfd instances], target
@@ -110,8 +112,9 @@ class combinedAI(object):
         we train each classifier on a subset of the training data
         
         """
-        InteractivePy = True #debug test
-        print 'in fit, InteractivePy:', InteractivePy
+        #InteractivePy = True #debug test
+        #InteractivePy = False #debug test
+        #print 'in fit, InteractivePy:', InteractivePy
         if target.ndim == 1:
             psrtarget = target
         else:
@@ -119,31 +122,25 @@ class combinedAI(object):
         if not InteractivePy:
             #extract pfd features beforehand
             extractfeatures(self.list_of_AIs, pfds)
+        #InteractivePy = True #debug test
 
 
         input_data = []
-
-
         for n, clf in enumerate(self.list_of_AIs):
             tr_pfds, tr_target, te_pfds, te_target = split_data(pfds, target, pct=0.75)
             if InteractivePy:
                 clf.fit(tr_pfds, tr_target, **kwds)
-                #print clf.__class__
             else:
-                #q.put({'n':n, 'pfds':tr_pfds, 'targets':tr_target})
                 input_data.append([clf, tr_pfds, tr_target, kwds])
+        def threadfit(clf, tr_pfds, tr_target, kwds):
+            clf.fit(tr_pfds, tr_target, **kwds)
+            return clf
         
         if not InteractivePy:
-            def threadfit(clf, tr_pfd, tr_target, kwds):
-                clf.fit(tr_pfds, tr_target, **kwds)
-                return clf
-
             resultdict = threadit(threadfit, input_data)
 
-            #now put the thread-trained classifiers back into our list_of_AIs
             for n, clf in resultdict.iteritems():
                 self.list_of_AIs[n] = clf
-                #print clf.__class__
 
         self.nclasses = len(np.unique(target))
         if self.nclasses > 2 and self.strategy == 'adaboost':
@@ -165,9 +162,9 @@ class combinedAI(object):
             else:
                 #use predict
                 if InteractivePy or (len(pfds) < 5*num_workers):
+                #if InteractivePy or (len(pfds) < 5*num_workers):
                     predictions = np.transpose([clf.predict(pfds)\
                                                     for clf in self.list_of_AIs]) #nsamples x npred
-                    print predictions.shape
                 else:
                     predictions = threadpredict(self.list_of_AIs, pfds)
 
@@ -201,7 +198,10 @@ class combinedAI(object):
                 list_of_predicts = np.hstack([clf.predict_proba(pfds)\
                                                   for clf in self.list_of_AIs])#nsamples x (npred x classes)
             else:
+                print '@Must turn off threadpredict_proba to prevent dead loop. Test not to'
+                threadit.func_defaults[0]['state'] = True
                 list_of_predicts = threadpredict_proba(self.list_of_AIs, pfds)
+                threadit.func_defaults[0]['state'] = False
         else:
             if InteractivePy or (len(pfds) < 5*num_workers):
                 list_of_predicts = np.transpose([clf.predict(pfds)\
@@ -281,9 +281,13 @@ class combinedAI(object):
                     predicts = np.transpose([clf.predict(pfds)\
                                                  for clf in self.list_of_AIs]) #nsamples x nclasses
                 else:
+                    #print 'Can it be that oly threadpredict were called?'#no
+                    #threadit.func_defaults[0]['state'] = True
                     predicts = threadpredict(self.list_of_AIs, pfds)
+                    #threadit.func_defaults[0]['state'] = False
             else:
                 if InteractivePy or (len(pfds) < 5*num_workers):
+                    #print 'No need to thread predict_proba (%s/%s)' % (len(pfds), 5*num_workers)#confirmed
                     predicts = np.hstack([clf.predict_proba(pfds)\
                                               for clf in self.list_of_AIs]) #nsamples x (npreds x nclasses)
                 else:
@@ -744,27 +748,25 @@ def extractfeatures(AIlist, pfds):
 
     #determine features to extract from pfd
     features = {}
-    rptdf = []
+    vargf = []
+    items = []
     for clf in AIlist:
-        f, v = clf.feature.items()[0]
-        if f in features:
-            rptdf.append(clf.feature)
-        else:
-            features[f] = v
-    #features = [ai.feature for ai in AIlist ]
-    #print 'rptdf, features', rptdf, features
-    def getfeature(pfd):
-        #for f in features:
-        pfd.getdata(*rptdf, **features)
-        return pfd
+        items.extend(clf.feature.items())
 
-    resultdict = threadit(getfeature, [[p] for p in pfds])
-
-    for n, pfd in resultdict.iteritems():
-        if pfd == None:
-            print 'ZeroDivisionError: ', pfds[n].pfdfile
-            raise ZeroDivisionError
-        pfds[n] = pfd
+    newf = set([ '%s:%s'% (f,v)  for f,v in items]) - set(pfds[0].extracted_feature.keys())
+    for p in newf:
+        f,v = p.split(':')
+        vargf.append({f:int(v)})
+    if len(vargf) > 0:
+        def getfeature(pfd):
+            pfd.getdata(*vargf, **features)
+            return pfd
+        resultdict = threadit(getfeature, [[p] for p in pfds])
+        for n, pfd in resultdict.iteritems():
+            if pfd == None:
+                print 'ZeroDivisionError: ', pfds[n].pfdfile
+                raise ZeroDivisionError
+            pfds[n] = pfd
 
 def threadpredict(AIlist, pfds):
     """
@@ -773,40 +775,6 @@ def threadpredict(AIlist, pfds):
     pfds : list of pfds
     out : output format, one of 'transpose' or 'hstack'
     """
-    #def worker(q, retq, pfds):
-        #while True:
-            #item = q.get()
-            #if item is not None:
-                #n, clf = item.items()[0]
-                #preds = clf.predict(pfds)
-                #retq.put({n:preds})
-            #else:
-                #break
-            #q.task_done()
-        #q.task_done()
-    
-    #q = MP.JoinableQueue()
-    #retq = MP.Queue()
-    #procs = []
-    #for i in range(num_workers):
-        #p = MP.Process(target=worker,
-                       #args=(q, retq, pfds))
-        #p.daemon = True
-        #p.start()
-        #procs.append(p)
-        
-    #for n, clf in enumerate(AIlist):
-        #q.put({n:clf})
-
-    #for p in range(num_workers):
-        ##add termination sentinal, one for each process
-        #q.put(None)
-    #q.join()
-    #resultdict = {}
-    #for i in range(len(AIlist)):
-        #resultdict.update(retq.get())
-    #for p in procs:
-        #p.join()
     def predictfunc(pfds, clf):
         return clf.predict(pfds)
     resultdict = threadit(predictfunc, [[pfds, clf] for clf in AIlist])
@@ -818,50 +786,13 @@ def threadpredict_proba(AIlist, pfds):
     AIlist : list of trained classifiers
     pfds : list of pfds
     """
-    #print [type(c) for c in AIlist]
-    #def worker(q, retq, pfds):
-        #while True:
-            #item = q.get()
-            #if item is not None:
-                #n, clf = item.items()[0]
-                #try:
-                    #preds = clf.predict_proba(pfds)
-                    #retq.put({n:preds})
-                #except ZeroDivisionError:
-                    #retq.put({n:-1})
-
-            #else:
-                #break
-            #q.task_done()
-        #q.task_done()
-    
-    #q = MP.JoinableQueue()
-    #retq = MP.Queue()
-    #procs = []
-    #for i in range(num_workers):
-        #p = MP.Process(target=worker,
-                       #args=(q, retq, pfds))
-        #p.daemon = True
-        #p.start()
-        #procs.append(p)
-        
-    #for n, clf in enumerate(AIlist):
-        #q.put({n:clf})
-
-    #for p in range(num_workers):
-        ##send termination sentinal, one for each process
-        #q.put(None)
-    #q.join()
-    #resultdict = {}
-    #for i in range(len(AIlist)):
-        #resultdict.update(retq.get())
-    #for p in procs:
-        #p.join()
-    ##if -1 in [resultdict[i] for i in resultdict]:
-        ##raise ZeroDivisionError
-    def predictfunc(pfds, clf):
-        return clf.predict_proba(pfds)
-    resultdict = threadit(predictfunc, [[pfds, clf] for clf in AIlist])
+    def predict_prob(clf):
+        try:
+            p = clf.predict_proba(pfds)
+        except:
+            print 'Alarm!!!'
+        return p
+    resultdict = threadit(predict_prob, [[clf] for clf in AIlist])
     return np.hstack([resultdict[n] for n in range(len(AIlist))])
 
 

@@ -71,7 +71,8 @@ class pfdreader(object):
 def singleclass_score(classifier, test_pfds, test_target, verbose=False):
     pulsar = set([])
     truepulsar = set([])
-    pred = classifier.predict(test_pfds)
+    pred_prob = classifier.predict_proba(test_pfds)[...,1]
+    pred = np.where(pred_prob>0.5, 1, 0)
     if not test_target.ndim == 1:
         try:
             feature_target = test_target[..., classifier.targetmap[classifier.feature.keys()[0]]]
@@ -106,53 +107,7 @@ def singleclass_score(classifier, test_pfds, test_target, verbose=False):
    
     return F1
 
-import multiprocessing as MP
-num_workers = max(1, MP.cpu_count() - 1)
 
-def threadit(func, arglist, OnOffSwitch={'state':False}):
-    """
-    A wrapper for multi-threading any function (func) given a argument list (arglist). The OnOffSwitch is a flag that got set to True when a progress is already running in a thread. It would not spam more threads when the flag is set to True.
-    """
-    def worker(q,retq, func, arglist):
-        while True:
-            idx = q.get()
-            if idx is not None:
-                retq.put({idx:func(*(arglist[idx]))})
-            else:
-                break
-            q.task_done()
-        q.task_done()
-    #print func.__name__, ' OnOffSwitch:', OnOffSwitch['state']
-    if OnOffSwitch['state'] == False or len(arglist) <=3:
-        #if no threading is already running or the number of jobs to spaw is smaller than 3, don't thread it.
-        OnOffSwitch['state'] = True
-        q=MP.JoinableQueue()
-        retq=MP.Queue()
-        procs = []
-        for i in range(num_workers):
-            p = MP.Process(target=worker, args=(q, retq, func, arglist))
-            p.daemon = True
-            p.start()
-            procs.append(p)
-
-        for i in range(len(arglist)):
-            q.put(i)
-
-        for p in range(num_workers):
-            q.put(None)
-        q.join()
-        resultdict = {}
-        for i in range(len(arglist)):
-            resultdict.update(retq.get())
-        for p in procs:
-            p.join()
-        OnOffSwitch['state'] = False
-        return resultdict
-    else:
-        resultdict = {}
-        for i in range(len(arglist)):
-            resultdict.update({i:func(*(arglist[i]))})
-        return resultdict
 
 
 
@@ -198,7 +153,12 @@ def cross_validation(classifier, pfds, target, cv=5, verbose=False):
         #F1 = singleclass_score(classifier, test_pfds, test_target, verbose=verbose)
         #if classifier.__dict__.has_key('strategy'):
             #F1dict = dict([(i,getF1(*al))for i,al in enumerate(arglists)])
-        F1dict = threadit(getF1, arglists)
+
+        from ubc_AI.threadit import threadit
+        if len(arglists) >= 12:
+            F1dict = threadit(getF1, arglists)
+        else:
+            F1dict = dict([(i,getF1(*al))for i,al in enumerate(arglists)])
     #scores = np.append(scores, F1)
     #print F1dict
     scores = np.array([F1dict[i] for i in F1dict])
@@ -248,6 +208,35 @@ class dataloader(object):
         else:
             print "Don't recognize the file surfix."
             raise Error
+        self.extracted_feature = []
+
+    def extractfeatures(self, clf):
+        if type(clf) == list:
+            AIlist = clf
+        elif 'list_of_AIs' in clf.__dict__:
+            AIlist = clf.list_of_AIs
+        elif 'feature' in clf.__dict__:
+            AIlist = [clf] 
+        else:
+            raise MyError
+        features = {}
+        vargf = []
+        items = []
+        for clf in AIlist:
+            items.extend(clf.feature.items())
+        for f in set(items):
+            if not f in self.extracted_feature:
+                vargf.append(dict([f]))
+        def getfeature(pfd):
+            pfd.getdata(*vargf, **features)
+            return pfd
+        from ubc_AI.threadit import threadit
+        if len(vargf) > 0:
+            resultdict = threadit(getfeature, [[p] for p in self.pfds])
+            for n, pfd in resultdict.iteritems():
+                self.pfds[n] = pfd
+        for f in vargf:
+            self.extracted_feature.append(f)
 
 
     def update_classmap(self,classmap):
