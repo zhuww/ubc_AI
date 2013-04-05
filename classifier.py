@@ -112,9 +112,6 @@ class combinedAI(object):
         we train each classifier on a subset of the training data
         
         """
-        #InteractivePy = True #debug test
-        #InteractivePy = False #debug test
-        #print 'in fit, InteractivePy:', InteractivePy
         if target.ndim == 1:
             psrtarget = target
         else:
@@ -122,7 +119,6 @@ class combinedAI(object):
         if not InteractivePy:
             #extract pfd features beforehand
             extractfeatures(self.list_of_AIs, pfds)
-        #InteractivePy = True #debug test
 
 
         input_data = []
@@ -162,7 +158,6 @@ class combinedAI(object):
             else:
                 #use predict
                 if InteractivePy or (len(pfds) < 5*num_workers):
-                #if InteractivePy or (len(pfds) < 5*num_workers):
                     predictions = np.transpose([clf.predict(pfds)\
                                                     for clf in self.list_of_AIs]) #nsamples x npred
                 else:
@@ -281,10 +276,7 @@ class combinedAI(object):
                     predicts = np.transpose([clf.predict(pfds)\
                                                  for clf in self.list_of_AIs]) #nsamples x nclasses
                 else:
-                    #print 'Can it be that oly threadpredict were called?'#no
-                    #threadit.func_defaults[0]['state'] = True
                     predicts = threadpredict(self.list_of_AIs, pfds)
-                    #threadit.func_defaults[0]['state'] = False
             else:
                 if InteractivePy or (len(pfds) < 5*num_workers):
                     #print 'No need to thread predict_proba (%s/%s)' % (len(pfds), 5*num_workers)#confirmed
