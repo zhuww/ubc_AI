@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 class pfddata(pfd):
     initialized = False
-    __counter__ = [0]
+    #__counter__ = [0]
     def __init__(self, filename, align=True, centre=True):
         """
         pfddata: a wrapper class around prepfold.pfd
@@ -29,8 +29,13 @@ class pfddata(pfd):
             pfd.__init__(self, filename)
         self.dedisperse(DM=self.bestdm, doppler=1)
         self.adjust_period()
-        pfddata.__counter__[0] += 1
+        #pfddata.__counter__[0] += 1
         #print pfddata.__counter__
+        #print 'file initialization No.:', pfddata.__counter__[0]
+        if not 'extracted_feature' in self.__dict__:
+            self.extracted_feature = {}
+        self.extracted_feature.update({"ratings:['period']":np.array([self.topo_p1])})
+
 
         if centre:
             mx = self.profs.sum(0).sum(0).argmax()
