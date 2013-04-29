@@ -2,7 +2,8 @@ import multiprocessing as MP
 import sys
 import traceback
 num_workers = max(1, MP.cpu_count() - 1)
-def threadit(func, arglist, OnOffSwitch={'state':False}):
+#def threadit(func, arglist, OnOffSwitch={'state':False}):
+def threadit(func, arglist, OnOffSwitch={'state':True}): #turn off threading to prevent possible collision with the pipeline code. 
     """
     A wrapper for multi-threading any function (func) given a argument list (arglist). The OnOffSwitch is a flag that got set to True when a progress is already running in a thread. It would not spam more threads when the flag is set to True.
     """
