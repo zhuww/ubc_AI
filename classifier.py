@@ -291,14 +291,15 @@ class combinedAI(object):
         #return np.array([res if res[1] == 0. else renderer(eval(self.score_mapper % res[1])) for res in result])
         return result
 
-    def report_score(self, pfds):
+    def report_score(self, pfds, psrhist='average'):
         if not type(pfds) in (list,tuple):
             pfds = [pfds]
         if not self.__dict__.has_key('RFI_freq_dist'):
             import cPickle
             import ubc_AI
             ubcAI_path = ubc_AI.__path__[0]
-            self.RFI_freq_dist = cPickle.load(open(ubcAI_path+'/Pf.pkl', 'rb'))
+            self.RFI_freq_dist = cPickle.load(open(ubcAI_path+'/Priordists.pkl', 'rb'))
+#            self.RFI_freq_dist = cPickle.load(open(ubcAI_path+'/Pf.pkl', 'rb'))
         def getp0(pfd):
             #pfd.__init__('self')
             return pfd.getdata(ratings=['period'])
@@ -306,13 +307,15 @@ class combinedAI(object):
         def adjustscore(score, freq):
             newscore = []
             Pf = self.RFI_freq_dist['Pf']
-            average = self.RFI_freq_dist['average']
+#            average = self.RFI_freq_dist['average']
+            Pfs = self.RFI_freq_dist['Pfs']
             N = self.RFI_freq_dist['N']
             for i in range(len(score)):
                 pp = score[i]
                 f = freq[i]
                 try:
-                    pf = Pf[int(f)]
+#                    pf = Pf[int(f)]
+                    pf = Pf[int(f)*int(1.*N/2000)]
                     if pf > 0.2*Pf[0] and f>0: #scheme to readjust candidate score by lowing the scores for possible RFIs.
                         pr = 1. - pp
                         ns = pp/(pp + pf*pr/average)
