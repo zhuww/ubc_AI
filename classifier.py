@@ -306,19 +306,21 @@ class combinedAI(object):
 
         def adjustscore(score, freq):
             newscore = []
-            Pf = self.RFI_freq_dist['Pf']
+            Pf = self.RFI_freq_dist['Pf'][0]
 #            average = self.RFI_freq_dist['average']
-            Pfs = self.RFI_freq_dist['Pfs']
+            Pfs = self.RFI_freq_dist['Pfs'][0]
             N = self.RFI_freq_dist['N']
             for i in range(len(score)):
                 pp = score[i]
                 f = freq[i]
                 try:
 #                    pf = Pf[int(f)]
-                    pf = Pf[int(f)*int(1.*N/2000)]
-                    if pf > 0.2*Pf[0] and f>0: #scheme to readjust candidate score by lowing the scores for possible RFIs.
+                    prfi = Pf[int(f*N/2000.)] 
+                    ppsr = Pfs[int(f*N/2000.)] 
+                    #if pf > 0.2*Pf[0] and f>0: #scheme to readjust candidate score by lowing the scores for possible RFIs.
+                    if True:
                         pr = 1. - pp
-                        ns = pp/(pp + pf*pr/average)
+                        ns = pp/(pp + prfi*pr/ppsr)
                         newscore.append(ns)
                     else:
                         newscore.append(pp)
