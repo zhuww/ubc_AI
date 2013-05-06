@@ -291,41 +291,36 @@ class combinedAI(object):
         #return np.array([res if res[1] == 0. else renderer(eval(self.score_mapper % res[1])) for res in result])
         return result
 
-    def report_score(self, pfds, psrhist='average'):
+    def report_score(self, pfds, dist='PALFA_Priordists.pkl'):
         if not type(pfds) in (list,tuple):
             pfds = [pfds]
-        if not self.__dict__.has_key('RFI_freq_dist'):
+        if not self.__dict__.has_key('prior_freq_dist'):
             import cPickle
             import ubc_AI
             ubcAI_path = ubc_AI.__path__[0]
-            self.RFI_freq_dist = cPickle.load(open(ubcAI_path+'/Priordists.pkl', 'rb'))
-#            self.RFI_freq_dist = cPickle.load(open(ubcAI_path+'/Pf.pkl', 'rb'))
+            # Note: we expect a dictionary whose key is 'Pfr_over_Pfp'
+            self.prior_freq_dist = cPickle.load(open(ubcAI_path + '/' + dist, 'rb'))
+
         def getp0(pfd):
             #pfd.__init__('self')
             return pfd.getdata(ratings=['period'])
 
         def adjustscore(score, freq):
             newscore = []
-            Pf = self.RFI_freq_dist['Pf']
-            bin_edges = Pf[1]
+            # the histogram (P(F0|r)/P(F0|p), bins):
+            Pfr = self.prior_freq_dist['Pfr_over_Pfp']
+            bin_edges = Pfr[1]
             bs = np.diff(bin_edges).mean()
 
-            Pfs = self.RFI_freq_dist['Pfs']
-            N = self.RFI_freq_dist['N']
             for i in range(len(score)):
                 pp = score[i]
                 f = freq[i]
                 try:
-#                    pf = Pf[int(f)]
                     bidx = min(np.argmin((f-bin_edges)**2), len(bin_edges)-2)
-                    pf = Pf[0][bidx]*bs
-                    spf = Pfs[0][bidx]*bs
-                    if True:
-                        pr = 1. - pp
-                        ns = pp/(pp + pf*pr/spf)
-                        newscore.append(ns)
-                    else:
-                        newscore.append(pp)
+                    prior = Pfr[0][bidx]*bs
+                    pr = 1. - pp
+                    ns = pp/(pp + prior*pr)
+                    newscore.append(ns)
                 except KeyError:
                     print f, i
                     newscore.append(pp)
