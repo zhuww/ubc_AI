@@ -291,7 +291,7 @@ class combinedAI(object):
         #return np.array([res if res[1] == 0. else renderer(eval(self.score_mapper % res[1])) for res in result])
         return result
 
-    def report_score(self, pfds, dist='PALFA_Priordists.pkl'):
+    def report_score(self, pfds, dist='GBNCC_Priordists.pkl'):
         if not type(pfds) in (list,tuple):
             pfds = [pfds]
         if not self.__dict__.has_key('prior_freq_dist'):
