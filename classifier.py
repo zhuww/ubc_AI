@@ -305,24 +305,32 @@ class combinedAI(object):
             #pfd.__init__('self')
             return pfd.getdata(ratings=['period'])
 
-        def adjustscore(score, freq):
+        def adjustscore(score, freq, w=1., spk=1.):
+            """
+            Apply the bayesian prior.
+            w = 1., extra weight on priors, 100 is optimal.
+            spk = 1., enhancement to spikes in distribution, 1.75 is optimal
+
+            """
             newscore = []
-            # the histogram (P(F0|r)/P(F0|p), bins):
-            Pfr = self.prior_freq_dist['Pfr_over_Pfp']
-            bin_edges = Pfr[1]
-            bs = np.diff(bin_edges).mean()
+            try:
+                # the histogram (P(F0|r)/P(F0|p), bins):
+                Pfr = self.prior_freq_dist['Pfr_over_Pfp']
+                bin_edges = Pfr[1]
+                have_prior = True
+            except(KeyError):
+                have_prior = False
 
             for i in range(len(score)):
                 pp = score[i]
                 f = freq[i]
-                try:
+                if have_prior:
                     bidx = min(np.argmin((f-bin_edges)**2), len(bin_edges)-2)
-                    prior = Pfr[0][bidx]*bs
+                    prior = w*(Pfr[0][bidx])**spk
                     pr = 1. - pp
                     ns = pp/(pp + prior*pr)
                     newscore.append(ns)
-                except KeyError:
-                    print f, i
+                else:
                     newscore.append(pp)
             return np.array(newscore)
 
