@@ -21,7 +21,7 @@ import datetime
 import fractions
 import glob
 import numpy as np
-import os
+import os, pwd
 import shutil
 import subprocess
 import sys
@@ -131,7 +131,8 @@ class MainFrameGTK(Gtk.Window):
         self.qry_savefil = '%s-qry.npy' % datetime.datetime.now().strftime('%Y_%m_%d')
         self.data_fromQry = False
 #keep query in separate location, moving to self.qry_saveloc on save
-        self.qrybasedir = '/dev/shm/pfdvwr'
+        self.qrybasedir = '/dev/shm/pfdvwr.%s' % pwd.getpwuid(os.getuid())[0]
+        #os.getlogin()
 
         #aiview window
         self.aiview_tog = self.builder.get_object('aiview')
@@ -2153,7 +2154,13 @@ class MainFrameGTK(Gtk.Window):
 
         
         dbhost = Vdecode(uname+pwd, 'ugkagdipzy.nm.qigtcjn.bmh')
-        database = Vdecode(uname+pwd, 'JPRDYEukmQQ2')
+        dbversion = int(self.builder.get_object("dbversion").get_value())
+        if dbversion == 2:
+            dbv = 'JPRDYEukmQQ2'
+        else:
+            dbv = 'JPRDYEukmQQ3'
+        print "DBV", dbv
+        database = Vdecode(uname+pwd, dbv)
         table_name = Vdecode(pwd+uname, 'EXW_Qucjgbcnb_Oxhkowyh_Dgnyphfiyw')
         
         #file with list of query subs
@@ -2163,12 +2170,16 @@ class MainFrameGTK(Gtk.Window):
         stp = self.palfaqrybuf.get_end_iter()
         qry = self.palfaqrybuf.get_text(srt, stp,1)
         #if "by candidateid" is not active we still use that query to download the filelocation
-        if self.palfa_sampleqry.get_active_text() != 'by candidate id':
+        if qry != "SELECT * FROM PDM_Candidate_Binaries_Filesystem as t where t.pdm_cand_id = %s":
             loc_qry = "SELECT * FROM PDM_Candidate_Binaries_Filesystem as t where t.pdm_cand_id = %s"
-            #(pdm_cand_bin_id,pdm_cand_id,pdm_plot_type_id,filename,file_location,uploaded
         else:
-            #else we don't need to run the location query
             loc_qry = ""
+#        if self.palfa_sampleqry.get_active_text() != 'by candidate id':
+#            loc_qry = "SELECT * FROM PDM_Candidate_Binaries_Filesystem as t where t.pdm_cand_id = %s"
+#            #(pdm_cand_bin_id,pdm_cand_id,pdm_plot_type_id,filename,file_location,uploaded
+#        else:
+#            #else we don't need to run the location query
+#            loc_qry = ""
 
         try:
             db = pymssql.connect(dbhost, pwd, uname, database)
