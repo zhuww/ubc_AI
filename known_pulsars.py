@@ -81,13 +81,16 @@ def GBNCC_pulsarlist():
     return:
     dictionary of pulsars keyed by PSRJ
     """
-    url = 'http://arcc.phys.utb.edu/gbncc/'
-    sock = urllib.urlopen(url)
-    data = sock.read()
-    soup = BeautifulSoup(data)
-    sock.close()
-    rows = soup.findAll('tr')[1:]
     pulsars = {}
+    url = 'http://arcc.phys.utb.edu/gbncc/'
+    try:
+        sock = urllib.urlopen(url)
+        data = sock.read()
+        soup = BeautifulSoup(data)
+        sock.close()
+        rows = soup.findAll('tr')[1:]
+    except(IOError):
+        rows = []
     for row in rows:
         cols = row.findAll('td')
         name = cols[1].text
@@ -128,13 +131,16 @@ def LOFAR_pulsarlist():
     """
     gather the pulsars listed on the LOFAR lotas discovery page
     """
+    pulsars = {}
     url = 'http://astron.nl/pulsars/lofar/surveys/lotas/'
-    sock = urllib.urlopen(url)
-    data = sock.read()
-    sock.close()
+    try:
+        sock = urllib.urlopen(url)
+        data = sock.read()
+        sock.close()
+    except(IOError):
+        data = ''
     datas = data.splitlines()
     #read until '-----------'
-    pulsars = {}
     for n, l in enumerate(datas):
         try:
             if l[0] != 'J': continue
@@ -162,15 +168,18 @@ def PALFA_pulsarlist():
     return:
     dictionary of pulsars keyed by PSRJ
     """
-    url = 'http://www.naic.edu/~palfa/newpulsars/'
-    sock = urllib.urlopen(url)
-    data = sock.read()
-    soup = BeautifulSoup(data)
-    sock.close()
-    table = soup.findAll('table')[0] #pulsars are in first table
-    rows = table.findAll('tr')[1:]
-    pinfo = PALFA_jodrell_extrainfo()
     pulsars = {}
+    url = 'http://www.naic.edu/~palfa/newpulsars/'
+    try:
+        sock = urllib.urlopen(url)
+        data = sock.read()
+        soup = BeautifulSoup(data)
+        sock.close()
+        table = soup.findAll('table')[0] #pulsars are in first table
+        rows = table.findAll('tr')[1:]
+    except(IOError):
+        rows = []
+    pinfo = PALFA_jodrell_extrainfo()
     for row in rows:
         cols = row.findAll('td')
         name = cols[1].text
@@ -179,13 +188,17 @@ def PALFA_pulsarlist():
             p0 = np.float(cols[2].text.strip('~'))/1000. #[ms]-->[s]
         except:
             p0 = np.nan
-        if pinfo.has_key(name):
+        if name in pinfo:
             if int(pinfo[name][0]*1000) == int(p0*1000):
                 dm = pinfo[name][1]
             else:
                 dm = np.nan
         else:
-            dm = np.nan 
+            # the website has updated to include the DM :)
+            try:
+                dm = np.float(cols[3].text.strip())
+            except:
+                dm = np.nan 
         coords = name.strip('J')
         if '+' in coords:
             raj = coords.split('+')[0]
@@ -227,14 +240,17 @@ def PALFA_jodrell_extrainfo():
     does.
 
     """
-    url = 'http://www.jodrellbank.manchester.ac.uk/research/pulsar/PALFA/'
-    sock = urllib.urlopen(url)
-    data = sock.read()
-    soup = BeautifulSoup(data)
-    sock.close()
-    table = soup.findAll('table')[0] #pulsars are in first table
-    rows = table.findAll('tr')[1:]
     pulsars = {}
+    url = 'http://www.jodrellbank.manchester.ac.uk/research/pulsar/PALFA/'
+    try:
+        sock = urllib.urlopen(url)
+        data = sock.read()
+        soup = BeautifulSoup(data)
+        sock.close()
+        table = soup.findAll('table')[0] #pulsars are in first table
+        rows = table.findAll('tr')[1:]
+    except(IOError):
+        rows = []
     for row in rows:
         cols = row.findAll('td')
         name = 'J%s' % cols[0].text.strip('_jb.tim')
@@ -246,14 +262,19 @@ def PALFA_jodrell_extrainfo():
 
 
 def driftscan_pulsarlist():
-    url = 'http://www.as.wvu.edu/~pulsar/GBTdrift350/'
-    sock = urllib.urlopen(url)
-    data = sock.read()
-    soup = BeautifulSoup(data)
-    sock.close()
-    table = soup.findAll('table')[0] #pulsars are in first table
-    rows = table.findAll('tr')
     pulsars = {}
+# moved url = 'http://www.as.wvu.edu/~pulsar/GBTdrift350/'
+    url = 'http://astro.phys.wvu.edu/GBTdrift350/'
+    try:
+        sock = urllib.urlopen(url)
+        data = sock.read()
+        soup = BeautifulSoup(data)
+        sock.close()
+        table = soup.findAll('table')[0] #pulsars are in first table
+        rows = table.findAll('tr')
+    except(IOError, IndexError):
+        rows = []
+
     for row in rows:
         cols = row.findAll('td')
         if len(cols) == 0: continue
@@ -292,14 +313,18 @@ def driftscan_pulsarlist():
     return pulsars
 
 def ao327_pulsarlist():
-    url = 'http://www.naic.edu/~deneva/drift-search/'
-    sock = urllib.urlopen(url)
-    data = sock.read()
-    soup = BeautifulSoup(data)
-    sock.close()
-    table = soup.findAll('table')[0] #pulsars are in first table
-    rows = table.findAll('tr')[1:]
     pulsars = {}
+    url = 'http://www.naic.edu/~deneva/drift-search/'
+    try:
+        sock = urllib.urlopen(url)
+        data = sock.read()
+        soup = BeautifulSoup(data)
+        sock.close()
+        table = soup.findAll('table')[0] #pulsars are in first table
+        rows = table.findAll('tr')[1:]
+    except(IOError, IndexError):
+        rows = []
+
     for row in rows:
         cols = row.findAll('td')
         name = str(cols[1].text).strip('*')
@@ -339,6 +364,7 @@ def ao327_pulsarlist():
     return pulsars
 
 def deepmb_pulsarlist():
+    pulsars = {}
     url = 'http://astro.phys.wvu.edu/dmb/'
     try:
         sock = urllib.urlopen(url)
@@ -347,9 +373,8 @@ def deepmb_pulsarlist():
         sock.close()
         table = soup.findAll('table')[0] #pulsars are in first table
         rows = table.findAll('tr')[1:]
-    except(IOError):
+    except(IOError, IndexError):
         rows = []
-    pulsars = {}
     for row in rows:
         cols = row.findAll('td')
         name = str(cols[0].text)
