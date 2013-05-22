@@ -704,6 +704,8 @@ def ddmm2deg(ddmm):
     else:
         if len(ddmm) == 2:
             deg = abs(float(ddmm))
+        elif len(ddmm) == 3: # matches +?? or -??
+            deg = abs(float(ddmm))
         elif len(ddmm) == 4:
             deg = abs(float(ddmm[0:2])) + float(ddmm[2:4])/60.
         elif len(ddmm) >= 6:
