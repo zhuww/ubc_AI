@@ -324,7 +324,8 @@ class combinedAI(object):
             for i in range(len(score)):
                 pp = score[i]
                 f = freq[i]
-                if have_prior:
+                if have_prior and f > 1.:
+                #if have_prior:
                     bidx = min(np.argmin((f-bin_edges)**2), len(bin_edges)-2)
                     prior = w*(Pfr[0][bidx])**spk
                     pr = 1. - pp
