@@ -334,12 +334,15 @@ class MainFrameGTK(Gtk.Window):
 #turn off the model first for speed-up
         self.pfdtree.set_model(None)
         self.pfdstore.clear()
-
         if idx1 != idx2:
             data = self.data[['fname',col1,col2]]
+            if data.ndim == 0:
+                dtyp = [(name, self.data.dtype[name].str) \
+                            for name in ['fname', col1, col2]]
+                data = np.array([data], dtype=dtyp)
             data.sort(order=[col1,'fname'])
             limidx = data[col1] >= lim - 1e-5
-            if np.any(limidx) and limtog:
+            if limidx.size > 1 and np.any(limidx) and limtog:
                 data = data[limidx]
                 self.statusbar.push(0,'Showing %s/%s candidates above %s' %
                                     (limidx.sum(),len(limidx),lim))
@@ -350,9 +353,14 @@ class MainFrameGTK(Gtk.Window):
                 self.pfdstore.append(d)
         else:
             data = self.data[['fname',col1]]
+            if data.ndim == 0:
+                dtyp = [(name, self.data.dtype[name].str) \
+                            for name in ['fname', col1]]
+                data = np.array([data], dtype=dtyp)
+            
             data.sort(order=[col1,'fname'])
             limidx = data[col1] >= lim - 1e-5
-            if np.any(limidx) and limtog:
+            if limidx.size > 1 and np.any(limidx) and limtog:
                 data = data[limidx]
                 self.statusbar.push(0,'Showing %s/%s candidates above %s' %
                                     (limidx.sum(),len(limidx),lim))
@@ -649,9 +657,13 @@ class MainFrameGTK(Gtk.Window):
                 self.active_col2 = idx2
                 if idx1 != idx2:
                     data = self.data[['fname',col1,col2]]
+                    if data.ndim == 0:
+                        dtyp = [(name, self.data.dtype[name].str) \
+                                    for name in ['fname', col1, col2]]
+                        data = np.array([data], dtype=dtyp)
                     data.sort(order=[col1,'fname'])
                     limidx = data[col1] >= lim - 1e-5
-                    if np.any(limidx) and limtog:
+                    if limidx.size > 1 and np.any(limidx) and limtog:
                         data = data[limidx]
                         self.statusbar.push(0,'Showing %s/%s candidates above %s' %
                                             (limidx.sum(),len(limidx),lim))
@@ -662,9 +674,13 @@ class MainFrameGTK(Gtk.Window):
                         self.pfdstore.append(d)
                 else:
                     data = self.data[['fname',col1]]
+                    if data.ndim == 0:
+                        dtyp = [(name, self.data.dtype[name].str) \
+                                    for name in ['fname', col1]]
+                        data = np.array([data], dtype=dtyp)
                     data.sort(order=[col1,'fname'])
                     limidx = data[col1] >= lim - 1e-5
-                    if np.any(limidx) and limtog:
+                    if limidx.size > 1 and np.any(limidx) and limtog:
                         data = data[limidx]
                         self.statusbar.push(0,'Showing %s/%s candidates above %s' %
                                             (limidx.sum(),len(limidx),lim))
@@ -707,9 +723,13 @@ class MainFrameGTK(Gtk.Window):
                 lim = self.view_limit.get_value()
                 if idx1 != idx2:
                     data = self.data[['fname',col1,col2]]
+                    if data.ndim == 0:
+                        dtyp = [(name, self.data.dtype[name].str) \
+                                    for name in ['fname', col1, col2]]
+                        data = np.array([data], dtype=dtyp)
                     data.sort(order=[col1,'fname'])
                     limidx = data[col1] >= lim - 1e-5
-                    if np.any(limidx) and limtog:
+                    if limidx.size > 1 and np.any(limidx) and limtog:
                         data = data[limidx]
                         self.statusbar.push(0,'Showing %s/%s candidates above %s' %
                                              (limidx.sum(),len(limidx),lim))
@@ -720,9 +740,13 @@ class MainFrameGTK(Gtk.Window):
                         self.pfdstore.append(d)
                 else:
                     data = self.data[['fname',col1]]
+                    if data.ndim == 0:
+                        dtyp = [(name, self.data.dtype[name].str) \
+                                    for name in ['fname', col1]]
+                        data = np.array([data],dtype=dtyp)
                     data.sort(order=[col1,'fname'])
                     limidx = data[col1] >= lim - 1e-5
-                    if np.any(limidx) and limtog:
+                    if limidx.size > 1 and np.any(limidx) and limtog:
                         data = data[limidx]
                         self.statusbar.push(0,'Showing %s/%s candidates above %s' %
                                             (limidx.sum(),len(limidx),lim))
