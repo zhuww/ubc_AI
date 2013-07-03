@@ -686,12 +686,8 @@ class MainFrameGTK(Gtk.Window):
                                             (limidx.sum(),len(limidx),lim))
                     else:
                         self.statusbar.push(0,'No %s candidates > %s. Showing all.' % (col1, lim))
-                    if data.size == 1:
-                        vi = 0
-                        v0, v1 = data
-                        self.pfdstore.append((vi,v0,float(v1),float(v1)))
-                    else:
-                        for vi, v in enumerate(data[::-1]):
+
+                    for vi, v in enumerate(data[::-1]):
                             v0, v1 = v
                             self.pfdstore.append((vi,v0,float(v1),float(v1)))
                         
@@ -1914,9 +1910,14 @@ class MainFrameGTK(Gtk.Window):
                                         ''.join(pfd.decstr.split(':')[:2]))
 #                this_pulsar = KP.pulsar(fname, name, ra, dec, p0*1e-3, dm)
                 this_pulsar = KP.pulsar(fname, name, ra, dec, p0, dm)
-                this_idx = self.data['fname'] == store_name
+                this_idx = np.array(self.data['fname'] == store_name)
+                if this_idx.size == 1:
+                    this_idx = np.array([this_idx])
                 if len(this_idx[this_idx]) > 0:
-                    this_vote = self.data[act_name][this_idx][0]
+                    data = self.data[act_name]
+                    if this_idx.size == 1:
+                        data = np.array([data])
+                    this_vote = data[this_idx][0]
                 else:
                     this_vote = np.nan
                 self.pmatch_tree.set_model(None)
@@ -1967,10 +1968,15 @@ class MainFrameGTK(Gtk.Window):
                             if verbose:
                                 print "  rejecting %s since Delta DM/DM = %s" % (m.name, dDM)
                             continue
-                    idx = self.data['fname'] == m.name
+                    idx = np.array(self.data['fname'] == m.name)
+                    if idx.size == 1:
+                        idx = np.array([idx])
                     if len(idx[idx]) > 0:
                         try:
-                            vote = self.data[act_name][idx][0]
+                            data = self.data[act_name]
+                            if idx.size == 1:
+                                data = np.array([data])
+                            vote = data[idx][0]
                         except ValueError:
                             vote = np.nan
                     else:
