@@ -3,6 +3,7 @@ by Aaron Berndsen and Weiwei Zhu
 
 
 TO USE THIS CODE YOU NEED TO INSTALL:
+    PRESTO (make sure to include the presto python library in your $PYTHONPATH)
     sklearn (python package, version 0.12.1)
     libblas-dev
     theano (python)
