@@ -779,7 +779,7 @@ def matches(allpulsars, pulsar, sep=.6, harm_match=False, DM_match=False):
         if amatch and DM_match:
             if (v.DM != np.nan) and (pulsar.DM != 0.):
                 dDM = abs(v.DM - pulsar.DM)/pulsar.DM
-                if dDM > 0.15:
+                if dDM > 0.26: #0.15:
                     amatch = False
                     print "%s has a very different DM (rejecting)" % k
 
@@ -1146,4 +1146,6 @@ J1203-62     12:03:00      -62:00:00       0.393090    285.000   YPSR   Fermi
 #J2214+3000   22:14:38.8    +30:00:38.2     0.003119      22.56    MSP   Fermi
 #J2241-5236   22:41:42.0    -52:36:36.2     0.002187      11.41    MSP   Fermi
 #J2302+4442   23:02:46.9    +44:42:22.0     0.005192      13.76    MSP   Fermi
+# Galactic center magnetar 
+#J1745-2900   17:45:40.0    -29:00:28.1     0.003764      2000     NRP   EFB
 """
