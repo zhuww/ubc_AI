@@ -26,6 +26,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import ubc_AI
 from os.path import abspath, basename, dirname, exists
 from optparse import OptionParser
 
@@ -33,10 +34,10 @@ from gi.repository import Gtk, Gdk
 import pylab as plt
 
 #next taken from ubc_AI.training and ubc_AI.samples
-from training import pfddata
+from ubc_AI.training import pfddata
 from ubc_AI.data import pfdreader 
 from sklearn.decomposition import RandomizedPCA as PCA
-import known_pulsars as KP
+import ubc_AI.known_pulsars as known_pulsars
 
 #check for ps --> png conversion utilities
 try:
@@ -77,15 +78,15 @@ cand_vote = 0
 tempdir = tempfile.mkdtemp(prefix='AIview_')
 atexit.register(lambda: shutil.rmtree(tempdir, ignore_errors=True))
 bdir = '/'.join(__file__.split('/')[:-1])
-
+AI_path = AI_PATH = '/'.join(ubc_AI.__file__.split('/')[:-1])
 
 class MainFrameGTK(Gtk.Window):
     """This is the Main Frame for the GTK application"""
     
     def __init__(self, data=None, tmpAI=None):
         Gtk.Window.__init__(self, title='pfd viewer')
-        if bdir:
-            self.gladefile = "%s/pfdviewer.glade" % bdir
+        if AI_path:
+            self.gladefile = "%s/pfdviewer.glade" % AI_path
         else:
             self.gladefile = "pfdviewer.glade"
         self.builder = Gtk.Builder()
@@ -231,12 +232,12 @@ class MainFrameGTK(Gtk.Window):
         self.loadfile = None 
         self.knownpulsars = {}
         #ATNF, PALFA and GBNCC list of known pulsars
-        if exists('%s/known_pulsars.pkl' % bdir):
-            self.knownpulsars = cPickle.load(open('%s/known_pulsars.pkl' % bdir))
+        if exists('%s/known_pulsars.pkl' % AI_path):
+            self.knownpulsars = cPickle.load(open('%s/known_pulsars.pkl' % AI_path))
         elif exists('known_pulsars.pkl'):
             self.knownpulsars = cPickle.load(open('known_pulsars.pkl'))
         else:
-            self.knownpulsars = KP.get_allpulsars()
+            self.knownpulsars = known_pulsars.get_allpulsars()
         #if we were passed a data file, read it in
         if data != None:
             self.on_open(event='load', fin=data)
@@ -619,8 +620,8 @@ class MainFrameGTK(Gtk.Window):
                 sgn = ''
                 name = 'J%s%s%s' % (''.join(pfd.rastr.split(':')[:2]), sgn,\
                                         ''.join(pfd.decstr.split(':')[:2]))
-#            this_pulsar = KP.pulsar(fname, name, ra, dec, p0*1e-3, dm)
-            this_pulsar = KP.pulsar(fname, name, ra, dec, p0, dm, catalog='local')
+#            this_pulsar = known_pulsars.pulsar(fname, name, ra, dec, p0*1e-3, dm)
+            this_pulsar = known_pulsars.pulsar(fname, name, ra, dec, p0, dm, catalog='local')
                 
             self.knownpulsars[fname] = this_pulsar
 
@@ -1653,7 +1654,7 @@ class MainFrameGTK(Gtk.Window):
 
         if self.knownpulsars == None:
             self.statusbar.push(0,'Downloading ATNF, PALFA and GBNCC list of known pulsars')
-            self.knownpulsars = KP.get_allpulsars()
+            self.knownpulsars = known_pulsars.get_allpulsars()
             self.statusbar.push(0,'Downloaded %s known pulsars for x-ref'\
                                 % len(self.knownpulsars))
 
@@ -1908,8 +1909,8 @@ class MainFrameGTK(Gtk.Window):
                     sgn = '' 
                 name = 'J%s%s%s' % (''.join(pfd.rastr.split(':')[:2]), sgn,\
                                         ''.join(pfd.decstr.split(':')[:2]))
-#                this_pulsar = KP.pulsar(fname, name, ra, dec, p0*1e-3, dm)
-                this_pulsar = KP.pulsar(fname, name, ra, dec, p0, dm)
+#                this_pulsar = known_pulsars.pulsar(fname, name, ra, dec, p0*1e-3, dm)
+                this_pulsar = known_pulsars.pulsar(fname, name, ra, dec, p0, dm)
                 this_idx = np.array(self.data['fname'] == store_name)
                 if this_idx.size == 1:
                     this_idx = np.array([this_idx])
@@ -1929,7 +1930,7 @@ class MainFrameGTK(Gtk.Window):
                                               this_pulsar.dec, this_vote])
 
                 sep = self.matchsep.get_value()
-                matches = KP.matches(self.knownpulsars, this_pulsar, sep=sep)
+                matches = known_pulsars.matches(self.knownpulsars, this_pulsar, sep=sep)
                 
                 verbose = self.verbose_match.get_active()
                 if verbose:
@@ -2129,7 +2130,7 @@ class MainFrameGTK(Gtk.Window):
         dlg.set_modal(False)
         dlg.run()
         self.statusbar.push(0,'Downloading ATNF and GBNCC databases')
-        newlist = KP.get_allpulsars()
+        newlist = known_pulsars.get_allpulsars()
         fout = abspath('known_pulsars.pkl')
         if self.knownpulsars == None:
             self.knownpulsars = newlist
