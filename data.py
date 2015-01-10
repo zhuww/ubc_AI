@@ -6,7 +6,6 @@ from random import shuffle
 import cPickle
 from scipy import mgrid
 import os,sys
-
 from ubc_AI.training import pfddata
 
 class pfdreader(object):
@@ -36,7 +35,7 @@ class pfdreader(object):
                     break
             if not 'pfdfile' in self.__dict__:
                 print pfdfile, self.PSRclass, self.DMCclass
-                raise NameError, "did not file the file %s" % pfdfile
+                raise NameError, "did not find the file %s" % pfdfile
 
     def getdata(self, *fargs, **features):
         pfd = None
