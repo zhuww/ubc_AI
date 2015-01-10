@@ -7,7 +7,7 @@ import cPickle
 from scipy import mgrid
 import os,sys
 from ubc_AI.training import pfddata
-from ubc_AI.psrachive_reader import ar2data
+from ubc_AI.psrarchive_reader import ar2data
 
 class pfdreader(object):
     """ 
