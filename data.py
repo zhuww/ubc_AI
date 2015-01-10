@@ -7,6 +7,7 @@ import cPickle
 from scipy import mgrid
 import os,sys
 from ubc_AI.training import pfddata
+from ubc_AI.psrachive_reader import ar2data
 
 class pfdreader(object):
     """ 
@@ -56,13 +57,25 @@ class pfdreader(object):
             key, value = i.items()[0]
             feature = '%s:%s' % (key, value)
             if (feature not in self.extracted_feature) and (pfd is None):
-                pfd = pfddata(self.pfdfile, align=True) 
+                if os.path.splitext(self.pfdfile)[1] == '.pfd': 
+                    pfd = pfddata(self.pfdfile, align=True) 
+                elif os.path.splitext(self.pfdfile)[1] == '.ar2':  
+                    pfd = ar2data(self.pfdfile, align=True) 
+                else:
+                    print "unrecognized file format ", self.pfdfile
+                    raise Error
             data = np.append(data, extract(key, value, pfd))
         #process the kwargs
         for key, value in features.iteritems():
             feature = '%s:%s' % (key, value) 
             if (feature not in self.extracted_feature) and (pfd is None):
-                pfd = pfddata(self.pfdfile, align=True)
+                if os.path.splitext(self.pfdfile)[1] == '.pfd': 
+                    pfd = pfddata(self.pfdfile, align=True) 
+                elif os.path.splitext(self.pfdfile)[1] == '.ar2':  
+                    pfd = ar2data(self.pfdfile, align=True) 
+                else:
+                    print "unrecognized file format ", self.pfdfile
+                    raise Error
             data = np.append(data, extract(key, value, pfd))
         del(pfd)
         return data
