@@ -6,7 +6,7 @@ For this to work you need to install psrchive's python module:
 INSTALL psrchive with
     configure --enable-shared
 make sure to add $PSRHOME/lib/python2.X/site-packages/ to your PYTHONPATH.
-This is now required for when dealing with the pfd files.
+This is now required when dealing with only pfd files.
 
 TO USE THIS CODE YOU NEED TO INSTALL:
     PRESTO (make sure to include the presto python library in your $PYTHONPATH)
