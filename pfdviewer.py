@@ -59,6 +59,12 @@ for p in os.environ.get('PATH').split(':'):
     if exists(cmd):
         show_pfd = cmd
         break
+pdmp = False
+for p in os.environ.get('PATH').split(':'):
+    cmd = '%s/pdmp' % p
+    if exists(cmd):
+        pdmp = cmd
+        break
 if not show_pfd:
     print "\tCouldn't find PRESTO's show_pfd executable"
     print "\t This will limit functionality"
@@ -893,6 +899,10 @@ class MainFrameGTK(Gtk.Window):
                         fname = pfdfile
                         fpng = convert(fname)
         elif fname.endswith('.pfd'):
+            fpng = '%s.png' % fname
+            if not exists(fpng):
+                fpng = convert(fname)
+        elif fname.endswith('ar2'):
             fpng = '%s.png' % fname
             if not exists(fpng):
                 fpng = convert(fname)
@@ -1889,26 +1899,37 @@ class MainFrameGTK(Gtk.Window):
             store_name = tmpstore.get_value(tmpiter, 1)
 # see if this path exists, update self.basedir if necessary
 #            self.find_file(fname)
-            try:
-                #pfd = pfdreader(fname)
-                pfd = pfddata(fname)
-                pfd.dedisperse()
-            except(IOError, ValueError):
-#                print "prepfold can't parse %s" % fname
-                pfd = None
+            pfd = None
+            if fname.endswith('.pfd'):
+                try:
+                    #pfd = pfdreader(fname)
+                    pfd = pfddata(fname)
+                    pfd.dedisperse()
+                    dm = pfd.bestdm
+                    ra = pfd.rastr 
+                    dec = pfd.decstr 
+                    p0 = pfd.bary_p1
+                except(IOError, ValueError):pass
+            arch = None
+            if fname.endswith('.ar2'):
+                try:
+                    import psrchive
+                    arch = psrchive.Archive_load(fname)
+                    arch.dedisperse()
+                    coord = arch.get_coordinates()
+                    dm = arch.get_dispersion_measure()
+                    ra, dec = coord.getHMSDMS().split(' ')
+                    p0 = arch[0].get_folding_period()
+                except(IOError, ValueError):pass
                 
-            if exists(fname) and fname.endswith('.pfd') and pfd != None:
+            if exists(fname) and (pfd != None or arch != None):
 
-                dm = pfd.bestdm
-                ra = pfd.rastr 
-                dec = pfd.decstr 
-                p0 = pfd.bary_p1
-                if float(pfd.decstr.split(':')[0]) > 0:
+                if float(dec.split(':')[0]) > 0:
                     sgn = '+'
                 else:
                     sgn = '' 
-                name = 'J%s%s%s' % (''.join(pfd.rastr.split(':')[:2]), sgn,\
-                                        ''.join(pfd.decstr.split(':')[:2]))
+                name = 'J%s%s%s' % (''.join(ra.split(':')[:2]), sgn,\
+                                        ''.join(dec.split(':')[:2]))
 #                this_pulsar = known_pulsars.pulsar(fname, name, ra, dec, p0*1e-3, dm)
                 this_pulsar = known_pulsars.pulsar(fname, name, ra, dec, p0, dm)
                 this_idx = np.array(self.data['fname'] == store_name)
@@ -2577,6 +2598,45 @@ def convert(fin):
         else:
             #conversion failed
             fout = None
+
+    if fin.endswith('.ar2'):
+        #find psrchive's pdmp executable
+        if not pdmp:
+            dialog = Gtk.FileChooserDialog("Locate pdmp executable", self,
+                                           Gtk.FileChooserAction.OPEN,
+                                           (Gtk.STOCK_CANCEL, 
+                                            Gtk.ResponseType.CANCEL,
+                                            Gtk.STOCK_OPEN, Gtk.ResponseType.OK))
+            response = dialog.run()
+            if response == Gtk.ResponseType.OK:
+                print "Select clicked"
+                show_pfd = dialog.get_filename()
+                print "File selected: " + fname
+            elif response == Gtk.ResponseType.CANCEL:
+                print "Cancel clicked"
+        if pdmp:
+            #make the .ps file (later converted to .png)
+            pfddir = dirname(abspath(fin))
+            pfdname = basename(fin)
+            full_path = abspath(fin)
+            cwd = os.getcwd()
+
+            os.chdir(pfddir)
+            show_name = os.path.splitext(pfdname)[0]
+            #cmd = [pdmp, '-ms', '16', '-mc', '16', '-mb', '128', '-pr', '40', '-dr', '100', '-g', '%s.ps/cps' % (show_name), full_path]
+            cmd = [pdmp, '-S','-ms', '16', '-mc', '16', '-mb', '64', '-g', '%s.ps/cps' % (show_name), pfdname]
+            subprocess.call(cmd, shell=False,
+                            stdout=open('/dev/null','w'))
+            #subprocess.call(cmd, shell=False)
+            os.chdir(cwd)
+
+            # assign fin to ps file so it converts to png below
+            fin = abspath(os.path.join(pfddir, "%s.ps" % show_name))
+            #print fin, os.path.exists(fin)
+        else:
+            #conversion failed
+            fout = None
+
 
     if fin.endswith('.ps') and os.path.exists(fin):
         bdir = dirname(abspath(fin))
