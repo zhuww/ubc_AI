@@ -902,7 +902,7 @@ class MainFrameGTK(Gtk.Window):
             fpng = '%s.png' % fname
             if not exists(fpng):
                 fpng = convert(fname)
-        elif fname.endswith('ar2'):
+        elif fname.endswith('.ar2') or fanme.endswith('.ar'):
             fpng = '%s.png' % fname
             if not exists(fpng):
                 fpng = convert(fname)
@@ -1911,7 +1911,7 @@ class MainFrameGTK(Gtk.Window):
                     p0 = pfd.bary_p1
                 except(IOError, ValueError):pass
             arch = None
-            if fname.endswith('.ar2'):
+            if fname.endswith('.ar2') or fname.endswith('.ar'):
                 try:
                     import psrchive
                     arch = psrchive.Archive_load(fname)
@@ -2599,7 +2599,7 @@ def convert(fin):
             #conversion failed
             fout = None
 
-    if fin.endswith('.ar2'):
+    if fin.endswith('.ar2') or fin.endswith('.ar'):
         #find psrchive's pdmp executable
         if not pdmp:
             dialog = Gtk.FileChooserDialog("Locate pdmp executable", self,
