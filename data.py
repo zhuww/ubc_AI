@@ -39,7 +39,7 @@ class pfdreader(object):
                         self.pfdfile = path+pfdfile.split('/')[-1]
                         break
                 if not 'pfdfile' in self.__dict__:
-                    print pfdfile, self.PSRclass, self.DMCclass
+                    #print pfdfile, self.PSRclass, self.DMCclass
                     raise NameError, "did not find the file %s" % pfdfile
 
     def getdata(self, *fargs, **features):
