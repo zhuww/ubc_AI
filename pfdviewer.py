@@ -821,7 +821,10 @@ class MainFrameGTK(Gtk.Window):
                 disp_apnd = ''
 
 # find/create png file from input file
+            #try:
             fpng = self.create_png(fname)
+            #except:
+                #print 'failed to create png file for %' % (fname)
 
             #update the basedir if necessary 
             if not exists(fpng):
@@ -1895,14 +1898,19 @@ class MainFrameGTK(Gtk.Window):
                 basedir = self.qrybasedir
             else:
                 basedir = self.basedir
-            fname = '%s/%s' % (basedir,tmpstore.get_value(tmpiter, 1))
             store_name = tmpstore.get_value(tmpiter, 1)
+            if exists(store_name):
+                fname = store_name
+            else:
+                fname = '%s/%s' % (basedir,tmpstore.get_value(tmpiter, 1))
+                if not exists(fname):
+                    print "can't find file %s" % fname
+                    print "known pulsar match won't work for this candidate."
 # see if this path exists, update self.basedir if necessary
 #            self.find_file(fname)
             pfd = None
             if fname.endswith('.pfd'):
                 try:
-                    #pfd = pfdreader(fname)
                     pfd = pfddata(fname)
                     pfd.dedisperse()
                     dm = pfd.bestdm
@@ -1921,9 +1929,8 @@ class MainFrameGTK(Gtk.Window):
                     ra, dec = coord.getHMSDMS().split(' ')
                     p0 = arch[0].get_folding_period()
                 except(IOError, ValueError):pass
-                
+            
             if exists(fname) and (pfd != None or arch != None):
-
                 if float(dec.split(':')[0]) > 0:
                     sgn = '+'
                 else:
@@ -2580,8 +2587,11 @@ def convert(fin):
                 for ext in ['ps', 'bestprof']:
                     pin = '%s.%s' % (show_name, ext) 
                     pout = os.path.join(pfddir, '%s.%s' %(pfdname, ext))
-                    if os.path.exists(pin):
-                        shutil.move(pin, pout)
+                    if os.path.exists(pin) and not os.path.exists(pout):
+                        try:
+                            shutil.move(pin, pout)
+                        except IOError:
+                            print "\n[***failed]Moving %s to %s\n" % (pin, pout)
                         #print "\nMoving %s to %s\n" %(pin, pout)
             else:
                 #assume name was same as input filename
@@ -2716,7 +2726,7 @@ def load_data(fname):
         l1 = f.readline()
         f.close()
         if '#' not in l1:
-            print "Expected first line to be a comment line describing the columns"
+            print "[optional] first line expected to be a comment line describing the columns"
             print "format: #fname voter1 voter2 ..."
             cols = l1.split()
             ncol = len(cols)
