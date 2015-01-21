@@ -8,7 +8,7 @@ from scipy import mgrid
 import os,sys
 from ubc_AI.training import pfddata
 from ubc_AI.psrarchive_reader import ar2data
-from singlepulse import waterfall
+from ubc_AI.singlepulse import waterfall
 
 class pfdreader(object):
     """ 

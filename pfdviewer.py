@@ -1904,10 +1904,11 @@ class MainFrameGTK(Gtk.Window):
             else:
                 fname = '%s/%s' % (basedir,tmpstore.get_value(tmpiter, 1))
                 if not exists(fname):
-                    print "can't find file %s" % fname
-                    print "known pulsar match won't work for this candidate."
+                    self.find_file(fname)
+                    if not exists(fname):
+                        print "can't find file %s" % fname
+                        print "known pulsar match won't work for this candidate."
 # see if this path exists, update self.basedir if necessary
-#            self.find_file(fname)
             pfd = None
             if fname.endswith('.pfd'):
                 try:
