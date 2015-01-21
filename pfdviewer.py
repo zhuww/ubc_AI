@@ -1904,7 +1904,7 @@ class MainFrameGTK(Gtk.Window):
             else:
                 fname = '%s/%s' % (basedir,tmpstore.get_value(tmpiter, 1))
                 if not exists(fname):
-                    self.find_file(fname)
+                    fname = self.find_file(fname)
                     if not exists(fname):
                         print "can't find file %s" % fname
                         print "known pulsar match won't work for this candidate."
