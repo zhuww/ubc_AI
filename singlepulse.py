@@ -2,7 +2,7 @@ import numpy as np
 import os,sys
 import scipy.stats as stats
 import ubc_AI.samples
-DM_range_factor = 0.1
+DM_range_factor = 0.2
 
 
 def rotate(data, deltaphase): 
