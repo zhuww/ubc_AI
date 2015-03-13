@@ -9,7 +9,7 @@ else
 cwd=`pwd`
 otherdir=$1
 cd $otherdir
-files=`ls *.pfd`
+files=`ls *.pfd *.ar *.ar2`
 cd $cwd
 function mirror() {
 ln -s $otherdir/$1 $1
