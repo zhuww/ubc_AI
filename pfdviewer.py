@@ -419,6 +419,7 @@ class MainFrameGTK(Gtk.Window):
                 self.pfdstore.remove(one.iter)
                 removecount += 1 
         print "removed %s candidates with DM < %s" % (removecount, lim)
+        self.statusbar.push(0,'removed %s candidates with DM < %s.' % (removecount, lim))
 
         
         return 
