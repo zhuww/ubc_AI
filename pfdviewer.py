@@ -157,6 +157,8 @@ class MainFrameGTK(Gtk.Window):
         #advance to next non-voted candidate, or next in list.
         self.advance_next = self.builder.get_object('advance_next')
         self.advance_col = self.builder.get_object('advance_col')
+        self.DM_limit_toggle = self.builder.get_object('DM_limit_toggle')
+        self.DM_limit = self.builder.get_object('DM_limit_val')
         
         #feature-labelling stuff
         self.builder.get_object('FL_grid').hide()
@@ -308,7 +310,6 @@ class MainFrameGTK(Gtk.Window):
 #keep track of the AI view files created (so we don't need to generate them)
         self.AIviewfiles = {}
 
-
 ############################
 ## data-manipulation actions
     def on_sep_change(self, widget):
@@ -319,6 +320,9 @@ class MainFrameGTK(Gtk.Window):
 
     def on_viewlimit_toggled(self, widget):
         self.on_view_limit_changed( widget)
+
+    def on_DM_limit_toggled(self, widget):
+        self.on_DM_limit_val_changed( widget)
 
     def on_verbose_match(self, widget):
         self.find_matches()
@@ -337,6 +341,7 @@ class MainFrameGTK(Gtk.Window):
         idx2 = self.col_options.index(col2)
         limtog = self.limit_toggle.get_active()
         lim = self.view_limit.get_value()
+    
 
 #turn off the model first for speed-up
         self.pfdtree.set_model(None)
@@ -379,6 +384,82 @@ class MainFrameGTK(Gtk.Window):
                     
         self.pfdtree.set_model(self.pfdstore)
         self.find_matches()
+
+
+    def on_DM_limit_val_changed(self, widget):
+        """
+        set limit on the DM of candidadtes to display
+        """
+        limtog = self.DM_limit_toggle.get_active()
+        lim = self.DM_limit.get_value()
+
+        if not limtog: 
+            self.on_view_limit_changed(widget)
+            return
+
+        col1 = self.col1.get_active_text()
+        col2 = self.col2.get_active_text()
+        idx1 = self.col_options.index(col1)
+        if col2 == None:
+            col2 = col1
+            self.col2.set_active(idx1)
+        idx2 = self.col_options.index(col2)
+
+        if len(self.pfdstore) == 0:return None #do nothing
+
+        #if idx1 != idx2:
+            #dtyp = [('n', '<i8')] + [(name, self.data.dtype[name].str) for name in ['fname', col1, col2]]
+        #else:
+            #dtyp = [('n', '<i8')] + [(name, self.data.dtype[name].str) for name in ['fname', col1]]
+
+        for i, one in enumerate(self.pfdstore):
+            onesdm = pfddata(one[1]).bestdm
+            if not onesdm > lim:
+                self.pfdstore.remove(one.iter)
+
+        
+        return 
+#turn off the model first for speed-up
+        """
+        #if idx1 != idx2:
+            #data = self.data[['fname',col1,col2]]
+            #if data.ndim == 0:
+                #dtyp = [(name, self.data.dtype[name].str) \
+                            #for name in ['fname', col1, col2]]
+                #data = np.array([data], dtype=dtyp)
+            #data.sort(order=[col1,'fname'])
+            #limidx = data[col1] >= lim - 1e-5
+            #if limidx.size > 1 and np.any(limidx) and limtog:
+                #data = data[limidx]
+                #self.statusbar.push(0,'Showing %s/%s candidates above %s in DM' %
+                                    #(limidx.sum(),len(limidx),lim))
+            #else:
+                #self.statusbar.push(0,'No %s candidates > %s in DM. Showing all' % (col1, lim))
+            #for vi, v in enumerate(data[::-1]):
+                #d = (vi,) + v.tolist() 
+                #self.pfdstore.append(d)
+        #else:
+            #data = self.data[['fname',col1]]
+            #if data.ndim == 0:
+                #dtyp = [(name, self.data.dtype[name].str) \
+                            #for name in ['fname', col1]]
+                #data = np.array([data], dtype=dtyp)
+            
+            data.sort(order=[col1,'fname'])
+            limidx = data[col1] >= lim - 1e-5
+            if limidx.size > 1 and np.any(limidx) and limtog:
+                data = data[limidx]
+                self.statusbar.push(0,'Showing %s/%s candidates above %s in DM' %
+                                    (limidx.sum(),len(limidx),lim))
+            else:
+                self.statusbar.push(0,'No %s candidates > %s in DM. Showing all' % (col1, lim))
+            for vi, v in enumerate(data[::-1]):
+                v0, v1 = v
+                self.pfdstore.append((vi,v0,float(v1),float(v1)))
+                    
+        self.pfdtree.set_model(self.pfdstore)
+        self.find_matches()
+        """
 
     def on_pfdwin_key_press_event(self, widget, event):
         """
@@ -886,6 +967,8 @@ class MainFrameGTK(Gtk.Window):
     def create_png(self, fname):
         """
         given some pfd or ps file, create the png file
+        for i, t in enumerate(self.pfdstore):
+            print i, list(t)
         if it doesn't already exist
 
         """
