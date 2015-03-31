@@ -412,10 +412,13 @@ class MainFrameGTK(Gtk.Window):
         #else:
             #dtyp = [('n', '<i8')] + [(name, self.data.dtype[name].str) for name in ['fname', col1]]
 
+        removecount = 0
         for i, one in enumerate(self.pfdstore):
             onesdm = pfddata(one[1]).bestdm
             if not onesdm > lim:
                 self.pfdstore.remove(one.iter)
+                removecount += 1 
+        print "removed %s candidates with DM < %s" % (removecount, lim)
 
         
         return 
