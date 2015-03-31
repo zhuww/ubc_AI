@@ -391,7 +391,10 @@ class MainFrameGTK(Gtk.Window):
         set limit on the DM of candidadtes to display
         """
         limtog = self.DM_limit_toggle.get_active()
-        lim = float(self.DM_limit.get_text())
+        try:
+            lim = float(self.DM_limit.get_text())
+        except:
+            return
 
         if not limtog: 
             self.on_view_limit_changed(widget)
