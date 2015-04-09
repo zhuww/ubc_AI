@@ -2064,6 +2064,7 @@ class MainFrameGTK(Gtk.Window):
                 for m in match_nonlocal_loc:
                     max_denom = 100
                     num, den = harm_ratio(np.round(this_pulsar.P0,5), np.round(m.P0,5), max_denom=max_denom)
+                    if num == 0 and den == 0:return
                     
                     if num == 0: 
                         num = 1
@@ -3012,8 +3013,11 @@ def harm_ratio(a,b,max_denom=100):
     given two numbers, find the harmonic ratio
 
     """
-    c = fractions.Fraction(a/b).limit_denominator(max_denominator=max_denom)
-    return c.numerator, c.denominator
+    try:
+        c = fractions.Fraction(a/b).limit_denominator(max_denominator=max_denom)
+        return c.numerator, c.denominator
+    except:
+        return 0 , 0
 
 
 
