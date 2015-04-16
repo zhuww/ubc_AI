@@ -31,7 +31,7 @@ def greyscale(img):
     img = (img-min_parts[:,np.newaxis])/global_max
     return img
 
-class waterfall(object): 
+class singlepulse(object): 
     initialize = False
     def __init__(self, data, dm, duration, freq_lo, freq_hi, align=True, centre=True):
         self.data = data
@@ -152,3 +152,42 @@ class waterfall(object):
             return self.extracted_feature[feature]
         data = np.hstack((getsumprofs(phasebins), getfreqprofs(freqbins), gettimeprofs(timebins), getbandpass(bandpass), getDMcurve(DMbins), getintervals(intervals), getsubbands(subbands), getratings(ratings)))
         return data
+
+
+class SPdata(singlepulse):
+    def __init__(self, spfile, align=True, centre=True):
+        npzfile = np.load(spfile)
+        text_array = npzfile['text_array']
+        fn = text_array[0]
+        telescope = text_array[1]
+        RA = text_array[2]
+        dec = text_array[3]
+        MJD = float(text_array[4])
+        #mjd = Popen(["mjd2cal", "%f"%MJD], stdout=PIPE, stderr=PIPE)
+        #date, err = mjd.communicate()
+        #date = date.split()[2:5]
+        #rank = int(text_array[5])
+        nsub = int(text_array[6])
+        nbins = int(text_array[7])
+        subdm = dm = sweep_dm = float(text_array[8])
+        sigma = float(text_array[9])
+        sample_number = int(text_array[10])
+        duration = float(text_array[11])
+        width_bins = int(text_array[12])
+        pulse_width = float(text_array[13])
+        tsamp = float(text_array[14])
+        Total_observed_time = float(text_array[15])
+        start = float(text_array[16])
+        start = start - 0.25*duration
+        datastart = float(text_array[17])
+        datasamp = float(text_array[18])
+        datanumspectra = float(text_array[19])
+        min_freq = float(text_array[20])
+        max_freq = float(text_array[21])
+        sweep_duration = float(text_array[22])
+        sweeped_start = float(text_array[23])
+
+        data = npzfile['Data_dedisp_zerodm'].astype(np.float64)
+        row, col = data.shape
+
+        singlepulse.__init__(self, data[:row/2,:], dm, duration/2., min_freq, max_freq, align=align, centre=centre )
