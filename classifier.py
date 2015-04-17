@@ -817,10 +817,10 @@ def threadpredict_proba(AIlist, pfds):
     pfds : list of pfds
     """
     def predict_prob(clf):
-        try:
-            p = clf.predict_proba(pfds)
-        except:
-            print 'Alarm!!!'
+        #try:
+        p = clf.predict_proba(pfds)
+        #except:
+            #print 'Alarm!!!'
         return p
     resultdict = threadit(predict_prob, [[clf] for clf in AIlist])
     return np.hstack([resultdict[n] for n in range(len(AIlist))])

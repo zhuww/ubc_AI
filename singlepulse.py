@@ -3,6 +3,7 @@ import os,sys
 import scipy.stats as stats
 import ubc_AI.samples
 DM_range_factor = 0.2
+BINRATIO = 25
 
 
 def rotate(data, deltaphase): 
@@ -187,7 +188,25 @@ class SPdata(singlepulse):
         sweep_duration = float(text_array[22])
         sweeped_start = float(text_array[23])
 
+        self.dm = dm
+        self.period = duration/2.
+        self.ra = RA
+        self.dec = dec
+
         data = npzfile['Data_dedisp_zerodm'].astype(np.float64)
         row, col = data.shape
+        dataorg = data[:,:col/2]
+        fbin, tbin = dataorg.shape
+        #print tbin, fbin
+        M = max(int(tbin/BINRATIO), 1)
+        if M > 1:
+            datacut = dataorg[:,:M * BINRATIO]
+            data = datacut.reshape(fbin, BINRATIO, M).sum(axis=-1)
+        else:
+            data = dataorg
+        #print tbin, fbin, M, data.shape
+        #from pylab import * 
+        #imshow(data, aspect='auto')
+        #show()
 
-        singlepulse.__init__(self, data[:row/2,:], dm, duration/2., min_freq, max_freq, align=align, centre=centre )
+        singlepulse.__init__(self, data, dm, self.period, min_freq, max_freq, align=align, centre=centre )

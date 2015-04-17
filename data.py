@@ -68,7 +68,7 @@ class pfdreader(object):
                     pfd = pfddata(self.pfdfile, align=True) 
                 elif os.path.splitext(self.pfdfile)[1] == '.ar2':  
                     pfd = ar2data(self.pfdfile, align=True) 
-                elif os.path.splitext(self.pfdfile)[1] == '.npz':  
+                elif os.path.splitext(self.pfdfile)[1] == '.spd':  
                     pfd = SPdata(self.pfdfile, align=True) 
                 else:
                     print "unrecognized file format ", self.pfdfile
@@ -84,7 +84,7 @@ class pfdreader(object):
                     pfd = pfddata(self.pfdfile, align=True) 
                 elif os.path.splitext(self.pfdfile)[1] == '.ar2':  
                     pfd = ar2data(self.pfdfile, align=True) 
-                elif os.path.splitext(self.pfdfile)[1] == '.npz':  
+                elif os.path.splitext(self.pfdfile)[1] == '.spd':  
                     pfd = SPdata(self.pfdfile, align=True) 
                 else:
                     print "unrecognized file format ", self.pfdfile
