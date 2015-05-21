@@ -8,7 +8,6 @@ Reads SIGPROC filterbank format.
 
 Patrick Lazarus - Aug. 19, 2011
 
-last modification : Chitrang Patel 30 March 2015
 """
 
 import sys
@@ -127,17 +126,18 @@ def main():
     ragfac = float(nbins)/bins
     dmrange, trange = data.data.shape
     nbinlim = np.int(trange * ragfac)
-    #np.save('data',data.data[..., :nbinlim])
+    print data.dt, rawdatafile.tsamp 
+   #np.save('data',data.data[..., :nbinlim])
     plt.imshow(data.data[..., :nbinlim], aspect='auto', \
                 cmap=matplotlib.cm.cmap_d[options.cmap], \
                 interpolation='nearest', origin='upper', \
-                extent=(data.starttime, data.starttime+data.numspectra*data.dt, \
+                extent=(data.starttime, data.starttime+ nbinlim*data.dt, \
                         data.freqs.min(), data.freqs.max()))
     if options.show_cb:
         cb = plt.colorbar()
         cb.set_label("Scaled signal intensity (arbitrary units)")
 
-    plt.axis('tight')
+    #plt.axis('tight')
     # Sweeping it up
     for ii, sweep_dm in enumerate(options.sweep_dms):
         ddm = sweep_dm-data.dm

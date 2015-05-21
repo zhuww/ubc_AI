@@ -7,9 +7,7 @@
 #
 # Written by Scott M. Ransom (ransom@cfa.harvard.edu)
 #          last revision: 01 Jul 2000
-# Modified by Chitrang Patel
-#          last revision: 30 March 2015
-
+#
 # 'PGPLOT' was writtten by Tim Pearson <tjp@astro.caltech.edu>,
 # and can be found at http://astro.caltech.edu/~tjp/pgplot/
 #
@@ -168,12 +166,11 @@ def plot_waterfall(z, x=None, y=None, title=None, rangex=None, rangey=None, \
         ppgplot.pggray_s(z, 0.0, 0.0, rangex[0], rangey[0], \
                          rangex[1], rangey[1])  
 
-def read_sp_files(i):
+def read_sp_files(files):
     """Read all *.singlepulse files in the current directory in a DM range.
         Return 5 arrays (properties of all single pulses):
                 DM, sigma, time, sample, downfact."""
-
-    finput = fileinput.input(glob.glob('singlepulse/singlepulse_files/*DM%i.*.singlepulse'%i))
+    finput = fileinput.input(files)
     data = Num.loadtxt(finput,
                        dtype=Num.dtype([('dm', 'float32'),
                                         ('sigma','float32'),
@@ -181,9 +178,9 @@ def read_sp_files(i):
                                         ('sample','uint32'),
                                         ('downfact','uint8')]))
     return Num.atleast_2d(data)
-def gen_arrays(dm, threshold):	
+def gen_arrays(dm, threshold, sp_files):    
     """
-	Extract dms, times and signal to noise from each singlepulse file as 1D arrays.
+    Extract dms, times and signal to noise from each singlepulse file as 1D arrays.
     """
     max_dm = Num.ceil(Num.max(dm)).astype('int')
     min_dm = Num.min(dm).astype('int')
@@ -195,25 +192,68 @@ def gen_arrays(dm, threshold):
     timess = Num.zeros((1,)).astype('float32')
     sigmass = Num.zeros((1,)).astype('float32')
     ind = []
+    dm_time_files = []
     for i in range(ddm,(max_dm+diff_dm)):
-	data = read_sp_files(i)[0]
-	dms = data['dm']
-	times = data['time']
-	sigmas = data['sigma']
-	dms = Num.concatenate((dmss, dms), axis = 0)
-	dmss = dms
-	times = Num.concatenate((timess, times), axis = 0)
-	timess = times
-	sigmas = Num.concatenate((sigmass, sigmas), axis = 0)
-	sigmass = sigmas
+        """after DM of 1826 the dm step size is >=1, therefore we need to pick the correct DMs."""
+        if (i >= 1826) and (i < 3266):
+            if int(i)%2 == 1:
+                i = i+1
+            try:
+                singlepulsefiles = [sp_files[sp_file] for sp_file in range(len(sp_files)) if ('DM'+str(i)+'.') in sp_files[sp_file]]
+                dm_time_files += singlepulsefiles
+                data = read_sp_files(singlepulsefiles)[0]
+            except:
+                pass
+        elif (i >= 3266) and (i < 5546):
+            if int(i)%3 == 0:
+                i = i+2
+            if int(i)%3 == 1:
+                i = i+1
+            try:
+                singlepulsefiles = [sp_files[sp_file] for sp_file in range(len(sp_files)) if ('DM'+str(i)+'.') in sp_files[sp_file]]
+                dm_time_files += singlepulsefiles
+                data = read_sp_files(singlepulsefiles)[0]
+            except:
+                pass
+        elif i>=5546:
+            if int(i)%5 == 2:
+                i = i+4
+            if int(i)%5 == 3:
+                i = i+3
+            if int(i)%5 == 4:
+                i = i+2
+            if int(i)%5 == 0:
+                i = i+1
+            try:
+                singlepulsefiles = [sp_files[sp_file] for sp_file in range(len(sp_files)) if ('DM'+str(i)+'.') in sp_files[sp_file]]
+                dm_time_files += singlepulsefiles
+                data = read_sp_files(singlepulsefiles)[0]
+            except:
+                pass
+        else:    
+            try:
+                singlepulsefiles = [sp_files[sp_file] for sp_file in range(len(sp_files)) if ('DM'+str(i)+'.') in sp_files[sp_file]]
+                dm_time_files += singlepulsefiles
+                data = read_sp_files(singlepulsefiles)[0]
+            except:
+                pass
+        dms = data['dm']
+        times = data['time']
+        sigmas = data['sigma']
+        dms = Num.concatenate((dmss, dms), axis = 0)
+        dmss = dms
+        times = Num.concatenate((timess, times), axis = 0)
+        timess = times
+        sigmas = Num.concatenate((sigmass, sigmas), axis = 0)
+        sigmass = sigmas
     dms = Num.delete(dms, (0), axis = 0)
     times = Num.delete(times, (0), axis = 0)
     sigmas = Num.delete(sigmas, (0), axis = 0)
-    return dms, times, sigmas
+    return dms, times, sigmas, dm_time_files
 
 def dm_time_plot(dms, times, sigmas, dm_arr, sigma_arr, time_arr, Total_observed_time):
     """
-	Plot DM vs Time.
+    Plot DM vs Time.
     """
     min_dm = Num.min(dms)
     max_dm = Num.max(dms)
@@ -229,8 +269,8 @@ def dm_time_plot(dms, times, sigmas, dm_arr, sigma_arr, time_arr, Total_observed
     cand_symbols = []
     cand_symbols_group = []
     for i in range(len(sigmas)):
-	if sigmas[i] > 20.00:
-	    sigmas[i] = 20.0
+        if sigmas[i] > 20.00:
+            sigmas[i] = 20.0
         cand_symbol = int((sigmas[i] - 5.0)/snr_range * 6.0 + 20.5)
         cand_symbols.append(min(cand_symbol, 26))
     cand_symbols = Num.array(cand_symbols)
