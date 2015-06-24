@@ -3,6 +3,7 @@ if [ $# -eq 0 ];
   then
     echo "No arguments supplied:"
     echo "Supply the directory containing the pfd files you want to mirror."
+    echo "Run this script inside the current directory containing the original pfd files"
     echo "$0 otherdir"
     exit
 else
