@@ -26,7 +26,11 @@ class pfddata(pfd):
                 
         """
         if not filename == "self":
-            pfd.__init__(self, filename)
+            try:
+                pfd.__init__(self, filename)
+            except:
+                #print 'failed to read pfd file:', filename
+                raise pfdError(filename)
         self.dedisperse(DM=self.bestdm, doppler=1)
         self.adjust_period()
         #pfddata.__counter__[0] += 1
@@ -841,3 +845,15 @@ class datafitter(object):
             upulsar = upulsar.intersection(true_pulsars)
 
         return ipulsar, upulsar
+
+class pfdError(Exception):
+    def __init__(self, filename=None):
+        self.filename = filename
+        ferr = open('_badpfdile.txt', 'a')
+        ferr.write('%s\n' % filename)
+        ferr.close()
+    def __str__(self):
+        if self.filename is None:
+            return repr("cannot open pfd file %s" % self.filename)
+        else:
+            return repr("cannot open pfd file." )

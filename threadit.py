@@ -9,7 +9,7 @@ import sys
 import traceback
 num_cpus = max(1, MP.cpu_count() - 1)
 
-def threadit(func, arglist, OnOffSwitch={'state':False}, num_threads=40):
+def threadit(func, arglist, OnOffSwitch={'state':False}, num_threads=20):
     """
     A wrapper for multi-threading any function (func) given a argument list (arglist). The OnOffSwitch is a flag that got set to True when a progress is already running in a thread. It would not spam more threads when the flag is set to True.
     """
@@ -23,8 +23,8 @@ def threadit(func, arglist, OnOffSwitch={'state':False}, num_threads=40):
                 except:
                     except_type, except_class, tb = sys.exc_info()
                     pipe.send((except_type, except_class, traceback.extract_tb(tb)))
-
                     retq.put(None)
+                    #retq.put({idx:-1})
             else:
                 break
             q.task_done()
@@ -51,6 +51,9 @@ def threadit(func, arglist, OnOffSwitch={'state':False}, num_threads=40):
         resultdict = {}
         for i in range(len(arglist)):
             res = retq.get()
+            #resultdict.update(res)
+            #if np.logical_or(np.array([res[k] == None for k in res])):
+                #print exc_info
             if not res == None:
                 resultdict.update(res)
             else:
