@@ -2,7 +2,7 @@ import cPickle, glob, ubc_AI
 import os, sys
 from ubc_AI.data import pfdreader
 import numpy as np
-from ProgressBar import progressBar as PB
+from ubc_AI.ProgressBar import progressBar as PB
 AI_PATH = '/'.join(ubc_AI.__file__.split('/')[:-1])
 classifier = cPickle.load(open(AI_PATH+'/trained_AI/clfl2_PALFA.pkl','rb'))
 pfdfile = set(glob.glob('*.pfd') + glob.glob('*.ar') + glob.glob('*.ar2'))
