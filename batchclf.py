@@ -2,7 +2,10 @@ import cPickle, glob, ubc_AI
 import os, sys
 from ubc_AI.data import pfdreader
 import numpy as np
-from ProgressBar import progressBar as PB
+from ubc_AI.ProgressBar import progressBar as PB
+
+batchsize = 200
+
 AI_PATH = '/'.join(ubc_AI.__file__.split('/')[:-1])
 classifier = cPickle.load(open(AI_PATH+'/trained_AI/clfl2_PALFA.pkl','rb'))
 pfdfile = set(glob.glob('*.pfd') + glob.glob('*.ar') + glob.glob('*.ar2'))
@@ -10,7 +13,7 @@ clfedfiles = set(np.genfromtxt('clfresult.txt', dtype=[('files', '|S200'), ('AI'
 #clfedfiles = set([])
 targetfiles = list(pfdfile - clfedfiles)
 
-fbatchs = np.array_split(np.array(targetfiles), 1000)
+fbatchs = np.array_split(np.array(targetfiles), batchsize)
 Nbatchs = len(fbatchs)
 
 pb = PB(maxValue=Nbatchs)
