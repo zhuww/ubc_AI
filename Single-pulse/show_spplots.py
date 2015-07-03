@@ -2,16 +2,17 @@
 
 import sys
 import os
-import numpy as np
 import optparse
-import sp_pgplot
+import tarfile 
 from subprocess import Popen, PIPE
+import sp_pgplot
+import numpy as np
 
-
-def main():
-    temp_file = args[0]
+def plot(spdfile, singlepulsefiles, xwin, outfile, tar):
+    temp_file = spdfile
     if not temp_file.endswith(".spd"):
-	raise ValueError("The first file must be a .spd file")
+        raise ValueError("The first file must be a .spd file")
+    #print np.__version__, np.__file__,
     npzfile = np.load(temp_file)
     
     ##### Read in the header information and other required variables for the plots. ######
@@ -45,18 +46,20 @@ def main():
     max_freq = float(text_array[21])
     sweep_duration = float(text_array[22])
     sweeped_start = float(text_array[23])
-    if options.xwin:
+    if xwin:
         pgplot_device = "/XWIN"
     else:
         pgplot_device = ""
     # Dedispersed waterfall plot - zerodm - OFF
     array = npzfile['Data_dedisp_nozerodm'].astype(np.float64)
-    print array.shape
     if pgplot_device:
         sp_pgplot.ppgplot.pgopen(pgplot_device)
     else:
-        sp_pgplot.ppgplot.pgopen(fn[:-5]+'_DM%.1f_%.1fs_rank_%i.spd.ps/VPS'%(subdm, (start+0.25*duration), rank))
-    
+        if (outfile == "spdplot"): # default filename
+            sp_pgplot.ppgplot.pgopen(spdfile + '.ps/VPS') #default name
+            #sp_pgplot.ppgplot.pgopen(fn[:-5]+'_DM%.1f_%.1fs_rank_%i.spd.ps/VPS'%(subdm, (start+0.25*duration), rank))
+        else:
+            sp_pgplot.ppgplot.pgopen(outfile+'_DM%.1f_%.1fs_rank_%i.spd.ps/VPS'%(subdm, (start+0.25*duration), rank))
     sp_pgplot.ppgplot.pgpap(10.25, 8.5/11.0)
     sp_pgplot.ppgplot.pgsvp(0.07, 0.40, 0.50, 0.80)
     sp_pgplot.ppgplot.pgswin(datastart - start, datastart -start+datanumspectra*datasamp, min_freq, max_freq)
@@ -181,20 +184,50 @@ def main():
     sp_pgplot.ppgplot.pgpt(dm_arr, sigma_arr, 20)
     
     # DM vs Time
-    spfiles = npzfile['singlepulse_files']
-    threshold = 5.5
-    dms, times, sigmas, files = sp_pgplot.gen_arrays(dm_arr, threshold, spfiles)
-    dm_list = map(np.float32, npzfile['dm_list'])
-    time_list = map(np.float32, npzfile['time_list'])
-    
-    sp_pgplot.dm_time_plot(dms, times, sigmas, dm_list, sigma_arr, time_list, Total_observed_time)
+    print "Making arrays for DM vs time plot"
+    if not singlepulsefiles == None:
+        import sp_utils
+        spfiles = singlepulsefiles
+        threshold = 5.0
+        dm_list = map(np.float32, npzfile['dm_list'])
+        time_list = map(np.float32, npzfile['time_list'])
+        if len(spfiles) > 2:
+            dms, times, sigmas, filelist = sp_utils.io.gen_arrays(dm_arr, threshold, spfiles, tar)
+            sp_pgplot.dm_time_plot(dms, times, sigmas, dm_list, sigma_arr, time_list, Total_observed_time, xwin)
+        else:
+            print "You need a .singlepulse.tgz file to plot DM vs Time plot."
+            sp_pgplot.ppgplot.pgsvp(0.48, 0.97, 0.1, 0.54)
+            sp_pgplot.ppgplot.pgsch(0.8)
+            sp_pgplot.ppgplot.pgslw(3)
+            sp_pgplot.ppgplot.pgbox("BCNST", 0, 0, "BCNST", 0, 0)
+            sp_pgplot.ppgplot.pgslw(3)
+            sp_pgplot.ppgplot.pgmtxt('B', 2.5, 0.5, 0.5, "Time (s)")
+            sp_pgplot.ppgplot.pgmtxt('L', 1.8, 0.5, 0.5, "DM (pc cm\u-3\d)")
     sp_pgplot.ppgplot.pgiden()
     sp_pgplot.ppgplot.pgclos()
-    
-if __name__ == '__main__':
+
+def main():
     parser = optparse.OptionParser(prog="waterfaller.py", \
-				   usage = "%prog [OPTIONS] INFILE (.spd file)")
+				   usage = "%prog [OPTIONS] INFILE (.spd file) INFILES (.singlepulse files)")
     parser.add_option("-x", "--xwin", action="store_true", dest="xwin",
                       default=False, help="Don't make a postscript plot, just use an X-window")
+    parser.add_option("-o", dest= "outfile", type = "string", default = "spdplot", help= "give a base name to the saved plot. DM, time and rank values will be added automatically" )
     (options, args) = parser.parse_args()
+    if len(args) == 0:
+        print "need .spd file and .singlepulse files in that order."
+        sys.exit()
+    if not args[0].endswith(".spd"):
+        print "the first file must be a .spd file"
+        sys.exit()
+    if len(args) == 1:
+        plot(args[0], None, options.xwin, options.outfile, tar = None)# make the sp plots   
+    elif len(args) == 2:
+        tar = tarfile.open(args[1], "r:gz")# read in the tarball
+        filenames = tar.getnames()# get the filenames
+        plot(args[0], filenames, options.xwin, options.outfile, tar)# make the sp plots   
+        tar.close()
+    else:
+        plot(args[0], args[1:], options.xwin, options.outfile, tar = None)# make the sp plots   
+
+if __name__ == '__main__':
     main() 

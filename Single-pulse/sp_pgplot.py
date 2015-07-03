@@ -17,11 +17,9 @@
 # where this file was found:  ftp://cfa-ftp.harvard.edu/pub/ransom 
 #
 
-import numpy as Num
+import numpy as np
 import types, math, ppgplot
 import fileinput
-import glob
-
 # True if we have an /XWIN or /XSERVE device open yet
 ppgplot_dev_open_ = 0
 
@@ -29,7 +27,7 @@ ppgplot_dev_open_ = 0
 ppgplot_dev_prep_ = 0
 
 # Default plotting device
-ppgplot_device_ = '/XWIN'
+ppgplot_device_ = ""
 
 # Default font to use
 ppgplot_font_ = 1
@@ -97,7 +95,7 @@ def plot_waterfall(z, x=None, y=None, title=None, rangex=None, rangey=None, \
     """
     plot2d waterfall plot(z, ...)
         An interface to make various 2D plots using PGPLOT.
-            'z' is the 2D Numpy array to be plotted.
+            'z' is the 2D nppy array to be plotted.
         The optional entries are:
             x:         x values                    (default = 0, 1, ...) 
             y:         y values                    (default = 0, 1, ...) 
@@ -129,23 +127,23 @@ def plot_waterfall(z, x=None, y=None, title=None, rangex=None, rangey=None, \
             noscale:   turn off auto scaling       (default = 0 (no))    
             aspect:    Aspect ratio                (default = 1 (square))
             ticks:     Ticks point in or out       (default = 'out')   
-            panels:    Number of subpanels [r,c]   (default = [1,1])
-            device:    PGPLOT device to use        (default = '/XWIN')   
+            panels:    npber of subpanels [r,c]   (default = [1,1])
+            device:    PGPLOT device to use        (default = '')   
         Note:  Many default values are defined in global variables
             with names like ppgplot_font_ or ppgplot_device_.
    """
     # Make sure the input data is a 2D array
-    z = Num.asarray(z);
+    z = np.asarray(z);
     if not len(z.shape)==2:
         print 'Input data array must be 2 dimensional.'
         return
     # Announce the global variables we will be using
     global ppgplot_dev_open_, ppgplot_dev_prep_, pgpalette
     # Define the X and Y axis limits if needed
-    if x is None: x=Num.arange(z.shape[1], dtype='f')
-    else: x = Num.asarray(x)
-    if y is None: y=Num.arange(z.shape[0], dtype='f')
-    else: y = Num.asarray(y)
+    if x is None: x=np.arange(z.shape[1], dtype='f')
+    else: x = np.asarray(x)
+    if y is None: y=np.arange(z.shape[0], dtype='f')
+    else: y = np.asarray(y)
     # Determine the scaling to use for the axes
     if rangex is None:
         dx =  x[-1]-x[-2]
@@ -153,8 +151,8 @@ def plot_waterfall(z, x=None, y=None, title=None, rangex=None, rangey=None, \
     if rangey is None:
         dy =  y[-1]-y[-2]
         rangey=[y[0], y[-1]+dy]
-    if rangez is None: rangez=[Num.minimum.reduce(Num.ravel(z)), \
-                             Num.maximum.reduce(Num.ravel(z))]
+    if rangez is None: rangez=[np.minimum.reduce(np.ravel(z)), \
+                             np.maximum.reduce(np.ravel(z))]
     if image is not None:
         # Set the color indices and the color table
         lo_col_ind, hi_col_ind = ppgplot.pgqcol()
@@ -166,97 +164,13 @@ def plot_waterfall(z, x=None, y=None, title=None, rangex=None, rangey=None, \
         ppgplot.pggray_s(z, 0.0, 0.0, rangex[0], rangey[0], \
                          rangex[1], rangey[1])  
 
-def read_sp_files(files):
-    """Read all *.singlepulse files in the current directory in a DM range.
-        Return 5 arrays (properties of all single pulses):
-                DM, sigma, time, sample, downfact."""
-    finput = fileinput.input(files)
-    data = Num.loadtxt(finput,
-                       dtype=Num.dtype([('dm', 'float32'),
-                                        ('sigma','float32'),
-                                        ('time','float32'),
-                                        ('sample','uint32'),
-                                        ('downfact','uint8')]))
-    return Num.atleast_2d(data)
-def gen_arrays(dm, threshold, sp_files):    
-    """
-    Extract dms, times and signal to noise from each singlepulse file as 1D arrays.
-    """
-    max_dm = Num.ceil(Num.max(dm)).astype('int')
-    min_dm = Num.min(dm).astype('int')
-    diff_dm = max_dm-min_dm
-    ddm = min_dm-diff_dm
-    if (ddm <= 0):
-        ddm = 0
-    dmss = Num.zeros((1,)).astype('float32')
-    timess = Num.zeros((1,)).astype('float32')
-    sigmass = Num.zeros((1,)).astype('float32')
-    ind = []
-    dm_time_files = []
-    for i in range(ddm,(max_dm+diff_dm)):
-        """after DM of 1826 the dm step size is >=1, therefore we need to pick the correct DMs."""
-        if (i >= 1826) and (i < 3266):
-            if int(i)%2 == 1:
-                i = i+1
-            try:
-                singlepulsefiles = [sp_files[sp_file] for sp_file in range(len(sp_files)) if ('DM'+str(i)+'.') in sp_files[sp_file]]
-                dm_time_files += singlepulsefiles
-                data = read_sp_files(singlepulsefiles)[0]
-            except:
-                pass
-        elif (i >= 3266) and (i < 5546):
-            if int(i)%3 == 0:
-                i = i+2
-            if int(i)%3 == 1:
-                i = i+1
-            try:
-                singlepulsefiles = [sp_files[sp_file] for sp_file in range(len(sp_files)) if ('DM'+str(i)+'.') in sp_files[sp_file]]
-                dm_time_files += singlepulsefiles
-                data = read_sp_files(singlepulsefiles)[0]
-            except:
-                pass
-        elif i>=5546:
-            if int(i)%5 == 2:
-                i = i+4
-            if int(i)%5 == 3:
-                i = i+3
-            if int(i)%5 == 4:
-                i = i+2
-            if int(i)%5 == 0:
-                i = i+1
-            try:
-                singlepulsefiles = [sp_files[sp_file] for sp_file in range(len(sp_files)) if ('DM'+str(i)+'.') in sp_files[sp_file]]
-                dm_time_files += singlepulsefiles
-                data = read_sp_files(singlepulsefiles)[0]
-            except:
-                pass
-        else:    
-            try:
-                singlepulsefiles = [sp_files[sp_file] for sp_file in range(len(sp_files)) if ('DM'+str(i)+'.') in sp_files[sp_file]]
-                dm_time_files += singlepulsefiles
-                data = read_sp_files(singlepulsefiles)[0]
-            except:
-                pass
-        dms = data['dm']
-        times = data['time']
-        sigmas = data['sigma']
-        dms = Num.concatenate((dmss, dms), axis = 0)
-        dmss = dms
-        times = Num.concatenate((timess, times), axis = 0)
-        timess = times
-        sigmas = Num.concatenate((sigmass, sigmas), axis = 0)
-        sigmass = sigmas
-    dms = Num.delete(dms, (0), axis = 0)
-    times = Num.delete(times, (0), axis = 0)
-    sigmas = Num.delete(sigmas, (0), axis = 0)
-    return dms, times, sigmas, dm_time_files
 
-def dm_time_plot(dms, times, sigmas, dm_arr, sigma_arr, time_arr, Total_observed_time):
+def dm_time_plot(dms, times, sigmas, dm_arr, sigma_arr, time_arr, Total_observed_time, xwin):
     """
     Plot DM vs Time.
     """
-    min_dm = Num.min(dms)
-    max_dm = Num.max(dms)
+    min_dm = np.min(dms)
+    max_dm = np.max(dms)
     ppgplot.pgsvp(0.48, 0.97, 0.1, 0.54)
     ppgplot.pgswin(0, Total_observed_time, min_dm, max_dm)
     ppgplot.pgsch(0.8)
@@ -273,22 +187,25 @@ def dm_time_plot(dms, times, sigmas, dm_arr, sigma_arr, time_arr, Total_observed
             sigmas[i] = 20.0
         cand_symbol = int((sigmas[i] - 5.0)/snr_range * 6.0 + 20.5)
         cand_symbols.append(min(cand_symbol, 26))
-    cand_symbols = Num.array(cand_symbols)
+    cand_symbols = np.array(cand_symbols)
     for i in range(len(dm_arr)):
         cand_symbol = int((sigma_arr[i] - 5.0)/snr_range * 6.0 + 20.5)
         cand_symbols_group.append(min(cand_symbol, 26))
-    cand_symbols_group = Num.array(cand_symbols_group)
-    dms = Num.array(dms)
-    times = Num.array(times)
-    dm_arr = Num.array(dm_arr)
-    time_arr = Num.array(time_arr)
+    cand_symbols_group = np.array(cand_symbols_group)
+    dms = np.array(dms)
+    times = np.array(times)
+    dm_arr = np.array(dm_arr)
+    time_arr = np.array(time_arr)
     for ii in [26, 25, 24, 23, 22, 21, 20]:
-        inds = Num.nonzero(cand_symbols == ii)[0]
+        inds = np.nonzero(cand_symbols == ii)[0]
         ppgplot.pgshls(1, 0.0, 0.5, 0.0)
         ppgplot.pgpt(times[inds], dms[inds], ii)
     for ii in [26, 25, 24, 23, 22, 21, 20]:
-        inds_1 = Num.nonzero(cand_symbols_group == ii)[0]
-        ppgplot.pgshls(1, 0.0, 0.0, 0.0)
+        inds_1 = np.nonzero(cand_symbols_group == ii)[0]
+        if xwin:
+            ppgplot.pgshls(1, 0.0, 0.8, 0.0)
+        else:
+            ppgplot.pgshls(1, 0.0, 0.0, 0.0)
         ppgplot.pgpt(time_arr[inds_1], dm_arr[inds_1], ii)
 
 #########################################################################
@@ -301,60 +218,60 @@ class Palette:
             Set the color palette for imag-style routines
         """
         if (palette == 'rainbow'):
-            self.l = Num.array([0.0, 0.015, 0.225, 0.4, 0.59,
+            self.l = np.array([0.0, 0.015, 0.225, 0.4, 0.59,
                                 0.6, 0.775, 0.955, 0.965, 1.0])
-            self.r = Num.array([1.0, 1.0, 1.0, 0.0, 0.0,
+            self.r = np.array([1.0, 1.0, 1.0, 0.0, 0.0,
                                 0.0, 0.0, 0.947, 1.0, 1.0])
-            self.g = Num.array([0.0, 0.0, 1.0, 1.0, 1.0,
+            self.g = np.array([0.0, 0.0, 1.0, 1.0, 1.0,
                                 0.946, 0.0, 0.8, 0.844, 1.0])
-            self.b = Num.array([0.0, 0.0, 0.0, 0.0, 0.95,
+            self.b = np.array([0.0, 0.0, 0.0, 0.0, 0.95,
                                 1.0, 1.0, 1.0, 1.0, 1.0])
         elif (palette == 'antirainbow'):
-            self.l = Num.array([0.0, 0.035, 0.045, 0.225, 0.4,
+            self.l = np.array([0.0, 0.035, 0.045, 0.225, 0.4,
                                 0.41, 0.6, 0.775, 0.985, 1.0])
-            self.r = Num.array([1.0, 1.0, 0.947, 0.0, 0.0,
+            self.r = np.array([1.0, 1.0, 0.947, 0.0, 0.0,
                                 0.0, 0.0, 1.0, 1.0, 1.0])
-            self.g = Num.array([1.0, 0.844, 0.8, 0.0, 0.946,
+            self.g = np.array([1.0, 0.844, 0.8, 0.0, 0.946,
                                 1.0, 1.0, 1.0, 0.0, 0.0])
-            self.b = Num.array([1.0, 1.0, 1.0, 1.0, 1.0,
+            self.b = np.array([1.0, 1.0, 1.0, 1.0, 1.0,
                                 0.95, 0.0, 0.0, 0.0, 0.0])
         elif (palette == 'astro'):
-            self.l = Num.array([0.0, 0.167, 0.333, 0.5,
+            self.l = np.array([0.0, 0.167, 0.333, 0.5,
                                 0.667, 0.833, 1.0])
-            self.r = Num.array([0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0])
-            self.g = Num.array([0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0])
-            self.b = Num.array([0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0])
+            self.r = np.array([0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0])
+            self.g = np.array([0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0])
+            self.b = np.array([0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0])
         elif (palette == 'hue'):
-            self.l = Num.array([0.0, 0.167, 0.333, 0.5,
+            self.l = np.array([0.0, 0.167, 0.333, 0.5,
                                 0.667, 0.833, 1.0])
-            self.r = Num.array([1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0])
-            self.g = Num.array([0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0])
-            self.b = Num.array([0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0])
+            self.r = np.array([1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0])
+            self.g = np.array([0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0])
+            self.b = np.array([0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0])
         elif (palette == 'heat'):
-            self.l = Num.array([0.0, 0.48, 0.7, 0.75, 1.0])
-            self.r = Num.array([0.0, 1.0, 1.0, 1.0, 1.0])
-            self.g = Num.array([0.0, 0.0, 0.423, 0.519, 1.0])
-            self.b = Num.array([0.0, 0.0, 0.0, 0.0, 1.0])
+            self.l = np.array([0.0, 0.48, 0.7, 0.75, 1.0])
+            self.r = np.array([0.0, 1.0, 1.0, 1.0, 1.0])
+            self.g = np.array([0.0, 0.0, 0.423, 0.519, 1.0])
+            self.b = np.array([0.0, 0.0, 0.0, 0.0, 1.0])
         elif (palette == 'gamma'):
-            self.l = Num.array([0.0, 0.33, 0.66, 1.0])
-            self.r = Num.array([0.3, 1.0, 0.0, 0.0])
-            self.g = Num.array([0.0, 0.3, 1.0, 0.0])
-            self.b = Num.array([0.0, 0.0, 0.3, 1.0])
+            self.l = np.array([0.0, 0.33, 0.66, 1.0])
+            self.r = np.array([0.3, 1.0, 0.0, 0.0])
+            self.g = np.array([0.0, 0.3, 1.0, 0.0])
+            self.b = np.array([0.0, 0.0, 0.3, 1.0])
         elif (palette == 'antigray' or palette == 'antigrey'):
-            self.l = Num.array([0.0, 1.0])
-            self.r = Num.array([1.0, 0.0])
-            self.g = Num.array([1.0, 0.0])
-            self.b = Num.array([1.0, 0.0])
+            self.l = np.array([0.0, 1.0])
+            self.r = np.array([1.0, 0.0])
+            self.g = np.array([1.0, 0.0])
+            self.b = np.array([1.0, 0.0])
         elif (palette == 'apjgray' or palette == 'apjgrey'):
-            self.l = Num.array([0.0, 1.0])
-            self.r = Num.array([1.0, 0.25])
-            self.g = Num.array([1.0, 0.25])
-            self.b = Num.array([1.0, 0.25])
+            self.l = np.array([0.0, 1.0])
+            self.r = np.array([1.0, 0.25])
+            self.g = np.array([1.0, 0.25])
+            self.b = np.array([1.0, 0.25])
         else:
-            self.l = Num.array([0.0, 1.0])
-            self.r = Num.array([0.0, 1.0])
-            self.g = Num.array([0.0, 1.0])
-            self.b = Num.array([0.0, 1.0])
+            self.l = np.array([0.0, 1.0])
+            self.r = np.array([0.0, 1.0])
+            self.g = np.array([0.0, 1.0])
+            self.b = np.array([0.0, 1.0])
 
 pgpalette = Palette()
 
