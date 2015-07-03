@@ -1,17 +1,38 @@
 UBC AI project (pfd AI part)
 by Aaron Berndsen and Weiwei Zhu
 
+NEW! The PICS AI now support the .ar2 file format from psrchive.
+For this to work you need to install psrchive's python module:
+INSTALL psrchive with
+    configure --enable-shared
+make sure to add $PSRHOME/lib/python2.X/site-packages/ to your PYTHONPATH.
+Installing psrchive is NOT required when dealing with only pfd files.
 
 TO USE THIS CODE YOU NEED TO INSTALL:
-    sklearn (python)
+    PRESTO (make sure to include the presto python library in your $PYTHONPATH)
+    sklearn (python package, version 0.12.1)
     libblas-dev
     theano (python)
     python-dev
 
-TO USE OUR PICKLED CLASSIFIERS:
+TO INSTALL the packages:
+    apt-get install python-dev
+    apt-get install libblas-dev
+    easy_install scikit-learn==0.12.1
+    easy_install theano
 
+TO USE OUR PICKLED CLASSIFIERS:
+***The following code is from the quickclf.py code in the repo, this code classifer all .pfd file in the current workign directory and save teh result to clfresult.txt. One can then open up and inspect the result using: python pfdviewr.py clfresult.txt
+
+***Be careful: When there are more than one cpu available, the default behavior of the code is to use multi-threading. The code will use up to 20 threads or max(cpu)-1. If you want to turn this behavior off, you can change the default max_threads parameter in file: threadit.py.
+
+import cPickle, glob, ubc_AI
 from ubc_AI.data import pfdreader
-classifier = cPickle.load(open('trained_AI/clfl2_FL.pkl' ,'rb'))
-pfdfiles = glob.glob('*.pfd')
-#predictions = classifier.predict([pfdreader(f) for f in pfdfiles])
-float_number_AI_score=  classifier.report_score([pfdreader(f) for f in pfdfiles])
+AI_PATH = '/'.join(ubc_AI.__file__.split('/')[:-1])
+classifier = cPickle.load(open(AI_PATH+'/trained_AI/clfl2_BD.pkl','rb'))
+pfdfile = glob.glob('*.pfd')
+AI_scores = classifier.report_score([pfdreader(f) for f in pfdfile])
+text = '\n'.join(['%s %s' % (pfdfile[i], AI_scores[i]) for i in range(len(pfdfile))])
+fout = open('clfresult.txt', 'w')
+fout.write(text)
+fout.close()

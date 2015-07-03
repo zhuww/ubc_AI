@@ -15,6 +15,7 @@ tips/tricks/notes:
 import cPickle as pickle
 import logging
 import numpy as np
+from collections import OrderedDict
 
 from sklearn.base import BaseEstimator
 import theano
@@ -390,7 +391,7 @@ class MetaCNN(BaseEstimator):
         # manually create an update rule for each model parameter. We thus
         # create the updates dictionary by automatically looping over all
         # (params[i],grads[i]) pairs.
-        self.updates = {}
+        self.updates = OrderedDict()
         for param_i, grad_i in zip(self.params, self.grads):
             self.updates[param_i] = param_i - self.learning_rate * grad_i
 

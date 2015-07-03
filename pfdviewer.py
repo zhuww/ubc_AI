@@ -26,6 +26,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import ubc_AI
 from os.path import abspath, basename, dirname, exists
 from optparse import OptionParser
 
@@ -33,10 +34,10 @@ from gi.repository import Gtk, Gdk
 import pylab as plt
 
 #next taken from ubc_AI.training and ubc_AI.samples
-from training import pfddata
+from ubc_AI.training import pfddata
 from ubc_AI.data import pfdreader 
 from sklearn.decomposition import RandomizedPCA as PCA
-import known_pulsars as KP
+import ubc_AI.known_pulsars as known_pulsars
 
 #check for ps --> png conversion utilities
 try:
@@ -58,6 +59,12 @@ for p in os.environ.get('PATH').split(':'):
     if exists(cmd):
         show_pfd = cmd
         break
+pdmp = False
+for p in os.environ.get('PATH').split(':'):
+    cmd = '%s/pdmp' % p
+    if exists(cmd):
+        pdmp = cmd
+        break
 if not show_pfd:
     print "\tCouldn't find PRESTO's show_pfd executable"
     print "\t This will limit functionality"
@@ -77,15 +84,15 @@ cand_vote = 0
 tempdir = tempfile.mkdtemp(prefix='AIview_')
 atexit.register(lambda: shutil.rmtree(tempdir, ignore_errors=True))
 bdir = '/'.join(__file__.split('/')[:-1])
-
+AI_path = AI_PATH = '/'.join(ubc_AI.__file__.split('/')[:-1])
 
 class MainFrameGTK(Gtk.Window):
     """This is the Main Frame for the GTK application"""
     
     def __init__(self, data=None, tmpAI=None):
         Gtk.Window.__init__(self, title='pfd viewer')
-        if bdir:
-            self.gladefile = "%s/pfdviewer.glade" % bdir
+        if AI_path:
+            self.gladefile = "%s/pfdviewer.glade" % AI_path
         else:
             self.gladefile = "pfdviewer.glade"
         self.builder = Gtk.Builder()
@@ -150,6 +157,8 @@ class MainFrameGTK(Gtk.Window):
         #advance to next non-voted candidate, or next in list.
         self.advance_next = self.builder.get_object('advance_next')
         self.advance_col = self.builder.get_object('advance_col')
+        self.DM_limit_toggle = self.builder.get_object('DM_limit_toggle')
+        self.DM_limit = self.builder.get_object('DM_limit_val')
         
         #feature-labelling stuff
         self.builder.get_object('FL_grid').hide()
@@ -231,12 +240,12 @@ class MainFrameGTK(Gtk.Window):
         self.loadfile = None 
         self.knownpulsars = {}
         #ATNF, PALFA and GBNCC list of known pulsars
-        if exists('%s/known_pulsars.pkl' % bdir):
-            self.knownpulsars = cPickle.load(open('%s/known_pulsars.pkl' % bdir))
+        if exists('%s/known_pulsars.pkl' % AI_path):
+            self.knownpulsars = cPickle.load(open('%s/known_pulsars.pkl' % AI_path))
         elif exists('known_pulsars.pkl'):
             self.knownpulsars = cPickle.load(open('known_pulsars.pkl'))
         else:
-            self.knownpulsars = KP.get_allpulsars()
+            self.knownpulsars = known_pulsars.get_allpulsars()
         #if we were passed a data file, read it in
         if data != None:
             self.on_open(event='load', fin=data)
@@ -301,7 +310,6 @@ class MainFrameGTK(Gtk.Window):
 #keep track of the AI view files created (so we don't need to generate them)
         self.AIviewfiles = {}
 
-
 ############################
 ## data-manipulation actions
     def on_sep_change(self, widget):
@@ -312,6 +320,9 @@ class MainFrameGTK(Gtk.Window):
 
     def on_viewlimit_toggled(self, widget):
         self.on_view_limit_changed( widget)
+
+    def on_DM_limit_toggled(self, widget):
+        self.on_DM_limit_val_changed( widget)
 
     def on_verbose_match(self, widget):
         self.find_matches()
@@ -330,6 +341,7 @@ class MainFrameGTK(Gtk.Window):
         idx2 = self.col_options.index(col2)
         limtog = self.limit_toggle.get_active()
         lim = self.view_limit.get_value()
+    
 
 #turn off the model first for speed-up
         self.pfdtree.set_model(None)
@@ -372,6 +384,89 @@ class MainFrameGTK(Gtk.Window):
                     
         self.pfdtree.set_model(self.pfdstore)
         self.find_matches()
+
+
+    def on_DM_limit_val_changed(self, widget):
+        """
+        set limit on the DM of candidadtes to display
+        """
+        limtog = self.DM_limit_toggle.get_active()
+        try:
+            lim = float(self.DM_limit.get_text())
+        except:
+            return
+
+        if not limtog: 
+            self.on_view_limit_changed(widget)
+            return
+
+        col1 = self.col1.get_active_text()
+        col2 = self.col2.get_active_text()
+        idx1 = self.col_options.index(col1)
+        if col2 == None:
+            col2 = col1
+            self.col2.set_active(idx1)
+        idx2 = self.col_options.index(col2)
+
+        if len(self.pfdstore) == 0:return None #do nothing
+
+        #if idx1 != idx2:
+            #dtyp = [('n', '<i8')] + [(name, self.data.dtype[name].str) for name in ['fname', col1, col2]]
+        #else:
+            #dtyp = [('n', '<i8')] + [(name, self.data.dtype[name].str) for name in ['fname', col1]]
+
+        removecount = 0
+        for i, one in enumerate(self.pfdstore):
+            onesdm = pfddata(one[1]).bestdm
+            if not onesdm > lim:
+                self.pfdstore.remove(one.iter)
+                removecount += 1 
+        print "removed %s candidates with DM < %s" % (removecount, lim)
+        self.statusbar.push(0,'removed %s candidates with DM < %s.' % (removecount, lim))
+
+        
+        return 
+#turn off the model first for speed-up
+        """
+        #if idx1 != idx2:
+            #data = self.data[['fname',col1,col2]]
+            #if data.ndim == 0:
+                #dtyp = [(name, self.data.dtype[name].str) \
+                            #for name in ['fname', col1, col2]]
+                #data = np.array([data], dtype=dtyp)
+            #data.sort(order=[col1,'fname'])
+            #limidx = data[col1] >= lim - 1e-5
+            #if limidx.size > 1 and np.any(limidx) and limtog:
+                #data = data[limidx]
+                #self.statusbar.push(0,'Showing %s/%s candidates above %s in DM' %
+                                    #(limidx.sum(),len(limidx),lim))
+            #else:
+                #self.statusbar.push(0,'No %s candidates > %s in DM. Showing all' % (col1, lim))
+            #for vi, v in enumerate(data[::-1]):
+                #d = (vi,) + v.tolist() 
+                #self.pfdstore.append(d)
+        #else:
+            #data = self.data[['fname',col1]]
+            #if data.ndim == 0:
+                #dtyp = [(name, self.data.dtype[name].str) \
+                            #for name in ['fname', col1]]
+                #data = np.array([data], dtype=dtyp)
+            
+            data.sort(order=[col1,'fname'])
+            limidx = data[col1] >= lim - 1e-5
+            if limidx.size > 1 and np.any(limidx) and limtog:
+                data = data[limidx]
+                self.statusbar.push(0,'Showing %s/%s candidates above %s in DM' %
+                                    (limidx.sum(),len(limidx),lim))
+            else:
+                self.statusbar.push(0,'No %s candidates > %s in DM. Showing all' % (col1, lim))
+            for vi, v in enumerate(data[::-1]):
+                v0, v1 = v
+                self.pfdstore.append((vi,v0,float(v1),float(v1)))
+                    
+        self.pfdtree.set_model(self.pfdstore)
+        self.find_matches()
+        """
 
     def on_pfdwin_key_press_event(self, widget, event):
         """
@@ -619,8 +714,8 @@ class MainFrameGTK(Gtk.Window):
                 sgn = ''
                 name = 'J%s%s%s' % (''.join(pfd.rastr.split(':')[:2]), sgn,\
                                         ''.join(pfd.decstr.split(':')[:2]))
-#            this_pulsar = KP.pulsar(fname, name, ra, dec, p0*1e-3, dm)
-            this_pulsar = KP.pulsar(fname, name, ra, dec, p0, dm, catalog='local')
+#            this_pulsar = known_pulsars.pulsar(fname, name, ra, dec, p0*1e-3, dm)
+            this_pulsar = known_pulsars.pulsar(fname, name, ra, dec, p0, dm, catalog='local')
                 
             self.knownpulsars[fname] = this_pulsar
 
@@ -814,7 +909,10 @@ class MainFrameGTK(Gtk.Window):
                 disp_apnd = ''
 
 # find/create png file from input file
+            #try:
             fpng = self.create_png(fname)
+            #except:
+                #print 'failed to create png file for %' % (fname)
 
             #update the basedir if necessary 
             if not exists(fpng):
@@ -876,6 +974,8 @@ class MainFrameGTK(Gtk.Window):
     def create_png(self, fname):
         """
         given some pfd or ps file, create the png file
+        for i, t in enumerate(self.pfdstore):
+            print i, list(t)
         if it doesn't already exist
 
         """
@@ -895,6 +995,16 @@ class MainFrameGTK(Gtk.Window):
             fpng = '%s.png' % fname
             if not exists(fpng):
                 fpng = convert(fname)
+        elif fname.endswith('.ar2') or fname.endswith('.ar'):
+            fpng = '%s.png' % fname
+            if not exists(fpng):
+                fpng = convert(fname)
+        elif fname.endswith('.spd'):
+            fpng = '%s.png' % fname
+            if not exists(fpng):
+                fpng = convert(fname)
+                #if fps.endswith('.ps'):
+                    #fpng = convert(fps)
         elif fname.endswith('.png') or fname.endswith('.jpg'):
             #convert from ps or pfd if we can't find the png
             if not exists(fname):
@@ -1653,7 +1763,7 @@ class MainFrameGTK(Gtk.Window):
 
         if self.knownpulsars == None:
             self.statusbar.push(0,'Downloading ATNF, PALFA and GBNCC list of known pulsars')
-            self.knownpulsars = KP.get_allpulsars()
+            self.knownpulsars = known_pulsars.get_allpulsars()
             self.statusbar.push(0,'Downloaded %s known pulsars for x-ref'\
                                 % len(self.knownpulsars))
 
@@ -1884,32 +1994,66 @@ class MainFrameGTK(Gtk.Window):
                 basedir = self.qrybasedir
             else:
                 basedir = self.basedir
-            fname = '%s/%s' % (basedir,tmpstore.get_value(tmpiter, 1))
             store_name = tmpstore.get_value(tmpiter, 1)
+            if exists(store_name):
+                fname = store_name
+            else:
+                fname = '%s/%s' % (basedir,tmpstore.get_value(tmpiter, 1))
+                if not exists(fname):
+                    fname = self.find_file(fname)
+                    if not exists(fname):
+                        print "can't find file %s" % fname
+                        print "known pulsar match won't work for this candidate."
 # see if this path exists, update self.basedir if necessary
-#            self.find_file(fname)
-            try:
-                #pfd = pfdreader(fname)
-                pfd = pfddata(fname)
-                pfd.dedisperse()
-            except(IOError, ValueError):
-#                print "prepfold can't parse %s" % fname
-                pfd = None
-                
-            if exists(fname) and fname.endswith('.pfd') and pfd != None:
-
-                dm = pfd.bestdm
-                ra = pfd.rastr 
-                dec = pfd.decstr 
-                p0 = pfd.bary_p1
-                if float(pfd.decstr.split(':')[0]) > 0:
+            pfd = None
+            if fname.endswith('.pfd'):
+                try:
+                    pfd = pfddata(fname)
+                    pfd.dedisperse()
+                    dm = pfd.bestdm
+                    ra = pfd.rastr 
+                    dec = pfd.decstr 
+                    p0 = pfd.bary_p1
+                except(IOError, ValueError):pass
+            arch = None
+            if fname.endswith('.ar2') or fname.endswith('.ar'):
+                try:
+                    import psrchive
+                    arch = psrchive.Archive_load(fname)
+                    arch.dedisperse()
+                    coord = arch.get_coordinates()
+                    dm = arch.get_dispersion_measure()
+                    ra, dec = coord.getHMSDMS().split(' ')
+                    p0 = arch[0].get_folding_period()
+                except(IOError, ValueError):pass
+            spd = None
+            if fname.endswith('.spd'):
+                try:
+                    from ubc_AI.singlepulse import SPdata
+                    spd = SPdata(fname)
+                    dm = spd.dm
+                    ra = spd.ra
+                    dec = spd.dec
+                    #p0 = spd.period
+                    p0 = 0.
+                except(IOError, ValueError):pass
+            
+            if exists(fname) and (pfd != None or arch != None or spd != None):
+                if float(dec.split(':')[0]) > 0:
                     sgn = '+'
                 else:
                     sgn = '' 
+<<<<<<< HEAD
                 name = 'J%s%s%s' % (''.join(pfd.rastr.split(':')[:2]), sgn,\
                                         ''.join(pfd.decstr.split(':')[:2]))
 #                this_pulsar = KP.pulsar(fname, name, ra, dec, p0*1e-3, dm)
                 this_pulsar = KP.pulsar(fname, name, ra, dec, p0, dm)
+=======
+                name = 'J%s%s%s' % (''.join(ra.split(':')[:2]), sgn,\
+                                        ''.join(dec.split(':')[:2]))
+#                this_pulsar = known_pulsars.pulsar(fname, name, ra, dec, p0*1e-3, dm)
+                this_pulsar = known_pulsars.pulsar(fname, name, ra, dec, p0, dm)
+>>>>>>> singlepulse
                 this_idx = np.array(self.data['fname'] == store_name)
                 if this_idx.size == 1:
                     this_idx = np.array([this_idx])
@@ -1929,7 +2073,7 @@ class MainFrameGTK(Gtk.Window):
                                               this_pulsar.dec, this_vote])
 
                 sep = self.matchsep.get_value()
-                matches = KP.matches(self.knownpulsars, this_pulsar, sep=sep)
+                matches = known_pulsars.matches(self.knownpulsars, this_pulsar, sep=sep)
                 
                 verbose = self.verbose_match.get_active()
                 if verbose:
@@ -1944,6 +2088,7 @@ class MainFrameGTK(Gtk.Window):
                 for m in match_nonlocal_loc:
                     max_denom = 100
                     num, den = harm_ratio(np.round(this_pulsar.P0,5), np.round(m.P0,5), max_denom=max_denom)
+                    if num == 0 and den == 0:return
                     
                     if num == 0: 
                         num = 1
@@ -2129,7 +2274,7 @@ class MainFrameGTK(Gtk.Window):
         dlg.set_modal(False)
         dlg.run()
         self.statusbar.push(0,'Downloading ATNF and GBNCC databases')
-        newlist = KP.get_allpulsars()
+        newlist = known_pulsars.get_allpulsars()
         fout = abspath('known_pulsars.pkl')
         if self.knownpulsars == None:
             self.knownpulsars = newlist
@@ -2558,8 +2703,11 @@ def convert(fin):
                 for ext in ['ps', 'bestprof']:
                     pin = '%s.%s' % (show_name, ext) 
                     pout = os.path.join(pfddir, '%s.%s' %(pfdname, ext))
-                    if os.path.exists(pin):
-                        shutil.move(pin, pout)
+                    if os.path.exists(pin) and not os.path.exists(pout):
+                        try:
+                            shutil.move(pin, pout)
+                        except IOError:
+                            print "\n[***failed]Moving %s to %s\n" % (pin, pout)
                         #print "\nMoving %s to %s\n" %(pin, pout)
             else:
                 #assume name was same as input filename
@@ -2576,6 +2724,71 @@ def convert(fin):
         else:
             #conversion failed
             fout = None
+
+    if fin.endswith('.ar2') or fin.endswith('.ar'):
+        #find psrchive's pdmp executable
+        if not pdmp:
+            dialog = Gtk.FileChooserDialog("Locate pdmp executable", self,
+                                           Gtk.FileChooserAction.OPEN,
+                                           (Gtk.STOCK_CANCEL, 
+                                            Gtk.ResponseType.CANCEL,
+                                            Gtk.STOCK_OPEN, Gtk.ResponseType.OK))
+            response = dialog.run()
+            if response == Gtk.ResponseType.OK:
+                print "Select clicked"
+                show_pfd = dialog.get_filename()
+                print "File selected: " + fname
+            elif response == Gtk.ResponseType.CANCEL:
+                print "Cancel clicked"
+        if pdmp:
+            #make the .ps file (later converted to .png)
+            pfddir = dirname(abspath(fin))
+            pfdname = basename(fin)
+            full_path = abspath(fin)
+            cwd = os.getcwd()
+
+            os.chdir(pfddir)
+            show_name = os.path.splitext(pfdname)[0]
+            #cmd = [pdmp, '-ms', '16', '-mc', '16', '-mb', '128', '-pr', '40', '-dr', '100', '-g', '%s.ps/cps' % (show_name), full_path]
+            cmd = [pdmp, '-S','-ms', '16', '-mc', '16', '-mb', '64', '-g', '%s.ps/cps' % (show_name), pfdname]
+            subprocess.call(cmd, shell=False,
+                            stdout=open('/dev/null','w'))
+            #subprocess.call(cmd, shell=False)
+            os.chdir(cwd)
+
+            # assign fin to ps file so it converts to png below
+            fout = abspath(os.path.join(pfddir, "%s.ps" % show_name))
+            #print fin, os.path.exists(fin)
+        else:
+            #conversion failed
+            fout = None
+
+    if fin.endswith('.spd'):
+        pfddir = dirname(abspath(fin))
+        pfdname = basename(fin)
+        full_path = abspath(fin)
+        cwd = os.getcwd()
+        show_name = os.path.splitext(pfdname)[0]
+        #os.system('python ' + AI_path + 'Single-pulse/show_spplots.py %s' % fin)
+        show_spplots = AI_path + '/Single-pulse/show_spplots.py'
+        cmd = ['python', show_spplots, pfdname]
+        subprocess.call(cmd, shell=False,
+                            stdout=open('/dev/null','w'))
+        os.chdir(cwd)
+        fps = abspath(os.path.join(pfddir, "%s.ps" % pfdname))
+        bdir = dirname(abspath(fps))
+        bname = basename(fps)
+        fout = os.path.join(bdir, bname.replace('.ps','.png')) 
+    #convert to png
+        if pyimage:
+            f = Image(fps)
+            #f.rotate(90)
+            f.write(fout)
+        else:
+            cmd = ['convert',fps,'png:%s' % fout]
+            subprocess.call(cmd, shell=False,
+                            stdout=open('/dev/null','w'))
+
 
     if fin.endswith('.ps') and os.path.exists(fin):
         bdir = dirname(abspath(fin))
@@ -2655,7 +2868,7 @@ def load_data(fname):
         l1 = f.readline()
         f.close()
         if '#' not in l1:
-            print "Expected first line to be a comment line describing the columns"
+            print "[optional] first line expected to be a comment line describing the columns"
             print "format: #fname voter1 voter2 ..."
             cols = l1.split()
             ncol = len(cols)
@@ -2850,8 +3063,11 @@ def harm_ratio(a,b,max_denom=100):
     given two numbers, find the harmonic ratio
 
     """
-    c = fractions.Fraction(a/b).limit_denominator(max_denominator=max_denom)
-    return c.numerator, c.denominator
+    try:
+        c = fractions.Fraction(a/b).limit_denominator(max_denominator=max_denom)
+        return c.numerator, c.denominator
+    except:
+        return 0 , 0
 
 
 

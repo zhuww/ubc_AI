@@ -6,8 +6,10 @@ from random import shuffle
 import cPickle
 from scipy import mgrid
 import os,sys
-
 from ubc_AI.training import pfddata
+from ubc_AI.psrarchive_reader import ar2data
+from ubc_AI.singlepulse import singlepulse
+from ubc_AI.singlepulse import SPdata
 
 class pfdreader(object):
     """ 
@@ -23,20 +25,23 @@ class pfdreader(object):
                 if cls in pfdfile.__dict__:
                     self.__dict__.update({cls:pfdfile.__dict__[cls]})
             pfdfile = pfdfile.pfd_filename
-
-        if os.access(pfdfile, os.R_OK):
+        elif pfdfile.__class__ == singlepulse:
+            self.extracted_feature.update(pfdfile.extracted_feature)
             self.pfdfile = pfdfile
         else:
-            for path in self.SearchPATH.split(':'):
-                if os.access(path+pfdfile, os.R_OK):
-                    self.pfdfile = path+pfdfile
-                    break
-                elif os.access(path+pfdfile.split('/')[-1], os.R_OK):
-                    self.pfdfile = path+pfdfile.split('/')[-1]
-                    break
-            if not 'pfdfile' in self.__dict__:
-                print pfdfile, self.PSRclass, self.DMCclass
-                raise NameError, "did not file the file %s" % pfdfile
+            if os.access(pfdfile, os.R_OK):
+                self.pfdfile = pfdfile
+            else:
+                for path in self.SearchPATH.split(':'):
+                    if os.access(path+pfdfile, os.R_OK):
+                        self.pfdfile = path+pfdfile
+                        break
+                    elif os.access(path+pfdfile.split('/')[-1], os.R_OK):
+                        self.pfdfile = path+pfdfile.split('/')[-1]
+                        break
+                if not 'pfdfile' in self.__dict__:
+                    #print pfdfile, self.PSRclass, self.DMCclass
+                    raise NameError, "did not find the file %s" % pfdfile
 
     def getdata(self, *fargs, **features):
         pfd = None
@@ -57,13 +62,33 @@ class pfdreader(object):
             key, value = i.items()[0]
             feature = '%s:%s' % (key, value)
             if (feature not in self.extracted_feature) and (pfd is None):
-                pfd = pfddata(self.pfdfile, align=True) 
+                if not type(self.pfdfile) is str and self.pfdfile.__class__ == singlepulse:
+                    pfd = self.pfdfile
+                elif os.path.splitext(self.pfdfile)[1] == '.pfd': 
+                    pfd = pfddata(self.pfdfile, align=True) 
+                elif os.path.splitext(self.pfdfile)[1] == '.ar2':  
+                    pfd = ar2data(self.pfdfile, align=True) 
+                elif os.path.splitext(self.pfdfile)[1] == '.spd':  
+                    pfd = SPdata(self.pfdfile, align=True) 
+                else:
+                    print "unrecognized file format ", self.pfdfile
+                    raise Error
             data = np.append(data, extract(key, value, pfd))
         #process the kwargs
         for key, value in features.iteritems():
             feature = '%s:%s' % (key, value) 
             if (feature not in self.extracted_feature) and (pfd is None):
-                pfd = pfddata(self.pfdfile, align=True)
+                if not type(self.pfdfile) is str and self.pfdfile.__class__ == singlepulse:
+                    pfd = self.pfdfile
+                elif os.path.splitext(self.pfdfile)[1] == '.pfd': 
+                    pfd = pfddata(self.pfdfile, align=True) 
+                elif os.path.splitext(self.pfdfile)[1] == '.ar2':  
+                    pfd = ar2data(self.pfdfile, align=True) 
+                elif os.path.splitext(self.pfdfile)[1] == '.spd':  
+                    pfd = SPdata(self.pfdfile, align=True) 
+                else:
+                    print "unrecognized file format ", self.pfdfile
+                    raise Error
             data = np.append(data, extract(key, value, pfd))
         del(pfd)
         return data

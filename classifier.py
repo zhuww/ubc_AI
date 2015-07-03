@@ -294,6 +294,7 @@ class combinedAI(object):
     def report_score(self, pfds, dist='PALFA_Priordists.pkl'):
         if not type(pfds) in (list,tuple):
             pfds = [pfds]
+<<<<<<< HEAD
         if not self.__dict__.has_key('prior_freq_dist'):
             import cPickle
             import ubc_AI
@@ -341,6 +342,44 @@ class combinedAI(object):
         #freqs = [1./p.extracted_feature["ratings:['period']"] for p in pfds]
 
         newprobs = adjustscore(probs, freqs)
+=======
+        # turn off rescaling scores for master branch
+        #if not self.__dict__.has_key('RFI_freq_dist'):
+            #import cPickle
+            #import ubc_AI
+            #ubcAI_path = ubc_AI.__path__[0]
+            #self.RFI_freq_dist = cPickle.load(open(ubcAI_path+'/Pf.pkl', 'rb'))
+        #def getp0(pfd):
+            ##pfd.__init__('self')
+            #return pfd.getdata(ratings=['period'])
+
+        #def adjustscore(score, freq):
+            #newscore = []
+            #Pf = self.RFI_freq_dist['Pf']
+            #average = self.RFI_freq_dist['average']
+            #N = self.RFI_freq_dist['N']
+            #for i in range(len(score)):
+                #pp = score[i]
+                #f = freq[i]
+                #try:
+                    #pf = Pf[int(f)]
+                    #if pf > 0.2*Pf[0] and f>0: #scheme to readjust candidate score by lowing the scores for possible RFIs.
+                        #pr = 1. - pp
+                        #ns = pp/(pp + pf*pr/average)
+                        #newscore.append(ns)
+                    #else:
+                        #newscore.append(pp)
+                #except KeyError:
+                    #print f, i
+                    #newscore.append(pp)
+            #return np.array(newscore)
+
+        #probs = self.predict_proba(pfds)
+        #freqs = [1./getp0(p) for p in pfds]
+
+        #newprobs = adjustscore(probs, freqs)
+        newprobs = self.predict_proba(pfds)
+>>>>>>> singlepulse
 
         return np.array([0. if res[1] == 0. else eval(self.score_mapper % res[1]) for res in newprobs])
 
@@ -828,10 +867,10 @@ def threadpredict_proba(AIlist, pfds):
     pfds : list of pfds
     """
     def predict_prob(clf):
-        try:
-            p = clf.predict_proba(pfds)
-        except:
-            print 'Alarm!!!'
+        #try:
+        p = clf.predict_proba(pfds)
+        #except:
+            #print 'Alarm!!!'
         return p
     resultdict = threadit(predict_prob, [[clf] for clf in AIlist])
     return np.hstack([resultdict[n] for n in range(len(AIlist))])

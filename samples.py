@@ -30,7 +30,10 @@ def normalize(data):
             #mean = np.min(data)
             var = np.std(data)
             #var = np.max(data) - np.min(data)
-            data = (data-mean)/var
+            if var > 0:
+                data = (data-mean)/var
+            else:
+                data = (data-mean)
             #data = data.reshape(shape)
         return data
 

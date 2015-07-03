@@ -1,299 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- Generated with glade 3.16.1 -->
 <interface>
-  <!-- interface-requires gtk+ 3.0 -->
-  <object class="GtkWindow" id="PALFAqry_win">
-    <property name="can_focus">False</property>
-    <property name="title" translatable="yes">PALFA database query</property>
-    <property name="role">Query</property>
-    <property name="destroy_with_parent">True</property>
-    <child>
-      <object class="GtkBox" id="box25">
-        <property name="visible">True</property>
-        <property name="can_focus">False</property>
-        <property name="orientation">vertical</property>
-        <child>
-          <object class="GtkLabel" id="label5">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="tooltip_text" translatable="yes">Note: things won't work without a username and password.
-You may need to contact the author to add your ciphered
-credentials to the list.</property>
-            <property name="label" translatable="yes">Download PALFA candidates based on the following query.
-Note: your computer needs the right credentials
-Also. we replace any loaded file.</property>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">0</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkBox" id="box26">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <child>
-              <object class="GtkEntry" id="qry_uname">
-                <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="tooltip_text" translatable="yes">Note: things won't work without a username and password.
-You may need to contact the author to add your ciphered
-credentials to the list.</property>
-                <property name="invisible_char">•</property>
-                <property name="primary_icon_tooltip_text" translatable="yes">PALFA username</property>
-                <property name="placeholder_text">username</property>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">0</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkEntry" id="qry_pwd">
-                <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="tooltip_text" translatable="yes">Note: things won't work without a username and password.
-You may need to contact the author to add your ciphered
-credentials to the list.</property>
-                <property name="visibility">False</property>
-                <property name="invisible_char">•</property>
-                <property name="invisible_char_set">True</property>
-                <property name="placeholder_text">password</property>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">1</property>
-              </packing>
-            </child>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">1</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkBox" id="box27">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <child>
-              <object class="GtkLabel" id="label20">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="tooltip_text" translatable="yes">The purpose of this window is to download the png/pfd of items of interest
-in the PALFA database. The query must return candid as first column in each entry so that we can download it.</property>
-                <property name="label" translatable="yes">sample queries (must return candid in first entry):</property>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="padding">3</property>
-                <property name="position">0</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkComboBoxText" id="sample_qry">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="active">0</property>
-                <property name="focus_on_click">False</property>
-                <property name="entry_text_column">0</property>
-                <property name="id_column">1</property>
-                <items>
-                  <item translatable="yes">by candidate id</item>
-                  <item translatable="yes">recent rfi</item>
-                </items>
-                <signal name="changed" handler="on_sampleqry_changed" swapped="no"/>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">1</property>
-              </packing>
-            </child>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">2</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkLabel" id="label18">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="yalign">0.49000000953674316</property>
-            <property name="label" translatable="yes">the query</property>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">3</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkTextView" id="qry_view">
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="tooltip_text" translatable="yes">The database query. Subsitutions are determined from the input file below. 
-A row for each query, and column for each substitution. Default example has one substitution %s</property>
-            <property name="pixels_above_lines">1</property>
-            <property name="pixels_below_lines">1</property>
-            <property name="pixels_inside_wrap">4</property>
-            <property name="wrap_mode">word</property>
-            <property name="buffer">qry_buffer</property>
-          </object>
-          <packing>
-            <property name="expand">True</property>
-            <property name="fill">True</property>
-            <property name="position">4</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkBox" id="box31">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="spacing">3</property>
-            <child>
-              <object class="GtkLabel" id="label19">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="label" translatable="yes">File containing query substitutions :
-        (if necessary)             </property>
-                <property name="justify">center</property>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="padding">2</property>
-                <property name="position">0</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkFileChooserButton" id="qry_subfile">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="tooltip_text" translatable="yes">File format should be a list of queries, one entry per row, 
-with the number of columns equal to the number of substitutions in the above query</property>
-                <property name="orientation">vertical</property>
-                <property name="title" translatable="yes">Select a File with the query substitutions</property>
-              </object>
-              <packing>
-                <property name="expand">True</property>
-                <property name="fill">True</property>
-                <property name="position">1</property>
-              </packing>
-            </child>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">5</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkBox" id="box28">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <child>
-              <object class="GtkBox" id="box29">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <child>
-                  <object class="GtkLabel" id="label21">
-                    <property name="visible">True</property>
-                    <property name="can_focus">False</property>
-                    <property name="tooltip_text" translatable="yes">Download location of interesting pfd's. 
-Download is triggered if candidate is voted on.</property>
-                    <property name="label" translatable="yes">Query save location for pfd's:</property>
-                  </object>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">True</property>
-                    <property name="padding">2</property>
-                    <property name="position">0</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkEntry" id="gtk_qrysaveloc">
-                    <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="has_tooltip">True</property>
-                    <property name="tooltip_markup" translatable="yes">location to download PFD
-(downloads happen automatically if you vote on the object)</property>
-                    <property name="tooltip_text" translatable="yes">location to download PFD
-(downloads happen automatically if you vote on the object)</property>
-                    <property name="invisible_char">•</property>
-                    <property name="invisible_char_set">True</property>
-                    <property name="placeholder_text">./</property>
-                  </object>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">True</property>
-                    <property name="padding">2</property>
-                    <property name="position">1</property>
-                  </packing>
-                </child>
-              </object>
-              <packing>
-                <property name="expand">True</property>
-                <property name="fill">True</property>
-                <property name="position">0</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkBox" id="box30">
-                <property name="can_focus">False</property>
-                <property name="orientation">vertical</property>
-                <child>
-                  <placeholder/>
-                </child>
-                <child>
-                  <placeholder/>
-                </child>
-              </object>
-              <packing>
-                <property name="expand">True</property>
-                <property name="fill">True</property>
-                <property name="position">1</property>
-              </packing>
-            </child>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="padding">5</property>
-            <property name="position">6</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkButton" id="qry_run">
-            <property name="label" translatable="yes">Execute Query</property>
-            <property name="use_action_appearance">False</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="receives_default">True</property>
-            <property name="margin_top">2</property>
-            <property name="margin_bottom">4</property>
-            <property name="use_action_appearance">False</property>
-            <signal name="activate" handler="on_qry_execute" swapped="no"/>
-            <signal name="clicked" handler="on_qry_execute" swapped="no"/>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="padding">4</property>
-            <property name="position">7</property>
-          </packing>
-        </child>
-        <child>
-          <placeholder/>
-        </child>
-      </object>
-    </child>
-  </object>
+  <requires lib="gtk+" version="3.0"/>
   <object class="GtkAdjustment" id="adjustment1">
     <property name="upper">1</property>
     <property name="value">0.5</property>
@@ -302,12 +10,24 @@ Download is triggered if candidate is voted on.</property>
     <signal name="changed" handler="on_view_limit_changed" swapped="no"/>
     <signal name="value-changed" handler="on_view_limit_changed" swapped="no"/>
   </object>
+  <object class="GtkAdjustment" id="adjustment2">
+    <property name="upper">100</property>
+    <property name="step_increment">1</property>
+    <property name="page_increment">10</property>
+  </object>
   <object class="GtkAdjustment" id="advance_val">
     <property name="lower">1</property>
     <property name="upper">2</property>
     <property name="value">1</property>
     <property name="step_increment">1</property>
     <property name="page_increment">1</property>
+  </object>
+  <object class="GtkAdjustment" id="dbversion_adj">
+    <property name="lower">2</property>
+    <property name="upper">3</property>
+    <property name="value">2</property>
+    <property name="step_increment">1</property>
+    <property name="page_increment">10</property>
   </object>
   <object class="GtkImage" id="image1">
     <property name="visible">True</property>
@@ -347,7 +67,6 @@ Download is triggered if candidate is voted on.</property>
     <property name="accept_focus">False</property>
     <property name="focus_on_map">False</property>
     <property name="has_resize_grip">False</property>
-    <property name="focus_visible">False</property>
     <child>
       <object class="GtkBox" id="box32">
         <property name="visible">True</property>
@@ -550,7 +269,6 @@ Download is triggered if candidate is voted on.</property>
                             <property name="text" translatable="yes">32</property>
                             <property name="shadow_type">etched-in</property>
                             <property name="overwrite_mode">True</property>
-                            <property name="invisible_char_set">True</property>
                             <property name="caps_lock_warning">False</property>
                             <property name="placeholder_text">32</property>
                             <signal name="changed" handler="on_aiview_change" swapped="no"/>
@@ -571,7 +289,6 @@ Download is triggered if candidate is voted on.</property>
                             <property name="width_chars">4</property>
                             <property name="text" translatable="yes">0</property>
                             <property name="overwrite_mode">True</property>
-                            <property name="invisible_char_set">True</property>
                             <property name="placeholder_text">0</property>
                             <signal name="changed" handler="on_aiview_change" swapped="no"/>
                           </object>
@@ -659,7 +376,6 @@ Download is triggered if candidate is voted on.</property>
                             <property name="invisible_char">•</property>
                             <property name="width_chars">4</property>
                             <property name="text" translatable="yes">32</property>
-                            <property name="invisible_char_set">True</property>
                             <property name="placeholder_text">32</property>
                             <signal name="changed" handler="on_aiview_change" swapped="no"/>
                           </object>
@@ -680,7 +396,6 @@ Download is triggered if candidate is voted on.</property>
                             <property name="text" translatable="yes">0</property>
                             <property name="shadow_type">none</property>
                             <property name="overwrite_mode">True</property>
-                            <property name="invisible_char_set">True</property>
                             <property name="placeholder_text">0</property>
                             <signal name="changed" handler="on_aiview_change" swapped="no"/>
                           </object>
@@ -779,7 +494,6 @@ Download is triggered if candidate is voted on.</property>
                             <property name="invisible_char">•</property>
                             <property name="width_chars">4</property>
                             <property name="text" translatable="yes">32</property>
-                            <property name="invisible_char_set">True</property>
                             <property name="placeholder_text">32</property>
                             <signal name="changed" handler="on_aiview_change" swapped="no"/>
                           </object>
@@ -799,7 +513,6 @@ Download is triggered if candidate is voted on.</property>
                             <property name="width_chars">4</property>
                             <property name="text" translatable="yes">0</property>
                             <property name="overwrite_mode">True</property>
-                            <property name="invisible_char_set">True</property>
                             <property name="placeholder_text">0</property>
                             <signal name="changed" handler="on_aiview_change" swapped="no"/>
                           </object>
@@ -888,7 +601,6 @@ Download is triggered if candidate is voted on.</property>
                             <property name="width_chars">4</property>
                             <property name="text" translatable="yes">32</property>
                             <property name="overwrite_mode">True</property>
-                            <property name="invisible_char_set">True</property>
                             <property name="placeholder_text">32</property>
                             <signal name="changed" handler="on_aiview_change" swapped="no"/>
                           </object>
@@ -908,7 +620,6 @@ Download is triggered if candidate is voted on.</property>
                             <property name="width_chars">4</property>
                             <property name="text" translatable="yes">0</property>
                             <property name="overwrite_mode">True</property>
-                            <property name="invisible_char_set">True</property>
                             <property name="placeholder_text">0</property>
                             <signal name="changed" handler="on_aiview_change" swapped="no"/>
                           </object>
@@ -965,6 +676,18 @@ Download is triggered if candidate is voted on.</property>
     <property name="step_increment">0.14999999999999999</property>
     <property name="page_increment">0.25</property>
   </object>
+  <object class="GtkListStore" id="pfdstore">
+    <columns>
+      <!-- column-name n -->
+      <column type="gint"/>
+      <!-- column-name fname -->
+      <column type="gchararray"/>
+      <!-- column-name col1_prob -->
+      <column type="gdouble"/>
+      <!-- column-name col2_prob -->
+      <column type="gdouble"/>
+    </columns>
+  </object>
   <object class="GtkWindow" id="listwin">
     <property name="width_request">380</property>
     <property name="height_request">650</property>
@@ -981,8 +704,8 @@ Download is triggered if candidate is voted on.</property>
     <property name="default_height">650</property>
     <property name="destroy_with_parent">True</property>
     <property name="focus_on_map">False</property>
-    <signal name="destroy" handler="on_delete_win" swapped="no"/>
     <signal name="delete-event" handler="on_delete_win" swapped="no"/>
+    <signal name="destroy" handler="on_delete_win" swapped="no"/>
     <child>
       <object class="GtkBox" id="box1">
         <property name="visible">True</property>
@@ -1145,8 +868,6 @@ Download is triggered if candidate is voted on.</property>
               <object class="GtkComboBoxText" id="voterbox">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="entry_text_column">0</property>
-                <property name="id_column">1</property>
                 <signal name="changed" handler="on_voterbox_changed" swapped="no"/>
               </object>
               <packing>
@@ -1201,8 +922,6 @@ Download is triggered if candidate is voted on.</property>
               <object class="GtkComboBoxText" id="col1">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="entry_text_column">0</property>
-                <property name="id_column">1</property>
                 <signal name="changed" handler="on_col_changed" swapped="no"/>
               </object>
               <packing>
@@ -1230,8 +949,6 @@ Download is triggered if candidate is voted on.</property>
               <object class="GtkComboBoxText" id="col2">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="entry_text_column">0</property>
-                <property name="id_column">1</property>
                 <signal name="changed" handler="on_col_changed" swapped="no"/>
               </object>
               <packing>
@@ -1266,8 +983,8 @@ Download is triggered if candidate is voted on.</property>
                 <property name="enable_search">False</property>
                 <property name="search_column">1</property>
                 <property name="enable_grid_lines">both</property>
-                <signal name="key-release-event" handler="on_pfdwin_key_release_event" swapped="no"/>
                 <signal name="key-press-event" handler="on_pfdwin_key_press_event" swapped="no"/>
+                <signal name="key-release-event" handler="on_pfdwin_key_release_event" swapped="no"/>
                 <child internal-child="selection">
                   <object class="GtkTreeSelection" id="treeview-selection"/>
                 </child>
@@ -1289,10 +1006,13 @@ Download is triggered if candidate is voted on.</property>
               <object class="GtkBox" id="box20">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
+                <property name="margin_bottom">50</property>
                 <child>
                   <object class="GtkBox" id="box21">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
+                    <property name="halign">start</property>
+                    <property name="valign">baseline</property>
                     <property name="orientation">vertical</property>
                     <child>
                       <object class="GtkBox" id="box18">
@@ -1305,8 +1025,8 @@ Download is triggered if candidate is voted on.</property>
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
                             <property name="receives_default">False</property>
-                            <property name="use_action_appearance">False</property>
-                            <property name="xalign">0</property>
+                            <property name="xalign">0.019999999552965164</property>
+                            <property name="yalign">0.50999999046325684</property>
                             <property name="active">True</property>
                             <property name="draw_indicator">True</property>
                             <signal name="toggled" handler="on_viewlimit_toggled" swapped="no"/>
@@ -1321,9 +1041,10 @@ Download is triggered if candidate is voted on.</property>
                           <object class="GtkSpinButton" id="view_limit">
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
+                            <property name="max_length">4</property>
                             <property name="invisible_char">•</property>
                             <property name="xalign">0.5</property>
-                            <property name="invisible_char_set">True</property>
+                            <property name="input_purpose">alpha</property>
                             <property name="adjustment">adjustment1</property>
                             <property name="climb_rate">0.050000000223517416</property>
                             <property name="digits">2</property>
@@ -1332,8 +1053,8 @@ Download is triggered if candidate is voted on.</property>
                             <property name="update_policy">if-valid</property>
                             <signal name="change-value" handler="on_view_limit_changed" swapped="no"/>
                             <signal name="changed" handler="on_view_limit_changed" swapped="no"/>
-                            <signal name="value-changed" handler="on_view_limit_changed" swapped="no"/>
                             <signal name="editing-done" handler="on_view_limit_changed" swapped="no"/>
+                            <signal name="value-changed" handler="on_view_limit_changed" swapped="no"/>
                           </object>
                           <packing>
                             <property name="expand">False</property>
@@ -1362,7 +1083,6 @@ Download is triggered if candidate is voted on.</property>
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
                             <property name="receives_default">False</property>
-                            <property name="use_action_appearance">False</property>
                             <property name="xalign">0</property>
                             <property name="draw_indicator">True</property>
                             <signal name="toggled" handler="on_pmatchwin_toggled" swapped="no"/>
@@ -1394,7 +1114,6 @@ Download is triggered if candidate is voted on.</property>
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
                             <property name="receives_default">False</property>
-                            <property name="use_action_appearance">False</property>
                             <property name="xalign">0</property>
                             <property name="draw_indicator">True</property>
                             <signal name="toggled" handler="on_tmpAI_toggled" swapped="no"/>
@@ -1436,7 +1155,6 @@ Download is triggered if candidate is voted on.</property>
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
                             <property name="receives_default">False</property>
-                            <property name="use_action_appearance">False</property>
                             <property name="xalign">0</property>
                             <property name="draw_indicator">True</property>
                             <signal name="toggled" handler="on_verbose_match" swapped="no"/>
@@ -1469,7 +1187,6 @@ ranked item in column :</property>
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
                             <property name="receives_default">False</property>
-                            <property name="use_action_appearance">False</property>
                             <property name="focus_on_click">False</property>
                             <property name="xalign">0</property>
                             <property name="draw_indicator">True</property>
@@ -1486,7 +1203,6 @@ ranked item in column :</property>
                             <property name="can_focus">False</property>
                             <property name="invisible_char">•</property>
                             <property name="xalign">0.5</property>
-                            <property name="invisible_char_set">True</property>
                             <property name="adjustment">advance_val</property>
                             <property name="numeric">True</property>
                             <property name="update_policy">if-valid</property>
@@ -1505,6 +1221,48 @@ ranked item in column :</property>
                         <property name="expand">False</property>
                         <property name="fill">True</property>
                         <property name="position">4</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkBox" id="box35">
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                        <child>
+                          <object class="GtkCheckButton" id="DM_limit_toggle">
+                            <property name="label" translatable="yes">exclude cands with DM &lt;=</property>
+                            <property name="visible">True</property>
+                            <property name="can_focus">True</property>
+                            <property name="receives_default">False</property>
+                            <property name="xalign">0.019999999552965164</property>
+                            <property name="draw_indicator">True</property>
+                            <signal name="toggled" handler="on_DM_limit_toggled" swapped="no"/>
+                          </object>
+                          <packing>
+                            <property name="expand">False</property>
+                            <property name="fill">True</property>
+                            <property name="position">0</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkEntry" id="DM_limit_val">
+                            <property name="visible">True</property>
+                            <property name="can_focus">True</property>
+                            <property name="text" translatable="yes">5</property>
+                            <property name="progress_pulse_step">0.080000000000000002</property>
+                            <property name="input_purpose">number</property>
+                            <signal name="changed" handler="on_DM_limit_val_changed" swapped="no"/>
+                          </object>
+                          <packing>
+                            <property name="expand">False</property>
+                            <property name="fill">True</property>
+                            <property name="position">1</property>
+                          </packing>
+                        </child>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">5</property>
                       </packing>
                     </child>
                   </object>
@@ -1545,7 +1303,6 @@ ranked item in column :</property>
                             <property name="receives_default">False</property>
                             <property name="halign">start</property>
                             <property name="valign">center</property>
-                            <property name="use_action_appearance">False</property>
                             <property name="xalign">0</property>
                             <property name="draw_indicator">True</property>
                             <signal name="toggled" handler="on_autosave_toggled" swapped="no"/>
@@ -1582,7 +1339,6 @@ ranked item in column :</property>
 if tmp.AI is loaded we use it&amp;apos;s values</property>
                             <property name="tooltip_text" translatable="yes">Display the subplots as the AI would see it.
 if tmp.AI is loaded we use it's values</property>
-                            <property name="use_action_appearance">False</property>
                             <property name="xalign">0</property>
                             <property name="draw_indicator">True</property>
                             <signal name="toggled" handler="on_aiview_toggled" swapped="no"/>
@@ -1613,14 +1369,13 @@ if tmp.AI is loaded we use it's values</property>
                             <property name="can_focus">False</property>
                             <property name="invisible_char">•</property>
                             <property name="xalign">0.5</property>
-                            <property name="invisible_char_set">True</property>
                             <property name="adjustment">match_sep_adj</property>
                             <property name="digits">2</property>
                             <property name="numeric">True</property>
                             <property name="update_policy">if-valid</property>
                             <signal name="changed" handler="on_sep_change" swapped="no"/>
-                            <signal name="value-changed" handler="on_sep_change" swapped="no"/>
                             <signal name="editing-done" handler="on_sep_change" swapped="no"/>
+                            <signal name="value-changed" handler="on_sep_change" swapped="no"/>
                           </object>
                           <packing>
                             <property name="expand">False</property>
@@ -1665,7 +1420,6 @@ if tmp.AI is loaded we use it's values</property>
                             <property name="has_tooltip">True</property>
                             <property name="tooltip_markup" translatable="yes">Query the PALFA database for new candidates</property>
                             <property name="tooltip_text" translatable="yes">Query the PALFA database for new candidates</property>
-                            <property name="use_action_appearance">False</property>
                             <property name="xalign">0</property>
                             <property name="draw_indicator">True</property>
                             <signal name="toggled" handler="on_PALFAqry_toggled" swapped="no"/>
@@ -1685,7 +1439,6 @@ if tmp.AI is loaded we use it's values</property>
                             <property name="no_show_all">True</property>
                             <property name="tooltip_text" translatable="yes">Download all candidates files (pfd's) from query. 
 This can take a while...</property>
-                            <property name="use_action_appearance">False</property>
                             <property name="focus_on_click">False</property>
                             <signal name="clicked" handler="on_qry_dwnld_clicked" swapped="no"/>
                           </object>
@@ -1712,7 +1465,6 @@ This can take a while...</property>
                         <property name="receives_default">False</property>
                         <property name="tooltip_text" translatable="yes">Vote on overall candidate as well
 as each subplot. We record results in a new column appended with '_FL'</property>
-                        <property name="use_action_appearance">False</property>
                         <property name="xalign">0</property>
                         <property name="draw_indicator">True</property>
                         <signal name="toggled" handler="on_FL_voting_toggled" swapped="no"/>
@@ -1755,18 +1507,6 @@ as each subplot. We record results in a new column appended with '_FL'</property
       </object>
     </child>
   </object>
-  <object class="GtkListStore" id="pfdstore">
-    <columns>
-      <!-- column-name n -->
-      <column type="gint"/>
-      <!-- column-name fname -->
-      <column type="gchararray"/>
-      <!-- column-name col1_prob -->
-      <column type="gdouble"/>
-      <!-- column-name col2_prob -->
-      <column type="gdouble"/>
-    </columns>
-  </object>
   <object class="GtkListStore" id="pmatch_store">
     <columns>
       <!-- column-name name -->
@@ -1791,8 +1531,8 @@ as each subplot. We record results in a new column appended with '_FL'</property
     <property name="default_height">880</property>
     <property name="destroy_with_parent">True</property>
     <property name="gravity">east</property>
-    <signal name="key-release-event" handler="on_pfdwin_key_release_event" swapped="no"/>
     <signal name="key-press-event" handler="on_pfdwin_key_press_event" swapped="no"/>
+    <signal name="key-release-event" handler="on_pfdwin_key_release_event" swapped="no"/>
     <child>
       <object class="GtkBox" id="box3">
         <property name="visible">True</property>
@@ -1841,7 +1581,6 @@ as each subplot. We record results in a new column appended with '_FL'</property
                 <property name="receives_default">False</property>
                 <property name="events">GDK_STRUCTURE_MASK | GDK_PROPERTY_CHANGE_MASK</property>
                 <property name="tooltip_text" translatable="yes">Overall vote for candidate</property>
-                <property name="use_action_appearance">False</property>
                 <property name="xalign">0</property>
                 <property name="draw_indicator">True</property>
                 <signal name="toggled" handler="on_fl_toggle" swapped="no"/>
@@ -1866,7 +1605,6 @@ as each subplot. We record results in a new column appended with '_FL'</property
                     <property name="receives_default">False</property>
                     <property name="events">GDK_STRUCTURE_MASK | GDK_PROPERTY_CHANGE_MASK</property>
                     <property name="tooltip_text" translatable="yes">checkmark: this is a good 'profile'</property>
-                    <property name="use_action_appearance">False</property>
                     <property name="focus_on_click">False</property>
                     <property name="xalign">0</property>
                     <property name="draw_indicator">True</property>
@@ -1888,7 +1626,6 @@ as each subplot. We record results in a new column appended with '_FL'</property
                     <property name="receives_default">False</property>
                     <property name="events">GDK_STRUCTURE_MASK | GDK_PROPERTY_CHANGE_MASK</property>
                     <property name="tooltip_text" translatable="yes">checkmark: good interval subplot</property>
-                    <property name="use_action_appearance">False</property>
                     <property name="focus_on_click">False</property>
                     <property name="xalign">0</property>
                     <property name="draw_indicator">True</property>
@@ -1910,7 +1647,6 @@ as each subplot. We record results in a new column appended with '_FL'</property
                     <property name="receives_default">False</property>
                     <property name="events">GDK_STRUCTURE_MASK | GDK_PROPERTY_CHANGE_MASK</property>
                     <property name="tooltip_text" translatable="yes">checkmark: good frequency subbands plot</property>
-                    <property name="use_action_appearance">False</property>
                     <property name="focus_on_click">False</property>
                     <property name="xalign">0</property>
                     <property name="draw_indicator">True</property>
@@ -1932,7 +1668,6 @@ as each subplot. We record results in a new column appended with '_FL'</property
                     <property name="receives_default">False</property>
                     <property name="events">GDK_STRUCTURE_MASK | GDK_PROPERTY_CHANGE_MASK</property>
                     <property name="tooltip_text" translatable="yes">checkmark: good DM curve plot</property>
-                    <property name="use_action_appearance">False</property>
                     <property name="focus_on_click">False</property>
                     <property name="xalign">0</property>
                     <property name="draw_indicator">True</property>
@@ -2221,4 +1956,331 @@ as each subplot. We record results in a new column appended with '_FL'</property
   <object class="GtkTextBuffer" id="qry_buffer">
     <property name="text" translatable="yes">SELECT * FROM PDM_Candidate_Binaries_Filesystem as t where t.pdm_cand_id = %s</property>
   </object>
+  <object class="GtkWindow" id="PALFAqry_win">
+    <property name="can_focus">False</property>
+    <property name="title" translatable="yes">PALFA database query</property>
+    <property name="role">Query</property>
+    <property name="destroy_with_parent">True</property>
+    <child>
+      <object class="GtkBox" id="box25">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="orientation">vertical</property>
+        <child>
+          <object class="GtkLabel" id="label5">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="tooltip_text" translatable="yes">Note: things won't work without a username and password.
+You may need to contact the author to add your ciphered
+credentials to the list.</property>
+            <property name="label" translatable="yes">Download PALFA candidates based on the following query.
+Note: your computer needs the right credentials
+Also. we replace any loaded file.</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkBox" id="box26">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <child>
+              <object class="GtkEntry" id="qry_uname">
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="tooltip_text" translatable="yes">Note: things won't work without a username and password.
+You may need to contact the author to add your ciphered
+credentials to the list.</property>
+                <property name="invisible_char">•</property>
+                <property name="primary_icon_tooltip_text" translatable="yes">PALFA username</property>
+                <property name="placeholder_text">username</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkEntry" id="qry_pwd">
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="tooltip_text" translatable="yes">Note: things won't work without a username and password.
+You may need to contact the author to add your ciphered
+credentials to the list.</property>
+                <property name="visibility">False</property>
+                <property name="invisible_char">•</property>
+                <property name="placeholder_text">password</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkBox" id="box27">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <child>
+              <object class="GtkLabel" id="label20">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="tooltip_text" translatable="yes">The purpose of this window is to download the png/pfd of items of interest
+in the PALFA database. The query must return candid as first column in each entry so that we can download it.</property>
+                <property name="label" translatable="yes">sample queries (must return candid in first entry):</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="padding">3</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkComboBoxText" id="sample_qry">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="active">0</property>
+                <property name="focus_on_click">False</property>
+                <items>
+                  <item translatable="yes">by candidate id</item>
+                  <item translatable="yes">recent rfi</item>
+                </items>
+                <signal name="changed" handler="on_sampleqry_changed" swapped="no"/>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkBox" id="box34">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <child>
+              <object class="GtkLabel" id="label24">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="xpad">11</property>
+                <property name="label" translatable="yes">database version (2 or 3):</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkSpinButton" id="dbversion">
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="invisible_char">•</property>
+                <property name="adjustment">dbversion_adj</property>
+                <property name="numeric">True</property>
+                <property name="wrap">True</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">3</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label18">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="yalign">0.49000000953674316</property>
+            <property name="label" translatable="yes">the query</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">4</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkTextView" id="qry_view">
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="tooltip_text" translatable="yes">The database query. Subsitutions are determined from the input file below. 
+A row for each query, and column for each substitution. Default example has one substitution %s</property>
+            <property name="pixels_above_lines">1</property>
+            <property name="pixels_below_lines">1</property>
+            <property name="pixels_inside_wrap">4</property>
+            <property name="wrap_mode">word</property>
+            <property name="buffer">qry_buffer</property>
+          </object>
+          <packing>
+            <property name="expand">True</property>
+            <property name="fill">True</property>
+            <property name="position">5</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkBox" id="box31">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="spacing">3</property>
+            <child>
+              <object class="GtkLabel" id="label19">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="label" translatable="yes">File containing query substitutions :
+        (if necessary)             </property>
+                <property name="justify">center</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="padding">2</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkFileChooserButton" id="qry_subfile">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="tooltip_text" translatable="yes">File format should be a list of queries, one entry per row, 
+with the number of columns equal to the number of substitutions in the above query</property>
+                <property name="title" translatable="yes">Select a File with the query substitutions</property>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">6</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkBox" id="box28">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <child>
+              <object class="GtkBox" id="box29">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <child>
+                  <object class="GtkLabel" id="label21">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="tooltip_text" translatable="yes">Download location of interesting pfd's. 
+Download is triggered if candidate is voted on.</property>
+                    <property name="label" translatable="yes">Query save location for pfd's:</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="padding">2</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkEntry" id="gtk_qrysaveloc">
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="has_tooltip">True</property>
+                    <property name="tooltip_markup" translatable="yes">location to download PFD
+(downloads happen automatically if you vote on the object)</property>
+                    <property name="tooltip_text" translatable="yes">location to download PFD
+(downloads happen automatically if you vote on the object)</property>
+                    <property name="invisible_char">•</property>
+                    <property name="placeholder_text">./</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="padding">2</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkBox" id="box30">
+                <property name="can_focus">False</property>
+                <property name="orientation">vertical</property>
+                <child>
+                  <placeholder/>
+                </child>
+                <child>
+                  <placeholder/>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="padding">5</property>
+            <property name="position">7</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="qry_run">
+            <property name="label" translatable="yes">Execute Query</property>
+            <property name="use_action_appearance">False</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="receives_default">True</property>
+            <property name="margin_top">2</property>
+            <property name="margin_bottom">4</property>
+            <signal name="activate" handler="on_qry_execute" swapped="no"/>
+            <signal name="clicked" handler="on_qry_execute" swapped="no"/>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="padding">4</property>
+            <property name="position">8</property>
+          </packing>
+        </child>
+        <child>
+          <placeholder/>
+        </child>
+      </object>
+    </child>
+  </object>
+  <object class="GtkToggleAction" id="toggleaction1"/>
 </interface>
