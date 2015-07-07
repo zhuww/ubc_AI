@@ -1,0 +1,22 @@
+#!/bin/bash
+if [ $# -eq 0 ];
+  then
+    echo "No arguments supplied:"
+    echo "Supply the directory containing the pfd files you want to mirror."
+    echo "$0 otherdir"
+    exit
+else
+cwd=`pwd`
+otherdir=$1
+cd $otherdir
+files=`ls *.pfd *.ar *.ar2`
+cd $cwd
+function mirror() {
+ln -s $otherdir/$1 $1
+echo $1
+}
+for file in $files
+do
+    mirror $file
+done
+fi
