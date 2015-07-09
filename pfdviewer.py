@@ -995,10 +995,16 @@ class MainFrameGTK(Gtk.Window):
             fpng = '%s.png' % fname
             if not exists(fpng):
                 fpng = convert(fname)
-        elif fname.endswith('.ar2') or fanme.endswith('.ar'):
+        elif fname.endswith('.ar2') or fname.endswith('.ar'):
             fpng = '%s.png' % fname
             if not exists(fpng):
                 fpng = convert(fname)
+        elif fname.endswith('.spd'):
+            fpng = '%s.png' % fname
+            if not exists(fpng):
+                fpng = convert(fname)
+                #if fps.endswith('.ps'):
+                    #fpng = convert(fps)
         elif fname.endswith('.png') or fname.endswith('.jpg'):
             #convert from ps or pfd if we can't find the png
             if not exists(fname):
@@ -2020,8 +2026,19 @@ class MainFrameGTK(Gtk.Window):
                     ra, dec = coord.getHMSDMS().split(' ')
                     p0 = arch[0].get_folding_period()
                 except(IOError, ValueError):pass
+            spd = None
+            if fname.endswith('.spd'):
+                try:
+                    from ubc_AI.singlepulse import SPdata
+                    spd = SPdata(fname)
+                    dm = spd.dm
+                    ra = spd.ra
+                    dec = spd.dec
+                    #p0 = spd.period
+                    p0 = 0.
+                except(IOError, ValueError):pass
             
-            if exists(fname) and (pfd != None or arch != None):
+            if exists(fname) and (pfd != None or arch != None or spd != None):
                 if float(dec.split(':')[0]) > 0:
                     sgn = '+'
                 else:
@@ -2733,11 +2750,37 @@ def convert(fin):
             os.chdir(cwd)
 
             # assign fin to ps file so it converts to png below
-            fin = abspath(os.path.join(pfddir, "%s.ps" % show_name))
+            fout = abspath(os.path.join(pfddir, "%s.ps" % show_name))
             #print fin, os.path.exists(fin)
         else:
             #conversion failed
             fout = None
+
+    if fin.endswith('.spd'):
+        pfddir = dirname(abspath(fin))
+        pfdname = basename(fin)
+        full_path = abspath(fin)
+        cwd = os.getcwd()
+        show_name = os.path.splitext(pfdname)[0]
+        #os.system('python ' + AI_path + 'Single-pulse/show_spplots.py %s' % fin)
+        show_spplots = AI_path + '/Single-pulse/show_spplots.py'
+        cmd = ['python', show_spplots, pfdname]
+        subprocess.call(cmd, shell=False,
+                            stdout=open('/dev/null','w'))
+        os.chdir(cwd)
+        fps = abspath(os.path.join(pfddir, "%s.ps" % pfdname))
+        bdir = dirname(abspath(fps))
+        bname = basename(fps)
+        fout = os.path.join(bdir, bname.replace('.ps','.png')) 
+    #convert to png
+        if pyimage:
+            f = Image(fps)
+            #f.rotate(90)
+            f.write(fout)
+        else:
+            cmd = ['convert',fps,'png:%s' % fout]
+            subprocess.call(cmd, shell=False,
+                            stdout=open('/dev/null','w'))
 
 
     if fin.endswith('.ps') and os.path.exists(fin):

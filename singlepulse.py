@@ -3,6 +3,7 @@ import os,sys
 import scipy.stats as stats
 import ubc_AI.samples
 DM_range_factor = 0.2
+BINRATIO = 25
 
 
 def rotate(data, deltaphase): 
@@ -31,7 +32,7 @@ def greyscale(img):
     img = (img-min_parts[:,np.newaxis])/global_max
     return img
 
-class waterfall(object): 
+class singlepulse(object): 
     initialize = False
     def __init__(self, data, dm, duration, freq_lo, freq_hi, align=True, centre=True):
         self.data = data
@@ -152,3 +153,60 @@ class waterfall(object):
             return self.extracted_feature[feature]
         data = np.hstack((getsumprofs(phasebins), getfreqprofs(freqbins), gettimeprofs(timebins), getbandpass(bandpass), getDMcurve(DMbins), getintervals(intervals), getsubbands(subbands), getratings(ratings)))
         return data
+
+
+class SPdata(singlepulse):
+    def __init__(self, spfile, align=True, centre=True):
+        npzfile = np.load(spfile)
+        text_array = npzfile['text_array']
+        fn = text_array[0]
+        telescope = text_array[1]
+        RA = text_array[2]
+        dec = text_array[3]
+        MJD = float(text_array[4])
+        #mjd = Popen(["mjd2cal", "%f"%MJD], stdout=PIPE, stderr=PIPE)
+        #date, err = mjd.communicate()
+        #date = date.split()[2:5]
+        #rank = int(text_array[5])
+        nsub = int(text_array[6])
+        nbins = int(text_array[7])
+        subdm = dm = sweep_dm = float(text_array[8])
+        sigma = float(text_array[9])
+        sample_number = int(text_array[10])
+        duration = float(text_array[11])
+        width_bins = int(text_array[12])
+        pulse_width = float(text_array[13])
+        tsamp = float(text_array[14])
+        Total_observed_time = float(text_array[15])
+        start = float(text_array[16])
+        start = start - 0.25*duration
+        datastart = float(text_array[17])
+        datasamp = float(text_array[18])
+        datanumspectra = float(text_array[19])
+        min_freq = float(text_array[20])
+        max_freq = float(text_array[21])
+        sweep_duration = float(text_array[22])
+        sweeped_start = float(text_array[23])
+
+        self.dm = dm
+        self.period = duration/2.
+        self.ra = RA
+        self.dec = dec
+
+        data = npzfile['Data_dedisp_zerodm'].astype(np.float64)
+        row, col = data.shape
+        dataorg = data[:,:col/2]
+        fbin, tbin = dataorg.shape
+        #print tbin, fbin
+        M = max(int(tbin/BINRATIO), 1)
+        if M > 1:
+            datacut = dataorg[:,:M * BINRATIO]
+            data = datacut.reshape(fbin, BINRATIO, M).sum(axis=-1)
+        else:
+            data = dataorg
+        #print tbin, fbin, M, data.shape
+        #from pylab import * 
+        #imshow(data, aspect='auto')
+        #show()
+
+        singlepulse.__init__(self, data, dm, self.period, min_freq, max_freq, align=align, centre=centre )
