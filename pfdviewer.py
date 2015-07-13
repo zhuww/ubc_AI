@@ -2743,14 +2743,15 @@ def convert(fin):
             os.chdir(pfddir)
             show_name = os.path.splitext(pfdname)[0]
             #cmd = [pdmp, '-ms', '16', '-mc', '16', '-mb', '128', '-pr', '40', '-dr', '100', '-g', '%s.ps/cps' % (show_name), full_path]
-            cmd = [pdmp, '-S','-ms', '16', '-mc', '16', '-mb', '64', '-g', '%s.ps/cps' % (show_name), pfdname]
+            #cmd = [pdmp, '-S','-ms', '16', '-mc', '16', '-mb', '64', '-g', '%s.ps/cps' % (show_name), pfdname]
+            cmd = [pdmp, '-S', '-mc', '16', '-mb', '64', '-g', '%s.ps/cps' % (show_name), pfdname]
             subprocess.call(cmd, shell=False,
                             stdout=open('/dev/null','w'))
             #subprocess.call(cmd, shell=False)
             os.chdir(cwd)
 
             # assign fin to ps file so it converts to png below
-            fout = abspath(os.path.join(pfddir, "%s.ps" % show_name))
+            fin = abspath(os.path.join(pfddir, "%s.ps" % show_name))
             #print fin, os.path.exists(fin)
         else:
             #conversion failed
