@@ -291,45 +291,57 @@ class combinedAI(object):
         #return np.array([res if res[1] == 0. else renderer(eval(self.score_mapper % res[1])) for res in result])
         return result
 
-    def report_score(self, pfds):
+    def report_score(self, pfds, dist='PALFA_Priordists.pkl'):
         if not type(pfds) in (list,tuple):
             pfds = [pfds]
-        # turn off rescaling scores for master branch
-        #if not self.__dict__.has_key('RFI_freq_dist'):
-            #import cPickle
-            #import ubc_AI
-            #ubcAI_path = ubc_AI.__path__[0]
-            #self.RFI_freq_dist = cPickle.load(open(ubcAI_path+'/Pf.pkl', 'rb'))
-        #def getp0(pfd):
-            ##pfd.__init__('self')
-            #return pfd.getdata(ratings=['period'])
 
-        #def adjustscore(score, freq):
-            #newscore = []
-            #Pf = self.RFI_freq_dist['Pf']
-            #average = self.RFI_freq_dist['average']
-            #N = self.RFI_freq_dist['N']
-            #for i in range(len(score)):
-                #pp = score[i]
-                #f = freq[i]
-                #try:
-                    #pf = Pf[int(f)]
-                    #if pf > 0.2*Pf[0] and f>0: #scheme to readjust candidate score by lowing the scores for possible RFIs.
-                        #pr = 1. - pp
-                        #ns = pp/(pp + pf*pr/average)
-                        #newscore.append(ns)
-                    #else:
-                        #newscore.append(pp)
-                #except KeyError:
-                    #print f, i
-                    #newscore.append(pp)
-            #return np.array(newscore)
+        if not self.__dict__.has_key('prior_freq_dist'):
+            import cPickle
+            import ubc_AI
+            ubcAI_path = ubc_AI.__path__[0]
+            # Note: we expect a dictionary whose key is 'Pfr_over_Pfp'
+            self.prior_freq_dist = cPickle.load(open(ubcAI_path + '/' + dist, 'rb'))
 
-        #probs = self.predict_proba(pfds)
-        #freqs = [1./getp0(p) for p in pfds]
+        def getp0(pfd):
+            #pfd.__init__('self')
+            return pfd.getdata(ratings=['period'])
 
-        #newprobs = adjustscore(probs, freqs)
-        newprobs = self.predict_proba(pfds)
+        def adjustscore(score, freq, w=1., spk=1.):
+            """
+            Apply the bayesian prior.
+            w = 1., extra weight on priors, 100 is optimal.
+            spk = 1., enhancement to spikes in distribution, 1.75 is optimal
+
+            """
+            newscore = []
+            try:
+                # the histogram (P(F0|r)/P(F0|p), bins):
+                Pfr = self.prior_freq_dist['Pfr_over_Pfp']
+                bin_edges = Pfr[1]
+                have_prior = True
+            except(KeyError):
+                have_prior = False
+
+            for i in range(len(score)):
+                pp = score[i]
+                f = freq[i]
+                if have_prior and f > 1.:
+                #if have_prior:
+                    bidx = min(np.argmin((f-bin_edges)**2), len(bin_edges)-2)
+                    prior = w*(Pfr[0][bidx])**spk
+                    pr = 1. - pp
+                    ns = pp/(pp + prior*pr)
+                    newscore.append(ns)
+                else:
+                    newscore.append(pp)
+            return np.array(newscore)
+
+        probs = self.predict_proba(pfds)
+        freqs = [1./getp0(p) for p in pfds]
+        #print [p.extracted_feature.keys() for p in pfds]
+        #freqs = [1./p.extracted_feature["ratings:['period']"] for p in pfds]
+
+        newprobs = adjustscore(probs, freqs)
 
         return np.array([0. if res[1] == 0. else eval(self.score_mapper % res[1]) for res in newprobs])
 

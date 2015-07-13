@@ -310,6 +310,7 @@ class MainFrameGTK(Gtk.Window):
 #keep track of the AI view files created (so we don't need to generate them)
         self.AIviewfiles = {}
 
+
 ############################
 ## data-manipulation actions
     def on_sep_change(self, widget):
@@ -346,6 +347,7 @@ class MainFrameGTK(Gtk.Window):
 #turn off the model first for speed-up
         self.pfdtree.set_model(None)
         self.pfdstore.clear()
+
         if idx1 != idx2:
             data = self.data[['fname',col1,col2]]
             if data.ndim == 0:
@@ -1994,6 +1996,7 @@ class MainFrameGTK(Gtk.Window):
                 basedir = self.qrybasedir
             else:
                 basedir = self.basedir
+            fname = '%s/%s' % (basedir,tmpstore.get_value(tmpiter, 1))
             store_name = tmpstore.get_value(tmpiter, 1)
             if exists(store_name):
                 fname = store_name
@@ -2340,7 +2343,9 @@ class MainFrameGTK(Gtk.Window):
         #if "by candidateid" is not active we still use that query to download the filelocation
         if qry != "SELECT * FROM PDM_Candidate_Binaries_Filesystem as t where t.pdm_cand_id = %s":
             loc_qry = "SELECT * FROM PDM_Candidate_Binaries_Filesystem as t where t.pdm_cand_id = %s"
+            #(pdm_cand_bin_id,pdm_cand_id,pdm_plot_type_id,filename,file_location,uploaded
         else:
+            #else we don't need to run the location query
             loc_qry = ""
 #        if self.palfa_sampleqry.get_active_text() != 'by candidate id':
 #            loc_qry = "SELECT * FROM PDM_Candidate_Binaries_Filesystem as t where t.pdm_cand_id = %s"

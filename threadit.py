@@ -29,6 +29,7 @@ def threadit(func, arglist, OnOffSwitch={'state':False}, num_threads=40):
                 break
             q.task_done()
         q.task_done()
+    #print func.__name__, ' OnOffSwitch:', OnOffSwitch['state'], len(arglist)
     if OnOffSwitch['state'] == False or len(arglist) <=3:
         #if no threading is already running or the number of jobs to spaw is smaller than 3, don't thread it.
         OnOffSwitch['state'] = True
