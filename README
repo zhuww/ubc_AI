@@ -8,22 +8,20 @@ INSTALL psrchive with
 make sure to add $PSRHOME/lib/python2.X/site-packages/ to your PYTHONPATH.
 Installing psrchive is NOT required when dealing with only pfd files.
 
-Added support for single pulse candidates files (.spd). The code for plotting
-.spd files are placed in subdirectory Single-pulse, and are authored by 
-Chitrang Patel from McGill University. 
-
 TO USE THIS CODE YOU NEED TO INSTALL:
     PRESTO (make sure to include the presto python library in your $PYTHONPATH)
     sklearn (python package, version 0.12.1)
     libblas-dev
     theano (python)
     python-dev
+    imagemagick
 
 TO INSTALL the packages:
     apt-get install python-dev
     apt-get install libblas-dev
     easy_install scikit-learn==0.12.1
     easy_install theano
+    apt-get install imagemagick
 
 TO USE OUR PICKLED CLASSIFIERS:
 ***The following code is from the quickclf.py code in the repo, this code classifer all .pfd file in the current workign directory and save teh result to clfresult.txt. One can then open up and inspect the result using: python pfdviewr.py clfresult.txt
