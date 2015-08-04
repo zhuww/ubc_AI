@@ -8,9 +8,14 @@ INSTALL psrchive with
 make sure to add $PSRHOME/lib/python2.X/site-packages/ to your PYTHONPATH.
 Installing psrchive is NOT required when dealing with only pfd files.
 
-Added support for single pulse candidates files (.spd). The code for plotting
-.spd files are placed in subdirectory Single-pulse, and are authored by 
-Chitrang Patel from McGill University. 
+*** When using a more recent version of numpy, the classfy program may sometimes end
+up in a dead loop of printing a DeprecationWarining message due to a line in presto's python module:
+$PRESTO/lib/python/psr_utils.py:892:DeprecationWarning: using a non-integer number instead of an integer will result in an error in the future
+
+Currently, the one way to walk around this problem is to fix the psr_utils.py file in line 888:
+887:   """
+888:   bins = int(bins % len(arr))
+This fix the variable "bins" to be integer and solve our problem.
 
 TO USE THIS CODE YOU NEED TO INSTALL:
     PRESTO (make sure to include the presto python library in your $PYTHONPATH)
