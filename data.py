@@ -8,7 +8,8 @@ from scipy import mgrid
 import os,sys
 from ubc_AI.training import pfddata
 from ubc_AI.psrarchive_reader import ar2data
-from ubc_AI.singlepulse import waterfall
+from ubc_AI.singlepulse import singlepulse
+from ubc_AI.singlepulse import SPdata
 
 class pfdreader(object):
     """ 
@@ -24,7 +25,7 @@ class pfdreader(object):
                 if cls in pfdfile.__dict__:
                     self.__dict__.update({cls:pfdfile.__dict__[cls]})
             pfdfile = pfdfile.pfd_filename
-        elif pfdfile.__class__ == waterfall:
+        elif pfdfile.__class__ == singlepulse:
             self.extracted_feature.update(pfdfile.extracted_feature)
             self.pfdfile = pfdfile
         else:
@@ -61,12 +62,16 @@ class pfdreader(object):
             key, value = i.items()[0]
             feature = '%s:%s' % (key, value)
             if (feature not in self.extracted_feature) and (pfd is None):
-                if not type(self.pfdfile) is str and self.pfdfile.__class__ == waterfall:
+                if not type(self.pfdfile) is str and self.pfdfile.__class__ == singlepulse:
                     pfd = self.pfdfile
                 elif os.path.splitext(self.pfdfile)[1] == '.pfd': 
                     pfd = pfddata(self.pfdfile, align=True) 
                 elif os.path.splitext(self.pfdfile)[1] == '.ar2':  
                     pfd = ar2data(self.pfdfile, align=True) 
+                elif os.path.splitext(self.pfdfile)[1] == '.ar':  
+                    pfd = ar2data(self.pfdfile, align=True) 
+                elif os.path.splitext(self.pfdfile)[1] == '.spd':  
+                    pfd = SPdata(self.pfdfile, align=True) 
                 else:
                     print "unrecognized file format ", self.pfdfile
                     raise Error
@@ -75,12 +80,16 @@ class pfdreader(object):
         for key, value in features.iteritems():
             feature = '%s:%s' % (key, value) 
             if (feature not in self.extracted_feature) and (pfd is None):
-                if not type(self.pfdfile) is str and self.pfdfile.__class__ == waterfall:
+                if not type(self.pfdfile) is str and self.pfdfile.__class__ == singlepulse:
                     pfd = self.pfdfile
                 elif os.path.splitext(self.pfdfile)[1] == '.pfd': 
                     pfd = pfddata(self.pfdfile, align=True) 
                 elif os.path.splitext(self.pfdfile)[1] == '.ar2':  
                     pfd = ar2data(self.pfdfile, align=True) 
+                elif os.path.splitext(self.pfdfile)[1] == '.ar':  
+                    pfd = ar2data(self.pfdfile, align=True) 
+                elif os.path.splitext(self.pfdfile)[1] == '.spd':  
+                    pfd = SPdata(self.pfdfile, align=True) 
                 else:
                     print "unrecognized file format ", self.pfdfile
                     raise Error

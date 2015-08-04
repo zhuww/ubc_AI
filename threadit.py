@@ -9,7 +9,7 @@ import sys
 import traceback
 num_cpus = max(1, MP.cpu_count() - 1)
 
-def threadit(func, arglist, OnOffSwitch={'state':False}, num_threads=20):
+def threadit(func, arglist, OnOffSwitch={'state':False}, num_threads=40):
     """
     A wrapper for multi-threading any function (func) given a argument list (arglist). The OnOffSwitch is a flag that got set to True when a progress is already running in a thread. It would not spam more threads when the flag is set to True.
     """
@@ -29,6 +29,7 @@ def threadit(func, arglist, OnOffSwitch={'state':False}, num_threads=20):
                 break
             q.task_done()
         q.task_done()
+    #print func.__name__, ' OnOffSwitch:', OnOffSwitch['state'], len(arglist)
     if OnOffSwitch['state'] == False or len(arglist) <=3:
         #if no threading is already running or the number of jobs to spaw is smaller than 3, don't thread it.
         OnOffSwitch['state'] = True

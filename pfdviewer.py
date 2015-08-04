@@ -310,6 +310,7 @@ class MainFrameGTK(Gtk.Window):
 #keep track of the AI view files created (so we don't need to generate them)
         self.AIviewfiles = {}
 
+
 ############################
 ## data-manipulation actions
     def on_sep_change(self, widget):
@@ -346,6 +347,7 @@ class MainFrameGTK(Gtk.Window):
 #turn off the model first for speed-up
         self.pfdtree.set_model(None)
         self.pfdstore.clear()
+
         if idx1 != idx2:
             data = self.data[['fname',col1,col2]]
             if data.ndim == 0:
@@ -995,10 +997,16 @@ class MainFrameGTK(Gtk.Window):
             fpng = '%s.png' % fname
             if not exists(fpng):
                 fpng = convert(fname)
-        elif fname.endswith('.ar2') or fanme.endswith('.ar'):
+        elif fname.endswith('.ar2') or fname.endswith('.ar'):
             fpng = '%s.png' % fname
             if not exists(fpng):
                 fpng = convert(fname)
+        elif fname.endswith('.spd'):
+            fpng = '%s.png' % fname
+            if not exists(fpng):
+                fpng = convert(fname)
+                #if fps.endswith('.ps'):
+                    #fpng = convert(fps)
         elif fname.endswith('.png') or fname.endswith('.jpg'):
             #convert from ps or pfd if we can't find the png
             if not exists(fname):
@@ -1988,6 +1996,7 @@ class MainFrameGTK(Gtk.Window):
                 basedir = self.qrybasedir
             else:
                 basedir = self.basedir
+            fname = '%s/%s' % (basedir,tmpstore.get_value(tmpiter, 1))
             store_name = tmpstore.get_value(tmpiter, 1)
             if exists(store_name):
                 fname = store_name
@@ -2020,8 +2029,19 @@ class MainFrameGTK(Gtk.Window):
                     ra, dec = coord.getHMSDMS().split(' ')
                     p0 = arch[0].get_folding_period()
                 except(IOError, ValueError):pass
+            spd = None
+            if fname.endswith('.spd'):
+                try:
+                    from ubc_AI.singlepulse import SPdata
+                    spd = SPdata(fname)
+                    dm = spd.dm
+                    ra = spd.ra
+                    dec = spd.dec
+                    #p0 = spd.period
+                    p0 = 0.
+                except(IOError, ValueError):pass
             
-            if exists(fname) and (pfd != None or arch != None):
+            if exists(fname) and (pfd != None or arch != None or spd != None):
                 if float(dec.split(':')[0]) > 0:
                     sgn = '+'
                 else:
@@ -2064,6 +2084,7 @@ class MainFrameGTK(Gtk.Window):
                 for m in match_nonlocal_loc:
                     max_denom = 100
                     num, den = harm_ratio(np.round(this_pulsar.P0,5), np.round(m.P0,5), max_denom=max_denom)
+                    if num == 0 and den == 0:return
                     
                     if num == 0: 
                         num = 1
@@ -2322,7 +2343,9 @@ class MainFrameGTK(Gtk.Window):
         #if "by candidateid" is not active we still use that query to download the filelocation
         if qry != "SELECT * FROM PDM_Candidate_Binaries_Filesystem as t where t.pdm_cand_id = %s":
             loc_qry = "SELECT * FROM PDM_Candidate_Binaries_Filesystem as t where t.pdm_cand_id = %s"
+            #(pdm_cand_bin_id,pdm_cand_id,pdm_plot_type_id,filename,file_location,uploaded
         else:
+            #else we don't need to run the location query
             loc_qry = ""
 #        if self.palfa_sampleqry.get_active_text() != 'by candidate id':
 #            loc_qry = "SELECT * FROM PDM_Candidate_Binaries_Filesystem as t where t.pdm_cand_id = %s"
@@ -2725,7 +2748,8 @@ def convert(fin):
             os.chdir(pfddir)
             show_name = os.path.splitext(pfdname)[0]
             #cmd = [pdmp, '-ms', '16', '-mc', '16', '-mb', '128', '-pr', '40', '-dr', '100', '-g', '%s.ps/cps' % (show_name), full_path]
-            cmd = [pdmp, '-S','-ms', '16', '-mc', '16', '-mb', '64', '-g', '%s.ps/cps' % (show_name), pfdname]
+            #cmd = [pdmp, '-S','-ms', '16', '-mc', '16', '-mb', '64', '-g', '%s.ps/cps' % (show_name), pfdname]
+            cmd = [pdmp, '-S', '-mc', '16', '-mb', '64', '-g', '%s.ps/cps' % (show_name), pfdname]
             subprocess.call(cmd, shell=False,
                             stdout=open('/dev/null','w'))
             #subprocess.call(cmd, shell=False)
@@ -2737,6 +2761,32 @@ def convert(fin):
         else:
             #conversion failed
             fout = None
+
+    if fin.endswith('.spd'):
+        pfddir = dirname(abspath(fin))
+        pfdname = basename(fin)
+        full_path = abspath(fin)
+        cwd = os.getcwd()
+        show_name = os.path.splitext(pfdname)[0]
+        #os.system('python ' + AI_path + 'Single-pulse/show_spplots.py %s' % fin)
+        show_spplots = AI_path + '/Single-pulse/show_spplots.py'
+        cmd = ['python', show_spplots, pfdname]
+        subprocess.call(cmd, shell=False,
+                            stdout=open('/dev/null','w'))
+        os.chdir(cwd)
+        fps = abspath(os.path.join(pfddir, "%s.ps" % pfdname))
+        bdir = dirname(abspath(fps))
+        bname = basename(fps)
+        fout = os.path.join(bdir, bname.replace('.ps','.png')) 
+    #convert to png
+        if pyimage:
+            f = Image(fps)
+            #f.rotate(90)
+            f.write(fout)
+        else:
+            cmd = ['convert',fps,'png:%s' % fout]
+            subprocess.call(cmd, shell=False,
+                            stdout=open('/dev/null','w'))
 
 
     if fin.endswith('.ps') and os.path.exists(fin):
@@ -3012,8 +3062,11 @@ def harm_ratio(a,b,max_denom=100):
     given two numbers, find the harmonic ratio
 
     """
-    c = fractions.Fraction(a/b).limit_denominator(max_denominator=max_denom)
-    return c.numerator, c.denominator
+    try:
+        c = fractions.Fraction(a/b).limit_denominator(max_denominator=max_denom)
+        return c.numerator, c.denominator
+    except:
+        return 0 , 0
 
 
 

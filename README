@@ -8,6 +8,10 @@ INSTALL psrchive with
 make sure to add $PSRHOME/lib/python2.X/site-packages/ to your PYTHONPATH.
 Installing psrchive is NOT required when dealing with only pfd files.
 
+Added support for single pulse candidates files (.spd). The code for plotting
+.spd files are placed in subdirectory Single-pulse, and are authored by 
+Chitrang Patel from McGill University. 
+
 TO USE THIS CODE YOU NEED TO INSTALL:
     PRESTO (make sure to include the presto python library in your $PYTHONPATH)
     sklearn (python package, version 0.12.1)
