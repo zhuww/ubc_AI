@@ -1,4 +1,4 @@
-from prepfold import pfd
+from ubc_AI.prepfold import pfd
 from samples import downsample, normalize
 import numpy as np
 import psr_utils
@@ -137,7 +137,11 @@ class pfddata(pfd):
                     else:
                         new_subdelays_bins = np.floor(delaybins+0.5)
                         for jj in range(self.nsub):
-                            profs[jj] = psr_utils.rotate(profs[jj], int(new_subdelays_bins[jj]))
+                            #profs[jj] = psr_utils.rotate(profs[jj], new_subdelays_bins[jj])
+                            delay_bins = int(new_subdelays_bins[jj] % len(profs[jj]))
+                            if not delay_bins==0:
+                                profs[jj] = np.concatenate((profs[jj][delay_bins:], profs[jj][:delay_bins]))
+
                         subdelays_bins += new_subdelays_bins
                         avgprof = self.avgprof
                     sumprof = profs.sum(0)

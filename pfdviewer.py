@@ -69,7 +69,7 @@ if not show_pfd:
     print "\tCouldn't find PRESTO's show_pfd executable"
     print "\t This will limit functionality"
 try:
-    from prepfold import pfd as PFD
+    from ubc_AI.prepfold import pfd as PFD
 except(ImportError):
     print "please add PRESTO's modules to your python path for more functionality"
     PFD = None
