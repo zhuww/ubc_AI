@@ -2770,7 +2770,14 @@ def convert(fin):
         show_name = os.path.splitext(pfdname)[0]
         #os.system('python ' + AI_path + 'Single-pulse/show_spplots.py %s' % fin)
         show_spplots = AI_path + '/../Single-pulse/show_spplots.py'
-        cmd = ['python', show_spplots, pfdname]
+        tgzname = pfdname.split('_')[0]+'_zerodm_singlepulse.tgz'
+        if False: #don't make the time vs DM plot, takes too long
+        #if exists(tgzname):
+            #print "tgz file:%s exists!" % tgzname
+            cmd = ['python', show_spplots, pfdname, tgzname]
+        else:
+            #print "tgz file:%s does not exists!" % tgzname
+            cmd = ['python', show_spplots, pfdname]
         subprocess.call(cmd, shell=False,
                             stdout=open('/dev/null','w'))
         os.chdir(cwd)
