@@ -2769,7 +2769,7 @@ def convert(fin):
         cwd = os.getcwd()
         show_name = os.path.splitext(pfdname)[0]
         #os.system('python ' + AI_path + 'Single-pulse/show_spplots.py %s' % fin)
-        show_spplots = AI_path + '/Single-pulse/show_spplots.py'
+        show_spplots = AI_path + '/../Single-pulse/show_spplots.py'
         cmd = ['python', show_spplots, pfdname]
         subprocess.call(cmd, shell=False,
                             stdout=open('/dev/null','w'))
