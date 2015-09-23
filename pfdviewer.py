@@ -89,7 +89,7 @@ AI_path = AI_PATH = '/'.join(ubc_AI.__file__.split('/')[:-1])
 class MainFrameGTK(Gtk.Window):
     """This is the Main Frame for the GTK application"""
     
-    def __init__(self, data=None, tmpAI=None):
+    def __init__(self, data=None, tmpAI=None, spplot=False):
         Gtk.Window.__init__(self, title='pfd viewer')
         if AI_path:
             self.gladefile = "%s/pfdviewer.glade" % AI_path
@@ -2662,7 +2662,7 @@ def convert(fin):
     the name of the png file
 
     """
-    global show_pfd, PFD, pyimage
+    global show_pfd, PFD, pyimage, opts
     fout = ''
     if not exists(fin):
         print "Convert: can't find file %s" % abspath(fin)
@@ -2771,7 +2771,7 @@ def convert(fin):
         #os.system('python ' + AI_path + 'Single-pulse/show_spplots.py %s' % fin)
         show_spplots = AI_path + '/../Single-pulse/show_spplots.py'
         tgzname = pfdname.split('_')[0]+'_zerodm_singlepulse.tgz'
-        if False: #don't make the time vs DM plot, takes too long
+        if opts.spplot: #don't make the time vs DM plot, takes too long
         #if exists(tgzname):
             #print "tgz file:%s exists!" % tgzname
             cmd = ['python', show_spplots, pfdname, tgzname]
@@ -3128,6 +3128,9 @@ if __name__ == '__main__':
     parser.add_option("-q", "--quiet",
                       action="store_false", dest="verbose", default=True,
                       help="don't print status messages to stdout")
+    parser.add_option("-s", "--singlepulse",
+                      action="store_true", dest="spplot", default=False,
+                      help="make time vs. DM plot for single pulse candidates")
 
     (opts, args) = parser.parse_args()
     if len(args) > 0 and opts.data is None:
@@ -3136,7 +3139,9 @@ if __name__ == '__main__':
     if opts.tmpAI is not None:
         if not os.path.exists(opts.tmpAI):
             opts.tmpAI = None
-    app = MainFrameGTK(data=opts.data, tmpAI=opts.tmpAI)    
+
+    #print 'opts.spplot:', opts.spplot
+    app = MainFrameGTK(data=opts.data, tmpAI=opts.tmpAI, spplot=opts.spplot)    
     Gtk.main()
 
 
