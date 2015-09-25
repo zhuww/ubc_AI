@@ -1,6 +1,8 @@
 UBC AI project (pfd AI part)
 by Aaron Berndsen and Weiwei Zhu
 
+If you use PICS AI (UBC AI) then please acknowledge it by citing Zhu, W. W. et al. 2014 ApJ, 781, 117 .
+
 NEW! The PICS AI now support the .ar2 file format from psrchive.
 For this to work you need to install psrchive's python module:
 INSTALL psrchive with
@@ -8,18 +10,29 @@ INSTALL psrchive with
 make sure to add $PSRHOME/lib/python2.X/site-packages/ to your PYTHONPATH.
 Installing psrchive is NOT required when dealing with only pfd files.
 
+*** When using a more recent version of numpy, the classfy program may sometimes end
+up in a dead loop of printing a DeprecationWarining message due to a line in presto's python module:
+$PRESTO/lib/python/psr_utils.py:892:DeprecationWarning: using a non-integer number instead of an integer will result in an error in the future
+
+Currently, the one way to walk around this problem is to fix the psr_utils.py file in line 888:
+887:   """
+888:   bins = int(bins % len(arr))
+This fix the variable "bins" to be integer and solve our problem.
+
 TO USE THIS CODE YOU NEED TO INSTALL:
     PRESTO (make sure to include the presto python library in your $PYTHONPATH)
     sklearn (python package, version 0.12.1)
     libblas-dev
     theano (python)
     python-dev
+    imagemagick
 
 TO INSTALL the packages:
     apt-get install python-dev
     apt-get install libblas-dev
     easy_install scikit-learn==0.12.1
     easy_install theano
+    apt-get install imagemagick
 
 TO USE OUR PICKLED CLASSIFIERS:
 ***The following code is from the quickclf.py code in the repo, this code classifer all .pfd file in the current workign directory and save teh result to clfresult.txt. One can then open up and inspect the result using: python pfdviewr.py clfresult.txt

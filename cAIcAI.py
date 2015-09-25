@@ -10,7 +10,7 @@ from scipy.optimize import curve_fit
 import scipy.stats as stats
 
 # needed to extract harmonic of 60 Hz information:
-from prepfold import pfd as PFD
+from ubc_AI.prepfold import pfd as PFD
 import fractions
 
 # Define model function to be used to fit to the data above:

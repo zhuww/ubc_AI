@@ -68,6 +68,8 @@ class pfdreader(object):
                     pfd = pfddata(self.pfdfile, align=True) 
                 elif os.path.splitext(self.pfdfile)[1] == '.ar2':  
                     pfd = ar2data(self.pfdfile, align=True) 
+                elif os.path.splitext(self.pfdfile)[1] == '.ar':  
+                    pfd = ar2data(self.pfdfile, align=True) 
                 elif os.path.splitext(self.pfdfile)[1] == '.spd':  
                     pfd = SPdata(self.pfdfile, align=True) 
                 else:
@@ -83,6 +85,8 @@ class pfdreader(object):
                 elif os.path.splitext(self.pfdfile)[1] == '.pfd': 
                     pfd = pfddata(self.pfdfile, align=True) 
                 elif os.path.splitext(self.pfdfile)[1] == '.ar2':  
+                    pfd = ar2data(self.pfdfile, align=True) 
+                elif os.path.splitext(self.pfdfile)[1] == '.ar':  
                     pfd = ar2data(self.pfdfile, align=True) 
                 elif os.path.splitext(self.pfdfile)[1] == '.spd':  
                     pfd = SPdata(self.pfdfile, align=True) 

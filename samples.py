@@ -109,7 +109,7 @@ def downsample(a, n, align=0):
             return newf
 
 import glob
-from prepfold import pfd
+from ubc_AI.prepfold import pfd
 SAMPLE_FILES_DIR = '/data/pulse-learning/Erik/'
 def load_pfds(dir=SAMPLE_FILES_DIR):
     SAMPLE_FILES = glob.glob(dir+'*.pfd')

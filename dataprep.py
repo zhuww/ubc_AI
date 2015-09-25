@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from prepfold import pfd
+from ubc_AI.prepfold import pfd
 import numpy as np
 from pylab import *
 import matplotlib.pyplot as plt
