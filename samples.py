@@ -108,6 +108,7 @@ def downsample(a, n, align=0):
             #newf = ndimage.map_coordinates(coeffs, coords )
             return newf
 
+'''
 import glob
 from ubc_AI.prepfold import pfd
 SAMPLE_FILES_DIR = '/data/pulse-learning/Erik/'
@@ -160,6 +161,8 @@ def quick_load_samples(*args, **kws):
 
     #else:
         #return extractdata(load_pfds(), *args, **kws)
+
+'''
 
 if __name__ == '__main__':
     samples = load_samples(3)

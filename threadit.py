@@ -57,6 +57,12 @@ def threadit(func, arglist, OnOffSwitch={'state':False}, num_threads=40):
             else:
                 exc_info = to_child.recv()
                 print exc_info
+                #resultdict.update({i:-1.})
+                #for i in range(num_workers):
+                    #q.put(None)
+                for i in range(num_workers):
+                    p = procs.pop()
+                    p.terminate()
                 raise exc_info[1]
         for p in procs:
             p.join()
