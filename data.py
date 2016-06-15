@@ -127,11 +127,11 @@ def singleclass_score(classifier, test_pfds, test_target, verbose=False):
     pred = np.array(pred)
     #print np.mean(np.where(pred == test_target, 1, 0))
     if verbose:
-        print 'accuracy: ', '%.0f%%' % (np.divide(float(len(hit)),len(truepulsar)) * 100)
-        print 'miss: ', '%.0f%%' % (np.divide(float(len(miss)),len(truepulsar)) * 100)
-        print 'false positives: ', '%.0f%%' % (np.divide(float(len(falsepos)),len(pulsar))* 100)
-        print 'precision: ', '%.0f%%' % (precision* 100)
-        print 'recall: ', '%.0f%%' % (recall* 100)
+        print 'accuracy: ', '%.2f%%' % (np.divide(float(len(hit)),len(truepulsar)) * 100)
+        print 'miss: ', '%.2f%%' % (np.divide(float(len(miss)),len(truepulsar)) * 100)
+        print 'false positives: ', '%.2f%%' % (np.divide(float(len(falsepos)),len(pulsar))* 100)
+        print 'precision: ', '%.2f%%' % (precision* 100)
+        print 'recall: ', '%.2f%%' % (recall* 100)
         print 'F1: ', F1
    
     return F1
@@ -505,11 +505,11 @@ class dataloader(object):
         precision = np.divide(float(len(hit)),len(pulsar))
         recall = np.divide(float(len(hit)),len(truepulsar))
         F1 = 2 * precision * recall / (precision + recall)
-        print 'accuracy: ', '%.0f%%' % (np.divide(float(len(hit)),len(truepulsar)) * 100)
-        print 'miss: ', '%.0f%%' % (np.divide(float(len(miss)),len(truepulsar)) * 100)
-        print 'false positives: ', '%.0f%%' % (np.divide(float(len(falsepos)),len(pulsar))* 100)
-        print 'precision: ', '%.0f%%' % (precision* 100)
-        print 'recall: ', '%.0f%%' % (recall* 100)
+        print 'accuracy: ', '%.2f%%' % (np.divide(float(len(hit)),len(truepulsar)) * 100)
+        print 'miss: ', '%.2f%%' % (np.divide(float(len(miss)),len(truepulsar)) * 100)
+        print 'false positives: ', '%.2f%%' % (np.divide(float(len(falsepos)),len(pulsar))* 100)
+        print 'precision: ', '%.2f%%' % (precision* 100)
+        print 'recall: ', '%.2f%%' % (recall* 100)
         print 'F1: ', F1
 
         if what in ['miss', 'falsepos', 'truepulsar', 'pulsar']:

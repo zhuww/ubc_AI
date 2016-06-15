@@ -9,7 +9,7 @@ import sys
 import traceback
 num_cpus = max(1, MP.cpu_count() - 1)
 
-def threadit(func, arglist, OnOffSwitch={'state':False}, num_threads=40):
+def threadit(func, arglist, OnOffSwitch={'state':False}, num_threads=20):
     """
     A wrapper for multi-threading any function (func) given a argument list (arglist). The OnOffSwitch is a flag that got set to True when a progress is already running in a thread. It would not spam more threads when the flag is set to True.
     """
