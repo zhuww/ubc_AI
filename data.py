@@ -422,17 +422,18 @@ class dataloader(object):
         else:
             return train_score, test_score, vals, vals[test_score.argmax()]
 
-    def PR_curve(self, clf, Pcut=None):
+    def PR_curve(self, clf, Pcut=None, nofit=False):
         """
         Plot the precision vs recall curve, recall vs P-cut, precision vs P-cut, F1 vs P-cut curves. Only works when output probability is turned on.
         input: classifier
                Pcut = np.arange(0.05, 1.0 0.05)
         """
-        self.split()
-        clf.fit(self.train_pfds, self.train_target)
+        if not nofit:
+            self.split()
+            clf.fit(self.train_pfds, self.train_target)
         #predict = clf.predict(self.test_pfds)
         target = self.test_target
-        Proba = clf.predict_proba(self.test_pfds)
+        Proba = clf.predict_proba(self.test_pfds)[:,1]
         if Pcut == None:
             Pcut = np.arange(0.05,1.0,0.05)
         P = []
