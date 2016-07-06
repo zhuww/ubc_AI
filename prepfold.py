@@ -140,10 +140,14 @@ class pfd:
             currentstats = self.stats[ii]
             for jj in range(self.nsub):
                 if (swapchar=='<'):  # little endian
-                    currentstats[jj] = Num.fromfile(infile, Num.float64, 7)
+                    try:
+                        currentstats[jj] = Num.fromfile(infile, Num.float64, 7)
+                    except:pass
                 else:
-                    currentstats[jj] = Num.asarray(struct.unpack(swapchar+"d"*7, \
+                    try:
+                        currentstats[jj] = Num.asarray(struct.unpack(swapchar+"d"*7, \
                                                                  infile.read(7*8)))
+                    except:pass
             self.pts_per_fold.append(self.stats[ii][0][0])  # numdata from foldstats
         self.start_secs = Num.add.accumulate([0]+self.pts_per_fold[:-1])*self.dt
         self.pts_per_fold = Num.asarray(self.pts_per_fold)
