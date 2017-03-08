@@ -552,3 +552,43 @@ def plot_classifier_shiftpredict(clf, pfd, compare=None):
         plt.savefig(fout)
 
     clf.__class__ = curclass
+
+
+
+def split_data(data, target, pct=0.6):
+    """
+    Given some complete set of data and their targets,
+    split the indices into 'pct' training, '1-pct' cross-vals
+    
+    Args:
+    data = input data
+    target = data classifications
+    pct = 0 < pct < 1, default 0.6
+
+    returns:
+    training_data, training_target, test_data, test_target
+
+    """
+    from random import shuffle
+    if isinstance(data,type([])):
+        data = np.array(data)
+
+    L = len(target)
+    index = range(L)
+    cut = int(pct*L)
+    while 1:
+        shuffle(index)
+        training_idx = index[:cut]
+        training_target = target[training_idx]
+        training_data = data[training_idx]
+
+        test_idx = index[cut:]
+        test_target = target[test_idx]
+        test_data = data[test_idx]
+        
+# make sure training has samples from all classes
+        if len(np.unique(training_target)) == len(np.unique(target)):
+            break
+
+    return training_data, training_target, test_data, test_target
+

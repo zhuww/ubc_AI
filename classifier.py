@@ -4,7 +4,7 @@ from sklearn.decomposition import RandomizedPCA as PCA
 from sklearn import svm, linear_model, tree, ensemble
 from sklearn.ensemble import GradientBoostingClassifier as GBC
 
-from ubc_AI.training import split_data
+from ubc_AI.analysis_tools import split_data
 from ubc_AI import pulsar_nnetwork as pnn 
 from ubc_AI import sktheano_cnn as skcnn
 
