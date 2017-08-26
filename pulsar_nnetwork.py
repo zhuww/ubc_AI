@@ -8,7 +8,6 @@ optimizations for large data sets
 """
 import numpy as np
 import cPickle
-import pylab as plt
 from scipy import io
 from scipy import mgrid
 from scipy.optimize import fmin_cg
@@ -800,6 +799,7 @@ class NeuralNetwork(BaseEstimator):
             v_error[i] = self.costFunctionU(Xval, yval, gamma=0.)
             
         if plot:
+            import pylab as plt
             plt.plot(ntrials, t_error, 'r+', label='training')
             plt.plot(ntrials, v_error, 'bx', label='x-val')
             plt.xlabel('training set size')
@@ -861,6 +861,7 @@ class NeuralNetwork(BaseEstimator):
             xval_error[gi] = self.costFunctionU(Xval, yval, gamma=0.)
 
         if plot:
+            import pylab as plt
             plt.plot(gammas, train_error, label='Train')
             plt.plot(gammas, xval_error, label='Cross Validation')
             plt.xlabel('gamma')
@@ -976,6 +977,7 @@ class NeuralNetwork(BaseEstimator):
                 default = None = plot all neurons in first layer
 
         """
+        import pylab as plt
         theta = self.layers[0].theta[1:,:] #strip off bias
         nimg, nneurons = theta.shape
 
@@ -1097,6 +1099,7 @@ class handwritingpix(object):
         randomly pick Nsamples**2 and plot them
 
         """
+        import pylab as plt
         nx = self.nx
         ny = self.ny
 
@@ -1193,6 +1196,7 @@ def feature_curve(feature,
         train_score[i] = 1-classifier.score(train_data, train_target)
         test_score[i] = 1-classifier.score(test_data, test_target)
     if plot:
+        import pylab as plt
         plt.plot(vals, train_score, 'r+', label='training')
         plt.plot(vals, test_score, 'bx', label='x-val')
         plt.xlabel(feature)
