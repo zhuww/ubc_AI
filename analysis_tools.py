@@ -3,7 +3,6 @@ Some routines that may be useful in analyzing the prediction performance.
 
 """
 import numpy as np
-import pylab as plt
 from itertools import cycle
 from scipy import mgrid
 
@@ -49,6 +48,7 @@ def plot_histogram(probs, target, title=False):
     if probs.ndim == 2:
         probs = probs[...,1]
 
+    import pylab as plt
     plt.clf()
     nrfi = np.sum(target != 1)
     npulsar = np.sum(target == 1)
@@ -316,6 +316,7 @@ def plot_combinedAI_shiftpredict(cAI, pfd):
     pfd : a single pfddata object
 
     """
+    import pylab as plt
     if not isinstance(pfd, type(list())):
         pfd = [pfd]
 
@@ -384,6 +385,7 @@ def plot_classifier_shiftpredict(clf, pfd, compare=None):
       it can be visually inspected for problems.
 
     """
+    import pylab as plt
     curclass = clf.__class__
     clf.__class__ = clf.orig_class
     
