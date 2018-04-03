@@ -580,6 +580,14 @@ class cnnclf(classifier, skcnn.MetaCNN):
     orig_class = skcnn.MetaCNN
     pass
 
+from Resnet_cnn import ResNet_CNN
+class ResNetClf(classifier, ResNet_CNN):
+    """
+    the mixed in class for the ResNet from Hongfeng Wang
+    """
+    orig_class = ResNet_CNN
+    pass
+
 class adaboost(object):
     """
     a class to help with ensembles. 

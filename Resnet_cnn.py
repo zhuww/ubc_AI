@@ -40,9 +40,10 @@ class ResNet_CNN(object):
         self.num_residual_units = num_residual_units
         self.relu_leakiness = relu_leakiness
         self.is_bottlneck = is_bottleneck
+        self.saver = None
         if is_restore:               # Whether to restore the checkpoint
-            ckpt = tf.train.get_checkpoint_state(self.checkpoint_path)
-            self.restore_checkpoint = ckpt.model_checkpoint_path
+            self.ckpt = tf.train.get_checkpoint_state(self.checkpoint_path)
+            self.restore_checkpoint = self.ckpt.model_checkpoint_path
         else:
             self.restore_checkpoint = ''
 
@@ -79,11 +80,12 @@ class ResNet_CNN(object):
             accuracy = tf.reduce_mean(tf.cast(prediction, tf.float32))
 
 
-        saver = tf.train.Saver()
+        self.saver = tf.train.Saver()
         #Initialize the data generator seperately for the training set,didn't initialize validation set
         train_generator = ImageDataGenerator(X_train, Y_train, shuffle=True, scale_size=(self.image_size, self.image_size), nb_classes=self.num_classes)
         # Get the number of training steps per epoch
-        train_batches_per_epoch = np.floor(self.data_size / self.batch_size).astype(np.int16)
+        data_size = len(Y_train)
+        train_batches_per_epoch = np.floor(data_size / self.batch_size).astype(np.int16)
 
         # Start Tensorflow session
         with tf.Session(config=tf.ConfigProto(allow_soft_placement=True, log_device_placement=True)) as sess:
@@ -91,7 +93,7 @@ class ResNet_CNN(object):
             #writer.add_graph(sess.graph)
 
             if not self.restore_checkpoint == '':
-                saver.restore(sess, self.restore_checkpoint)
+                self.saver.restore(sess, self.restore_checkpoint)
 
             #print("{} Start training...".format(datetime.now()))
             for epoch in range(self.num_epochs):
@@ -114,11 +116,19 @@ class ResNet_CNN(object):
                 train_generator.reset_pointer()
 
     def predict_proba(self, predict_X):
-        ckpt = tf.train.get_checkpoint_state(AI_PATH+'/TF_checkpoints/resnet13_64/checkpoints/')
-        imgs = predict_X
+        #ckpt = tf.train.get_checkpoint_state(AI_PATH+'/TF_checkpoints/resnet13_64/checkpoints/')
+        if self.saver == None:
+            self.saver = tf.train.import_meta_graph(self.ckpt.model_checkpoint_path + '.meta')
+        Xshape = predict_X.shape
+        X_flatten = predict_X.flatten()
+        Xsize = X_flatten.size
+        Xdata = np.vstack((X_flatten, np.zeros(Xsize), np.zeros(Xsize))).T
+        #print 'Xdata.shape:', Xdata.shape
+        imgs = Xdata.reshape(-1, self.image_size, self.image_size, 3)
+        #imgs = predict_X
+        
         with tf.Session() as sess:
-            new_saver = tf.train.import_meta_graph(ckpt.model_checkpoint_path + '.meta')
-            new_saver.restore(sess, ckpt.model_checkpoint_path)
+            self.saver.restore(sess, self.ckpt.model_checkpoint_path)
             tf.get_default_graph().as_graph_def()
             x = sess.graph.get_tensor_by_name('input:0')
             y = sess.graph.get_tensor_by_name('output:0')
