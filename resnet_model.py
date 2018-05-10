@@ -29,7 +29,7 @@ class ResNet(object):
         with tf.variable_scope('init'):
             x = self._images
             """the first layer conv (3, 3*3/1, 16)"""
-            x = self._conv('init_conv', x, 3, 3, 16, self._stride_arr(1))
+            x = self._conv('init_conv', x, 3, 1, 16, self._stride_arr(1))
 
         # resnet param
         strides = [1, 2, 2]
