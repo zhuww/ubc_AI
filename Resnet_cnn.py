@@ -15,6 +15,9 @@ from tensorflow.python.framework import graph_util
 import ubc_AI
 AI_PATH = '/'.join(ubc_AI.__file__.split('/')[:-1])
 
+from ubc_AI.threadit import threadit
+threadit.func_defaults[0]['state'] = True
+
 def mkdirs(path):
     if not os.path.exists(path):
         os.makedirs(path)
@@ -42,19 +45,17 @@ class ResNet_CNN(object):
         self.num_residual_units = num_residual_units
         self.relu_leakiness = relu_leakiness
         self.is_bottlneck = is_bottleneck
-        self.saver = None
         self.graph_def_str = ""
         self.is_restore = True
+        self.has_model = False
+        self.restore_checkpoint = ''
 
 
-
-    def fit(self, X_train, Y_train):
-
-        if self.is_restore:               # Whether to restore the checkpoint
-            self.ckpt = tf.train.get_checkpoint_state(self.checkpoint_path)
-            self.restore_checkpoint = self.ckpt.model_checkpoint_path
-        else:
-            self.restore_checkpoint = ''
+    
+    def build_model(self):
+        if self.restore_checkpoint == '':               # Whether to restore the checkpoint
+            ckpt = tf.train.get_checkpoint_state(self.checkpoint_path)
+            self.restore_checkpoint = ckpt.model_checkpoint_path
 
         x = tf.placeholder(tf.float32, [None, self.image_size, self.image_size, 1], name='input')
         y = tf.placeholder(tf.float32, [None, self.num_classes])
@@ -87,8 +88,20 @@ class ResNet_CNN(object):
             prediction = tf.equal(tf.argmax(output, 1), tf.argmax(y, 1))
             accuracy = tf.reduce_mean(tf.cast(prediction, tf.float32))
 
+        return x, y, cost, accuracy, train_op
 
-        self.saver = tf.train.Saver()
+
+    def fit(self, X_train, Y_train):
+
+        #if self.has_model == False:
+            #x, y, cost, accuracy, train_op = self.build_model()
+            #self.model = (x, y, cost, accuracy, train_op )
+            #self.has_model = True
+        #else:
+            #x, y, cost, accuracy, train_op  = self.model
+
+        x, y, cost, accuracy, train_op = self.build_model()
+
         #Initialize the data generator seperately for the training set,didn't initialize validation set
         train_generator = ImageDataGenerator(X_train, Y_train, shuffle=True, scale_size=(self.image_size, self.image_size), nb_classes=self.num_classes)
         # Get the number of training steps per epoch
@@ -97,14 +110,20 @@ class ResNet_CNN(object):
 
         graph = tf.get_default_graph()
         input_graph_def = graph.as_graph_def()
+        saver = tf.train.Saver()
 
         # Start Tensorflow session
         with tf.Session(config=tf.ConfigProto(allow_soft_placement=True, log_device_placement=True)) as sess:
-            sess.run(tf.global_variables_initializer())
-            #writer.add_graph(sess.graph)
 
             if not self.restore_checkpoint == '':
-                self.saver.restore(sess, self.restore_checkpoint)
+                saver.restore(sess, self.restore_checkpoint)
+
+            #sess.run(tf.initialize_all_variables())
+            sess.run(tf.global_variables_initializer())
+            sess.run(tf.local_variables_initializer())
+            sess.run(tf.tables_initializer())
+            #writer.add_graph(sess.graph)
+
 
             #print("{} Start training...".format(datetime.now()))
             for epoch in range(self.num_epochs):
@@ -121,10 +140,16 @@ class ResNet_CNN(object):
                         # loss, acc, s = sess.run([cost, accuracy, merged_summary], feed_dict=feed_dict)
                         loss, acc = sess.run([cost, accuracy], feed_dict=feed_dict)
                         #writer.add_summary(s, epoch * train_batches_per_epoch + step)
-                        #print("Iter {}/{}, training mini-batch loss = {:.5f}, training accuracy = {:.5f}".format(
-                            #step * self.batch_size, train_batches_per_epoch * self.batch_size, loss, acc))
+                        print("Iter {}/{}, training mini-batch loss = {:.5f}, training accuracy = {:.5f}".format(
+                            step * self.batch_size, train_batches_per_epoch * self.batch_size, loss, acc))
                     step += 1
                 train_generator.reset_pointer()
+
+            self.current_checkpoint_path = "./tmp/TF_checkpoints/resnet13_64/checkpoints"
+            mkdirs(self.current_checkpoint_path)
+
+            self.restore_checkpoint = saver.save(sess, self.current_checkpoint_path)
+            print 'checkpoint saved to path %s' %  self.restore_checkpoint
 
 
             output_graph_def = graph_util.convert_variables_to_constants(
@@ -134,38 +159,53 @@ class ResNet_CNN(object):
             )
 
         self.graph_def_str = output_graph_def.SerializeToString()
-        self.saver = None
-        self.is_restore = False
-        del self.ckpt
+        #self.is_restore = False
+        self.checkpoint_path = "./tmp/TF_checkpoints/resnet13_64/checkpoints"
+        mkdirs(self.checkpoint_path)
+        del self.restore_checkpoint
 
 
 
     def predict_proba(self, predict_X):
-        #ckpt = tf.train.get_checkpoint_state(AI_PATH+'/TF_checkpoints/resnet13_64/checkpoints/')
+
+        N_input = len(predict_X)
         predict_X = np.array(predict_X)
         Xshape = predict_X.shape
-        X_flatten = predict_X.flatten()
-        Xsize = X_flatten.size
-        Xdata = np.vstack((X_flatten, np.zeros(Xsize), np.zeros(Xsize))).T
+        Xdata = predict_X.flatten()
+        Xsize = Xdata.size
+        print 'shapes:', N_input, Xshape, Xsize
+        #Xdata = np.vstack((X_flatten, np.zeros(Xsize), np.zeros(Xsize))).T
         #print 'Xdata.shape:', Xdata.shape
         imgs = Xdata.reshape(-1, self.image_size, self.image_size, 1)
         #imgs = predict_X
+
+        N_batches = np.floor(N_input/ self.batch_size).astype(np.int16)
+        Xdata_list = np.array_split(imgs, N_batches)
         
         with tf.Session() as sess:
 
-            if self.graph_def_str == "":
-                if self.saver == None:
-                    self.saver = tf.train.import_meta_graph(self.ckpt.model_checkpoint_path + '.meta')
-                    self.saver.restore(sess, self.ckpt.model_checkpoint_path)
-            else:
-                graph_def = tf.GraphDef()
-                graph_def.ParseFromString(self.graph_def_str)
-                tf.import_graph_def(graph_def, name="")
+            #if self.graph_def_str == "":
+                #if self.saver == None:
+                    #self.saver = tf.train.import_meta_graph(self.ckpt.model_checkpoint_path + '.meta')
+                    #self.saver.restore(sess, self.ckpt.model_checkpoint_path)
+            #else:
+            graph_def = tf.GraphDef()
+            graph_def.ParseFromString(self.graph_def_str)
+            tf.import_graph_def(graph_def, name="")
 
             #tf.get_default_graph().as_graph_def()
             x = sess.graph.get_tensor_by_name('input:0')
             y = sess.graph.get_tensor_by_name('output:0')
-            result = sess.run(y, feed_dict={x: imgs})
+
+            result_list = []
+            for i, batch_xs in enumerate(Xdata_list):
+                # Get a batch of images and labels
+                # And run the training op
+                result_list.append(sess.run(y, feed_dict={x: batch_xs}))
+
+
+            result = np.vstack(result_list)
+        
             #label = np.argmax(result, 1)
             #print(label)
         return result

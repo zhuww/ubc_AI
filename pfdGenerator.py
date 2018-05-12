@@ -70,7 +70,8 @@ class ImageDataGenerator:
         self.pointer += batch_size
 
         # Read images
-        images = np.ndarray(
+        #images = np.ndarray(
+        images = np.zeros(
             [batch_size, self.scale_size[0], self.scale_size[1], 1])  # the last parameter is image channel
         for i in range(len(paths)):
 
@@ -86,7 +87,8 @@ class ImageDataGenerator:
             img = paths[i]
             img = img.astype(np.float32)
 
-            images[i] = img
+            images[i,:,:,0] = img.reshape((64,64))
+            #images[i] = img
 
         # Expand labels to one hot encoding
         one_hot_labels = np.zeros((batch_size, self.n_classes))
