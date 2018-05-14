@@ -197,6 +197,11 @@ class ResNet_CNN(object):
             x = sess.graph.get_tensor_by_name('input:0')
             y = sess.graph.get_tensor_by_name('output:0')
 
+            #sess.run(tf.initialize_all_variables())
+            sess.run(tf.global_variables_initializer())
+            sess.run(tf.local_variables_initializer())
+            sess.run(tf.tables_initializer())
+
             result_list = []
             for i, batch_xs in enumerate(Xdata_list):
                 # Get a batch of images and labels

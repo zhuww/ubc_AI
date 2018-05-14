@@ -122,21 +122,37 @@ class combinedAI(object):
 
 
         input_data = []
+        clfs = []
         for n, clf in enumerate(self.list_of_AIs):
             tr_pfds, tr_target, te_pfds, te_target = split_data(pfds, target, pct=0.75)
             if InteractivePy:
                 clf.fit(tr_pfds, tr_target, **kwds)
+            elif type(clf) in [ResNetClf]:
+                import tensorflow as tf
+                clfs.append(clf)
             else:
                 input_data.append([clf, tr_pfds, tr_target, kwds])
+
+        if len(clfs) > 0:
+            input_data.append([clfs, tr_pfds, tr_target, kwds])
+
+
         def threadfit(clf, tr_pfds, tr_target, kwds):
-            clf.fit(tr_pfds, tr_target, **kwds)
+            if type(clf) == list:
+                for c in clf:
+                    c.fit(tr_pfds, tr_target, **kwds)
+                    #tf.clear_all_variables()
+                    tf.reset_default_graph()
+            else:
+                clf.fit(tr_pfds, tr_target, **kwds)
             return clf
+
         
         if not InteractivePy:
             resultdict = threadit(threadfit, input_data)
 
-            for n, clf in resultdict.iteritems():
-                self.list_of_AIs[n] = clf
+            #for n, clf in resultdict.iteritems():
+                #self.list_of_AIs[n] = clf
 
         self.nclasses = len(np.unique(target))
         if self.nclasses > 2 and self.strategy == 'adaboost':
@@ -842,7 +858,21 @@ def threadpredict_proba(AIlist, pfds):
         #except:
             #print 'Alarm!!!'
         return p
-    resultdict = threadit(predict_prob, [[clf] for clf in AIlist])
+
+    if ResNetClf in [type(a) for a in AIlist]:
+        import tensorflow as tf
+        print 'Using ResNet classifier, turnning multithread off.'
+        threadit.func_defaults[0]['state'] = True
+        resultdict = {}
+        for i, clf in enumerate(AIlist):
+            if type(clf) == ResNetClf: 
+                resultdict[i] = predict_prob(clf)
+                #tf.clear_all_variables()
+                tf.reset_default_graph()
+            else:
+                resultdict[i] = predict_prob(clf)
+    else:
+        resultdict = threadit(predict_prob, [[clf] for clf in AIlist])
     return np.hstack([resultdict[n] for n in range(len(AIlist))])
 
 
