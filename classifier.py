@@ -7,6 +7,7 @@ from sklearn.ensemble import GradientBoostingClassifier as GBC
 from ubc_AI.analysis_tools import split_data
 from ubc_AI import pulsar_nnetwork as pnn 
 from ubc_AI import sktheano_cnn as skcnn
+from itertools import chain
 
 #multiprocess only works in non-interactive mode:
 from ubc_AI.threadit import threadit
@@ -853,26 +854,43 @@ def threadpredict_proba(AIlist, pfds):
     pfds : list of pfds
     """
     def predict_prob(clf):
-        #try:
-        p = clf.predict_proba(pfds)
-        #except:
-            #print 'Alarm!!!'
-        return p
+        if type(clf) is list:
+            res = []
+            for c in clf:
+                p = c.predict_proba(pfds)
+                res.append(p)
+            return res
+        else:
+            p = clf.predict_proba(pfds)
+            return [ p ]
 
-    if ResNetClf in [type(a) for a in AIlist]:
-        import tensorflow as tf
-        print 'Using ResNet classifier, turnning multithread off.'
-        threadit.func_defaults[0]['state'] = True
-        resultdict = {}
-        for i, clf in enumerate(AIlist):
-            if type(clf) == ResNetClf: 
-                resultdict[i] = predict_prob(clf)
-                #tf.clear_all_variables()
-                tf.reset_default_graph()
-            else:
-                resultdict[i] = predict_prob(clf)
-    else:
-        resultdict = threadit(predict_prob, [[clf] for clf in AIlist])
+    resultdict = {}
+    clf_list = []
+    idx_list = []
+    clfs = [] 
+    idxs = []
+    for i, clf in enumerate(AIlist):
+        if type(clf) in [ResNetClf]:
+            clfs.append(clf)
+            idxs.append(i)
+        else:
+            idx_list.append([i])
+            clf_list.append([clf])
+    if len(clfs) > 0:
+        idx_list.append(idxs)
+        clf_list.append([clfs])
+
+    result = threadit(predict_prob, clf_list)
+    idarr = []
+    for ids in idx_list:
+        idarr += ids
+    #print 'idarr:', idarr 
+    resarr = [] 
+    for i in range(len(clf_list)):
+        resarr += result[i] 
+    #print 'result:', resarr,len(resarr)
+    for i in range(len(idarr)):
+        resultdict[idarr[i]] = resarr[i]
     return np.hstack([resultdict[n] for n in range(len(AIlist))])
 
 
