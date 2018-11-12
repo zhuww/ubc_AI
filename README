@@ -23,7 +23,7 @@ TO USE THIS CODE YOU NEED TO INSTALL:
     PRESTO (make sure to include the presto python library in your $PYTHONPATH)
     sklearn (python package, version 0.12.1)
     libblas-dev
-    theano (python)
+    theano (python package, version 0.8.2)
     python-dev
     imagemagick
 
@@ -31,7 +31,7 @@ TO INSTALL the packages:
     apt-get install python-dev
     apt-get install libblas-dev
     easy_install scikit-learn==0.12.1
-    easy_install theano
+    easy_install theano==0.8.2
     apt-get install imagemagick
 
 TO USE OUR PICKLED CLASSIFIERS:
