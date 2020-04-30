@@ -18,7 +18,7 @@ AI_scores = []
 
 for pfd in pfdfile:
     try:
-        score = classifier.report_score([pfdreader(pfd)])
+        score = classifier.report_score([pfdreader(pfd)])[0]
     except:
         print 'corrupted file:', pfd
         badlist.append(pfd)
